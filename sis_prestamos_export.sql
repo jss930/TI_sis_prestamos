@@ -1,9 +1,14 @@
 /*
 cambios hechos del DDD(modelo de dominio)
 persona:
-	value object de contacto se declara directamente
+	-value object de contacto se declara directamente
 	en los atributos de persona
+	-se elimina el VO de tipo de persona para eviar redundacion de información, y 
+	evitaba que un administrativo pueda ser docente o alumno al mismo tiempo
 
+circulacion:
+	VO periodoPrestamo este en atributos de prestamo
+	
 
 */
 
@@ -219,6 +224,76 @@ CREATE INDEX idx_prestamo_estado ON prestamo (estado);
 CREATE INDEX idx_reserva_persona ON reserva (id_persona);
 CREATE INDEX idx_reserva_item ON reserva (id_item);
 CREATE INDEX idx_reserva_estado ON reserva (estado);
+
+-- ================ CIRCULACION ====================
+
+CREATE TYPE motivo_sancion AS ENUM ('DEVOLUCION_TARDIA', 'DANO', 'PERDIDA');
+CREATE TYPE estado_sancion AS ENUM ('ACTIVA', 'CUMPLIDA');
+CREATE TYPE tipo_evento_historial AS ENUM ('CREADO', 'DEVUELTO', 'VENCIDO', 'SANCIONADO');
+
+CREATE TABLE sancion (
+    id_sancion BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id_persona BIGINT NOT NULL,
+    id_prestamo BIGINT NOT NULL,
+    motivo motivo_sancion NOT NULL,
+    fecha_inicio TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_fin TIMESTAMP WITH TIME ZONE NOT NULL,
+    estado estado_sancion NOT NULL DEFAULT 'ACTIVA',
+
+    CONSTRAINT fk_sancion_persona
+        FOREIGN KEY (id_persona)
+        REFERENCES persona (id_persona)
+        ON DELETE RESTRICT,
+
+    CONSTRAINT fk_sancion_prestamo
+        FOREIGN KEY (id_prestamo)
+        REFERENCES prestamo (id_prestamo)
+        ON DELETE RESTRICT,
+
+    CONSTRAINT chk_fechas_sancion
+        CHECK (fecha_fin >= fecha_inicio)
+);
+
+CREATE TABLE politica_prestamo (
+    id_politica BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    tipo_persona VARCHAR(30) NOT NULL,
+    tipo_item categoria_item NOT NULL,
+    duracion_maxima_dias INTEGER NOT NULL,
+    cantidad_maxima_simultanea INTEGER NOT NULL,
+    permite_prestamo_domicilio BOOLEAN NOT NULL DEFAULT true,
+
+    CONSTRAINT chk_duracion_maxima
+        CHECK (duracion_maxima_dias > 0),
+
+    CONSTRAINT chk_cantidad_maxima
+        CHECK (cantidad_maxima_simultanea > 0),
+
+    CONSTRAINT uq_politica_persona_item
+        UNIQUE (tipo_persona, tipo_item)
+);
+
+CREATE TABLE historial_prestamo (
+    id_historial BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id_persona BIGINT NOT NULL,
+    id_prestamo BIGINT NOT NULL,
+    tipo_evento tipo_evento_historial NOT NULL,
+    fecha_evento TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_historial_persona
+        FOREIGN KEY (id_persona)
+        REFERENCES persona (id_persona)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_historial_prestamo
+        FOREIGN KEY (id_prestamo)
+        REFERENCES prestamo (id_prestamo)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX idx_sancion_persona ON sancion (id_persona);
+CREATE INDEX idx_sancion_estado ON sancion (estado);
+CREATE INDEX idx_historial_persona ON historial_prestamo (id_persona);
+CREATE INDEX idx_historial_prestamo ON historial_prestamo (id_prestamo);
 
 
 
