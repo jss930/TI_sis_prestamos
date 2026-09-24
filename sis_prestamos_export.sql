@@ -80,6 +80,7 @@ CREATE TABLE administrativo (
 
 
 -- ================= INVENTARIO =====================
+
 CREATE TYPE categoria_item AS ENUM ('LIBRO', 'EQUIPO', 'OTRO');
 CREATE TYPE estado_fisico AS ENUM ('DISPONIBLE', 'DANADO', 'PERDIDO');
 
@@ -150,3 +151,96 @@ CREATE TABLE ejemplar (
 
 CREATE UNIQUE INDEX idx_ejemplar_codigo_inventario ON ejemplar (codigo_inventario);
 CREATE INDEX idx_ejemplar_item_disponible ON ejemplar (id_item, disponible);
+
+-- ================ CIRCULACION ====================
+
+CREATE TYPE estado_prestamo AS ENUM ('ACTIVO', 'DEVUELTO', 'VENCIDO', 'PERDIDO');
+CREATE TYPE estado_reserva AS ENUM ('PENDIENTE', 'CONFIRMADA', 'EXPIRADA');
+CREATE TYPE lugar_uso AS ENUM ('EN_CAMPUS', 'DOMICILIO');
+
+CREATE TABLE prestamo (
+    id_prestamo BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id_persona BIGINT NOT NULL,
+    id_ejemplar BIGINT NOT NULL,
+    fecha_inicio TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_vencimiento TIMESTAMP WITH TIME ZONE NOT NULL,
+    fecha_devolucion_real TIMESTAMP WITH TIME ZONE,
+    lugar_uso lugar_uso NOT NULL,
+    estado estado_prestamo NOT NULL DEFAULT 'ACTIVO',
+
+    CONSTRAINT fk_prestamo_persona
+        FOREIGN KEY (id_persona)
+        REFERENCES persona (id_persona)
+        ON DELETE RESTRICT,
+
+    CONSTRAINT fk_prestamo_ejemplar
+        FOREIGN KEY (id_ejemplar)
+        REFERENCES ejemplar (id_ejemplar)
+        ON DELETE RESTRICT,
+
+    CONSTRAINT chk_fechas_prestamo
+        CHECK (fecha_vencimiento >= fecha_inicio),
+
+    CONSTRAINT chk_fecha_devolucion
+        CHECK (fecha_devolucion_real IS NULL OR fecha_devolucion_real >= fecha_inicio)
+);
+
+CREATE TABLE reserva (
+    id_reserva BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id_persona BIGINT NOT NULL,
+    id_item BIGINT NOT NULL,
+    id_ejemplar BIGINT,
+    fecha_reserva TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_expiracion TIMESTAMP WITH TIME ZONE NOT NULL,
+    estado estado_reserva NOT NULL DEFAULT 'PENDIENTE',
+
+    CONSTRAINT fk_reserva_persona
+        FOREIGN KEY (id_persona)
+        REFERENCES persona (id_persona)
+        ON DELETE RESTRICT,
+
+    CONSTRAINT fk_reserva_item
+        FOREIGN KEY (id_item)
+        REFERENCES item (id_item)
+        ON DELETE RESTRICT,
+
+    CONSTRAINT fk_reserva_ejemplar
+        FOREIGN KEY (id_ejemplar)
+        REFERENCES ejemplar (id_ejemplar)
+        ON DELETE SET NULL,
+
+    CONSTRAINT chk_fecha_expiracion
+        CHECK (fecha_expiracion >= fecha_reserva)
+);
+
+CREATE INDEX idx_prestamo_persona ON prestamo (id_persona);
+CREATE INDEX idx_prestamo_ejemplar ON prestamo (id_ejemplar);
+CREATE INDEX idx_prestamo_estado ON prestamo (estado);
+CREATE INDEX idx_reserva_persona ON reserva (id_persona);
+CREATE INDEX idx_reserva_item ON reserva (id_item);
+CREATE INDEX idx_reserva_estado ON reserva (estado);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
