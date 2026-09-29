@@ -1,0 +1,3 @@
+import Tabla from '../components/Tabla'
+import EtiquetaEstado from '../components/EtiquetaEstado'
+export default function Reservas({reservas}){const columnas=[{clave:'id',titulo:'N.º'},{clave:'persona',titulo:'PERSONA'},{clave:'item',titulo:'BIEN RESERVADO'},{clave:'fecha',titulo:'FECHA'},{clave:'estado',titulo:'ESTADO',render:f=><EtiquetaEstado estado={f.estado}/>}];return <section className="panel"><div className="panel-titulo"><div><h2>Cola de reservas</h2><p>Se notificará cuando el bien esté disponible</p></div><button className="boton primario">+ Nueva reserva</button></div><Tabla filas={reservas} columnas={columnas}/></section>}
