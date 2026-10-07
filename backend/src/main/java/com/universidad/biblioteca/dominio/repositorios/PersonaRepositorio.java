@@ -1,7 +1,7 @@
 package com.universidad.biblioteca.dominio.repositorios;
 
-import pe.edu.unsa.sisprestamos.dominio.usuarios.*;
-import pe.edu.unsa.sisprestamos.dominio.compartido.Identificador;
+import com.universidad.biblioteca.dominio.persona.EstadoCuenta;
+import com.universidad.biblioteca.dominio.persona.Persona;
 
 import java.util.List;
 import java.util.Optional;
@@ -10,7 +10,7 @@ import java.util.Optional;
  * Interfaz del repositorio de Personas (Puerto de salida).
  * Define el contrato para la persistencia de personas.
  */
-public interface IPersonaRepositorio {
+public interface PersonaRepositorio {
 
     /**
      * Guarda una persona nueva o actualiza una existente.
@@ -35,7 +35,7 @@ public interface IPersonaRepositorio {
     /**
      * Busca todas las personas con un estado específico.
      */
-    List<Persona> buscarPorEstado(Persona.Estado estado);
+    List<Persona> buscarPorEstado(EstadoCuenta estado);
 
     /**
      * Busca personas por nombre o apellido (búsqueda parcial, case-insensitive).

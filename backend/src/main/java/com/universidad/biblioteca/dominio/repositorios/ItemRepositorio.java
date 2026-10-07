@@ -1,7 +1,7 @@
 package com.universidad.biblioteca.dominio.repositorios;
 
-import pe.edu.unsa.sisprestamos.dominio.catalogo.*;
-import pe.edu.unsa.sisprestamos.dominio.compartido.Identificador;
+import com.universidad.biblioteca.dominio.item.CategoriaItem;
+import com.universidad.biblioteca.dominio.item.Item;
 
 import java.util.List;
 import java.util.Optional;
@@ -9,13 +9,13 @@ import java.util.Optional;
 /**
  * Interfaz del repositorio de Items (Puerto de salida).
  */
-public interface IItemRepositorio {
+public interface ItemRepositorio {
 
     Item guardar(Item item);
 
     Optional<Item> buscarPorId(Long id);
 
-    List<Item> buscarPorCategoria(Item.Categoria categoria);
+    List<Item> buscarPorCategoria(CategoriaItem categoria);
 
     List<Item> buscarPorTitulo(String titulo);
 

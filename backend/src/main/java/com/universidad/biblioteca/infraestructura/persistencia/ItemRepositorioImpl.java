@@ -1,11 +1,10 @@
 package com.universidad.biblioteca.infraestructura.persistencia;
 
-import pe.edu.unsa.sisprestamos.dominio.catalogo.*;
-import pe.edu.unsa.sisprestamos.repositorio.jpa.entidad.*;
-import pe.edu.unsa.sisprestamos.repositorio.jpa.repositorio.*;
-import pe.edu.unsa.sisprestamos.repositorio.jpa.mapeador.CatalogoMapeador;
-import pe.edu.unsa.sisprestamos.repositorio.catalogo.IItemRepositorio;
-import pe.edu.unsa.sisprestamos.repositorio.catalogo.IEjemplarRepositorio;
+import com.universidad.biblioteca.dominio.catalogo.*;
+import com.universidad.biblioteca.infraestructura.persistencia.entidad.*;
+import com.universidad.biblioteca.infraestructura.persistencia.repositorios.*;
+import com.universidad.biblioteca.infraestructura.persistencia.mapeador.CatalogoMapeador;
+import com.universidad.biblioteca.dominio.catalogo.IItemRepositorio;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
