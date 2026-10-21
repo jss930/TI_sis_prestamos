@@ -10,6 +10,9 @@ export interface Sesion {
   nombre: string
   email: string
   publica: boolean
+  id?: string
+  permisos?: PermisoOperativo[]
+  rolAcceso?: RolAcceso
 }
 
 export type TipoItem = 'LIBRO' | 'EQUIPO' | 'OTRO'

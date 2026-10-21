@@ -1,4 +1,4 @@
-import type { Pagina, Sesion } from '../types'
+import type { Pagina, PermisoOperativo, RolAcceso, Sesion } from '../types'
 import { iniciales } from '../utils/format'
 
 const OPCIONES: Array<{ id: Pagina; icono: string; texto: string }> = [
@@ -16,6 +16,9 @@ interface Props {
   cerrarSesion: () => void
   sesion: Sesion
   soloCatalogo?: boolean
+  permisos?: PermisoOperativo[]
+  rolAcceso?: RolAcceso
+  esPersonal?: boolean
 }
 
 export default function BarraLateral({
@@ -24,8 +27,29 @@ export default function BarraLateral({
   cerrarSesion,
   sesion,
   soloCatalogo = false,
+  permisos = [],
+  rolAcceso,
+  esPersonal = false,
 }: Props) {
-  const opciones = soloCatalogo ? OPCIONES.filter((opcion) => opcion.id === 'catalogo') : OPCIONES
+  const opciones = soloCatalogo
+    ? OPCIONES.filter((opcion) => opcion.id === 'catalogo')
+    : OPCIONES.filter((opcion) => {
+        if (opcion.id === 'catalogo') return true
+        if (opcion.id === 'resumen') return esPersonal
+        if (opcion.id === 'prestamos') return permisos.includes('REGISTRAR_PRESTAMO')
+        if (opcion.id === 'personas')
+          return (
+            permisos.includes('GESTIONAR_USUARIOS') ||
+            permisos.includes('VALIDAR_USUARIO_PROVISIONAL')
+          )
+        if (opcion.id === 'sanciones') return permisos.includes('GESTIONAR_SANCIONES')
+        if (opcion.id === 'administracion') return rolAcceso === 'ADMINISTRADOR'
+        return false
+      })
+
+  const etiquetaRol = sesion.publica
+    ? 'Catálogo público'
+    : rolAcceso ?? 'Sin permisos operativos'
 
   return (
     <aside className="barra-lateral">
@@ -53,7 +77,7 @@ export default function BarraLateral({
         <div className="avatar">{iniciales(sesion.nombre)}</div>
         <div>
           <strong>{sesion.nombre}</strong>
-          <small>{sesion.publica ? 'Catálogo público' : 'Personal bibliotecario'}</small>
+          <small>{etiquetaRol}</small>
         </div>
       </div>
       <button className="cerrar" onClick={cerrarSesion} type="button">

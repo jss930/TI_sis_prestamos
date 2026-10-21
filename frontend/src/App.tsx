@@ -80,7 +80,10 @@ export default function App() {
   const usuarioActual = sesion && !sesion.publica
     ? datos.usuarios.find((usuario) => usuario.email === sesion.email) ?? null
     : null
-  const permisosActuales = usuarioActual?.permisos ?? []
+  const permisosActuales = usuarioActual?.permisos ?? sesion?.permisos ?? []
+  const rolActual = usuarioActual?.rolAcceso ?? sesion?.rolAcceso
+  const esPersonal =
+    usuarioActual?.estado === 'VALIDADO' && permisosActuales.length > 0
 
   const crearLibroCatalogo = useCallback(
     async (libro: NuevoLibroCatalogo) => {
@@ -177,8 +180,16 @@ export default function App() {
     return (
       <Login
         alIngresar={(nuevaSesion) => {
-          setSesion(nuevaSesion)
-          setPagina(nuevaSesion.publica ? 'catalogo' : 'resumen')
+          const usuario = datos.usuarios.find((item) => item.email === nuevaSesion.email)
+          const esPersonal =
+            usuario?.estado === 'VALIDADO' && (usuario?.permisos.length ?? 0) > 0
+          setSesion({
+            ...nuevaSesion,
+            id: usuario?.id,
+            permisos: usuario?.permisos ?? [],
+            rolAcceso: usuario?.rolAcceso,
+          })
+          setPagina(nuevaSesion.publica ? 'catalogo' : esPersonal ? 'resumen' : 'catalogo')
         }}
         alVerCatalogo={() => {
           setSesion({ nombre: 'Visitante', email: '', publica: true })
@@ -231,7 +242,8 @@ export default function App() {
             usuarios={datos.usuarios}
             catalogo={datos.catalogo}
             ejemplares={datos.ejemplares}
-            operadorDemoId={OPERADOR_DEMO_ID}
+            operadorId={permisosActuales.includes('REGISTRAR_PRESTAMO') ? usuarioActual?.id ?? null : null}
+            puedeOperar={permisosActuales.includes('REGISTRAR_PRESTAMO')}
             crearPrestamo={crearPrestamo}
             devolverPrestamo={devolverPrestamo}
           />
@@ -253,6 +265,9 @@ export default function App() {
         cerrarSesion={cerrarSesion}
         sesion={sesion}
         soloCatalogo={soloCatalogo}
+        permisos={permisosActuales}
+        rolAcceso={rolActual}
+        esPersonal={esPersonal}
       />
       <main className="contenido">
         <Encabezado pagina={paginaActual} publica={soloCatalogo} />

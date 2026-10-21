@@ -6,14 +6,25 @@ interface Props {
   alVerCatalogo: () => void
 }
 
+const CUENTAS_DEMO = [
+  { nombre: 'Elena Bibliotecaria', email: 'bibliotecario@biblioteca.pe', rol: 'Administrador' },
+  { nombre: 'Luis Quispe', email: 'luis@universidad.edu.pe', rol: 'Estudiante' },
+  { nombre: 'Ana Torres', email: 'ana@universidad.edu.pe', rol: 'Estudiante (provisional)' },
+  { nombre: 'Rosa Docente', email: 'docente@universidad.edu.pe', rol: 'Docente' },
+]
+
 export default function Login({ alIngresar, alVerCatalogo }: Props) {
   const [correo, setCorreo] = useState('bibliotecario@biblioteca.pe')
   const [clave, setClave] = useState('')
 
+  function ingresarConCorreo(email: string) {
+    const nombre = email.split('@')[0]?.replace(/[._-]/g, ' ') || 'Personal bibliotecario'
+    alIngresar({ nombre, email, publica: false })
+  }
+
   function enviar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault()
-    const nombre = correo.split('@')[0]?.replace(/[._-]/g, ' ') || 'Personal bibliotecario'
-    alIngresar({ nombre, email: correo, publica: false })
+    ingresarConCorreo(correo)
   }
 
   return (
@@ -37,7 +48,25 @@ export default function Login({ alIngresar, alVerCatalogo }: Props) {
         <form onSubmit={enviar}>
           <p className="sobrelinea">PORTAL INSTITUCIONAL</p>
           <h2>Bienvenido</h2>
-          <p>Ingresa con tu cuenta de personal para operar el sistema.</p>
+          <p>Ingresa con una cuenta demo para operar el sistema.</p>
+
+          <div className="aviso" style={{ marginBottom: '1rem' }}>
+            Modo demo: sin contraseña. La sesión se resuelve por el correo elegido.
+          </div>
+
+          <div className="cuentas-demo">
+            {CUENTAS_DEMO.map((cuenta) => (
+              <button
+                key={cuenta.email}
+                className="boton secundario"
+                type="button"
+                onClick={() => ingresarConCorreo(cuenta.email)}
+              >
+                {cuenta.nombre} — {cuenta.rol}
+              </button>
+            ))}
+          </div>
+
           <label>
             Correo institucional
             <input
@@ -48,13 +77,12 @@ export default function Login({ alIngresar, alVerCatalogo }: Props) {
             />
           </label>
           <label>
-            Contraseña
+            Contraseña (demo)
             <input
               type="password"
               value={clave}
               onChange={(evento) => setClave(evento.target.value)}
               placeholder="••••••••"
-              required
             />
           </label>
           <button className="boton primario" type="submit">
@@ -63,10 +91,6 @@ export default function Login({ alIngresar, alVerCatalogo }: Props) {
           <button className="boton secundario boton-catalogo" type="button" onClick={alVerCatalogo}>
             Ver catálogo público
           </button>
-          <small>
-            Modo demo: la autenticación real todavía no está implementada. Cualquier contraseña permite
-            continuar; no uses credenciales reales.
-          </small>
         </form>
       </section>
     </main>
