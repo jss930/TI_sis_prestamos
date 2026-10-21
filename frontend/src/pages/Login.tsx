@@ -7,7 +7,7 @@ interface Props {
 }
 
 export default function Login({ alIngresar, alVerCatalogo }: Props) {
-  const [correo, setCorreo] = useState('encargado@unsa.edu.pe')
+  const [correo, setCorreo] = useState('bibliotecario@biblioteca.pe')
   const [clave, setClave] = useState('')
 
   function enviar(evento: FormEvent<HTMLFormElement>) {

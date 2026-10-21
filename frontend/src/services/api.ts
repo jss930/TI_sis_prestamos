@@ -2,7 +2,12 @@ import type {
   CatalogoItem,
   Ejemplar,
   EstadoFisico,
+  NuevoEquipoCatalogo,
+  NuevoLibroCatalogo,
+  NuevoOtroCatalogo,
   NuevoPrestamo,
+  NuevoUsuarioCuenta,
+  PermisoOperativo,
   Prestamo,
   ProblemDetail,
   Sancion,
@@ -111,6 +116,63 @@ export const api = {
     solicitar<Prestamo>(`/prestamos/${id}/devolucion`, {
       method: 'POST',
       body: JSON.stringify({ estadoFisico }),
+    }),
+
+  // Catalogo
+  crearLibroCatalogo: (libro: NuevoLibroCatalogo) =>
+    solicitar<CatalogoItem>('/catalogo/libros', {
+      method: 'POST',
+      body: JSON.stringify(libro),
+    }),
+  crearEquipoCatalogo: (equipo: NuevoEquipoCatalogo) =>
+    solicitar<CatalogoItem>('/catalogo/equipos', {
+      method: 'POST',
+      body: JSON.stringify(equipo),
+    }),
+  crearOtroCatalogo: (otro: NuevoOtroCatalogo) =>
+    solicitar<CatalogoItem>('/catalogo/otros', {
+      method: 'POST',
+      body: JSON.stringify(otro),
+    }),
+  actualizarTituloCatalogo: (id: string, titulo: string) =>
+    solicitar<CatalogoItem>(`/catalogo/${id}/titulo`, {
+      method: 'PATCH',
+      body: JSON.stringify({ titulo }),
+    }),
+  activarCatalogo: (id: string) =>
+    solicitar<CatalogoItem>(`/catalogo/${id}/activar`, { method: 'POST' }),
+  desactivarCatalogo: (id: string) =>
+    solicitar<CatalogoItem>(`/catalogo/${id}/desactivar`, { method: 'POST' }),
+
+  // Usuarios
+  crearUsuario: (usuario: NuevoUsuarioCuenta) =>
+    solicitar<Usuario>('/usuarios', {
+      method: 'POST',
+      body: JSON.stringify(usuario),
+    }),
+  validarUsuario: (id: string, operadorId: string) =>
+    solicitar<Usuario>(`/usuarios/${id}/validar`, {
+      method: 'POST',
+      body: JSON.stringify({ operadorId }),
+    }),
+  suspenderUsuario: (id: string, operadorId: string, motivo: string) =>
+    solicitar<Usuario>(`/usuarios/${id}/suspender`, {
+      method: 'POST',
+      body: JSON.stringify({ operadorId, motivo }),
+    }),
+  reactivarUsuario: (id: string, operadorId: string) =>
+    solicitar<Usuario>(`/usuarios/${id}/reactivar`, {
+      method: 'POST',
+      body: JSON.stringify({ operadorId }),
+    }),
+  otorgarPermisoUsuario: (id: string, operadorId: string, permiso: PermisoOperativo) =>
+    solicitar<Usuario>(`/usuarios/${id}/permisos`, {
+      method: 'POST',
+      body: JSON.stringify({ operadorId, permiso }),
+    }),
+  revocarPermisoUsuario: (id: string, permiso: PermisoOperativo, operadorId: string) =>
+    solicitar<Usuario>(`/usuarios/${id}/permisos/${permiso}?operadorId=${operadorId}`, {
+      method: 'DELETE',
     }),
 }
 

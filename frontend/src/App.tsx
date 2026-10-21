@@ -10,7 +10,18 @@ import Sanciones from './pages/Sanciones'
 import Administracion from './pages/Administracion'
 import { OPERADOR_DEMO_ID } from './constants'
 import { api, mensajeDeError } from './services/api'
-import type { DatosBiblioteca, EstadoFisico, NuevoPrestamo, Pagina, Sesion } from './types'
+import type {
+  DatosBiblioteca,
+  EstadoFisico,
+  NuevoEquipoCatalogo,
+  NuevoLibroCatalogo,
+  NuevoOtroCatalogo,
+  NuevoPrestamo,
+  NuevoUsuarioCuenta,
+  Pagina,
+  PermisoOperativo,
+  Sesion,
+} from './types'
 
 const DATOS_VACIOS: DatosBiblioteca = {
   catalogo: [],
@@ -66,6 +77,97 @@ export default function App() {
     [cargarDatos],
   )
 
+  const usuarioActual = sesion && !sesion.publica
+    ? datos.usuarios.find((usuario) => usuario.email === sesion.email) ?? null
+    : null
+  const permisosActuales = usuarioActual?.permisos ?? []
+
+  const crearLibroCatalogo = useCallback(
+    async (libro: NuevoLibroCatalogo) => {
+      await api.crearLibroCatalogo(libro)
+      await cargarDatos(true)
+    },
+    [cargarDatos],
+  )
+  const crearEquipoCatalogo = useCallback(
+    async (equipo: NuevoEquipoCatalogo) => {
+      await api.crearEquipoCatalogo(equipo)
+      await cargarDatos(true)
+    },
+    [cargarDatos],
+  )
+  const crearOtroCatalogo = useCallback(
+    async (otro: NuevoOtroCatalogo) => {
+      await api.crearOtroCatalogo(otro)
+      await cargarDatos(true)
+    },
+    [cargarDatos],
+  )
+  const actualizarTituloCatalogo = useCallback(
+    async (id: string, titulo: string) => {
+      await api.actualizarTituloCatalogo(id, titulo)
+      await cargarDatos(true)
+    },
+    [cargarDatos],
+  )
+  const activarCatalogo = useCallback(
+    async (id: string) => {
+      await api.activarCatalogo(id)
+      await cargarDatos(true)
+    },
+    [cargarDatos],
+  )
+  const desactivarCatalogo = useCallback(
+    async (id: string) => {
+      await api.desactivarCatalogo(id)
+      await cargarDatos(true)
+    },
+    [cargarDatos],
+  )
+
+  const crearUsuarioCuenta = useCallback(
+    async (usuario: NuevoUsuarioCuenta) => {
+      await api.crearUsuario(usuario)
+      await cargarDatos(true)
+    },
+    [cargarDatos],
+  )
+  const validarUsuarioCuenta = useCallback(
+    async (id: string) => {
+      await api.validarUsuario(id, OPERADOR_DEMO_ID)
+      await cargarDatos(true)
+    },
+    [cargarDatos],
+  )
+  const suspenderUsuarioCuenta = useCallback(
+    async (id: string, motivo: string) => {
+      await api.suspenderUsuario(id, OPERADOR_DEMO_ID, motivo)
+      await cargarDatos(true)
+    },
+    [cargarDatos],
+  )
+  const reactivarUsuarioCuenta = useCallback(
+    async (id: string) => {
+      await api.reactivarUsuario(id, OPERADOR_DEMO_ID)
+      await cargarDatos(true)
+    },
+    [cargarDatos],
+  )
+  const otorgarPermisoUsuarioCuenta = useCallback(
+    async (id: string, permiso: PermisoOperativo) => {
+      await api.otorgarPermisoUsuario(id, OPERADOR_DEMO_ID, permiso)
+      await cargarDatos(true)
+    },
+    [cargarDatos],
+  )
+  const revocarPermisoUsuarioCuenta = useCallback(
+    async (id: string, permiso: PermisoOperativo) => {
+      await api.revocarPermisoUsuario(id, permiso, OPERADOR_DEMO_ID)
+      await cargarDatos(true)
+    },
+    [cargarDatos],
+  )
+
   function cerrarSesion() {
     setSesion(null)
     setPagina('resumen')
@@ -94,7 +196,18 @@ export default function App() {
       case 'resumen':
         return <Resumen datos={datos} irA={setPagina} />
       case 'personas':
-        return <Personas usuarios={datos.usuarios} />
+        return (
+          <Personas
+            usuarios={datos.usuarios}
+            permisos={permisosActuales}
+            crearUsuario={crearUsuarioCuenta}
+            validarUsuario={validarUsuarioCuenta}
+            suspenderUsuario={suspenderUsuarioCuenta}
+            reactivarUsuario={reactivarUsuarioCuenta}
+            otorgarPermiso={otorgarPermisoUsuarioCuenta}
+            revocarPermiso={revocarPermisoUsuarioCuenta}
+          />
+        )
       case 'catalogo':
         return (
           <Catalogo
@@ -102,6 +215,13 @@ export default function App() {
             ejemplares={datos.ejemplares}
             puedeSolicitar={!soloCatalogo}
             irA={setPagina}
+            permisos={permisosActuales}
+            crearLibro={crearLibroCatalogo}
+            crearEquipo={crearEquipoCatalogo}
+            crearOtro={crearOtroCatalogo}
+            actualizarTitulo={actualizarTituloCatalogo}
+            activar={activarCatalogo}
+            desactivar={desactivarCatalogo}
           />
         )
       case 'prestamos':

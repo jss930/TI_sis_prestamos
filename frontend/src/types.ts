@@ -18,11 +18,14 @@ export type EstadoCuenta = 'PROVISIONAL' | 'VALIDADO' | 'SUSPENDIDO'
 
 export type PerfilPrestatario = 'ALUMNO' | 'DOCENTE' | 'ADMINISTRATIVO'
 
+export type RolAcceso = 'ESTUDIANTE' | 'DOCENTE' | 'ADMINISTRATIVO' | 'ADMINISTRADOR'
+
 export type PermisoOperativo =
   | 'REGISTRAR_PRESTAMO'
   | 'VALIDAR_USUARIO_PROVISIONAL'
   | 'GESTIONAR_CATALOGO'
   | 'GESTIONAR_SANCIONES'
+  | 'GESTIONAR_USUARIOS'
 
 export type EstadoFisico = 'DISPONIBLE' | 'PRESTADO' | 'DANADO' | 'PERDIDO' | 'BAJA'
 
@@ -62,6 +65,7 @@ export interface Usuario {
   fechaAlta: string
   fechaValidacion: string | null
   motivoSuspension: string | null
+  rolAcceso: RolAcceso
 }
 
 export interface Ejemplar {
@@ -118,6 +122,31 @@ export interface ProblemDetail {
   instance?: string
   codigo?: string
   campos?: Record<string, string>
+}
+
+export interface NuevoLibroCatalogo {
+  titulo: string
+  isbn: string
+  autor: string
+  editorial: string
+  anioPublicacion: number
+}
+
+export interface NuevoEquipoCatalogo {
+  titulo: string
+  marca: string
+  modelo: string
+}
+
+export interface NuevoOtroCatalogo {
+  titulo: string
+  descripcion: string
+}
+
+export interface NuevoUsuarioCuenta {
+  email: string
+  nombreCompleto: string
+  perfil: PerfilPrestatario
 }
 
 export interface DatosBiblioteca {
