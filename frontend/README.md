@@ -9,13 +9,81 @@
 
 Interfaz React sencilla para gestionar libros, laptops, lentes inteligentes y material deportivo.
 
-## Ejecutar
+## Requisitos
+
+- **Node.js 18 o superior** (incluye `npm`).
+- **pnpm** es opcional; si no está instalado, los scripts usan `npm`.
+- No se requiere una versión específica de Node más allá de la indicada.
+
+Verifica:
 
 ```bash
-npm install
-npm run dev
+node --version
+npm --version
+pnpm --version   # opcional
 ```
 
-Copia `.env.example` como `.env` si necesitas cambiar la URL del backend.
+## Ejecutar
 
-El frontend captura información, realiza peticiones y muestra respuestas. Las reglas sobre límites, sanciones, disponibilidad y plazos pertenecen al backend. Mientras se conecta la API, la interfaz usa `src/data/datosDemo.js`; las peticiones preparadas están en `src/services/api.js`.
+### Linux / macOS
+
+```bash
+cd frontend
+./iniciar.sh
+```
+
+O manualmente:
+
+```bash
+cd frontend
+pnpm install   # o: npm install
+pnpm dev       # o: npm run dev
+```
+
+### Windows
+
+```bat
+cd frontend
+iniciar.bat
+```
+
+O manualmente en PowerShell/CMD:
+
+```powershell
+cd frontend
+pnpm install   # o: npm install
+pnpm dev       # o: npm run dev
+```
+
+La URL de desarrollo la muestra Vite (por defecto `http://localhost:5173`).
+
+## Configuración
+
+Copia `.env.example` como `.env` si necesitas cambiar la URL del backend:
+
+**Linux / macOS**
+
+```bash
+cp .env.example .env
+```
+
+**Windows CMD**
+
+```bat
+copy .env.example .env
+```
+
+**Windows PowerShell**
+
+```powershell
+Copy-Item .env.example .env
+```
+
+> El prototipo legacy todavía no está integrado con `/api/v1`; las rutas de
+> `src/services/api.js` corresponden al diseño anterior. La integración se hará en la
+> fase 3.
+
+El frontend captura información, realiza peticiones y muestra respuestas. Las reglas sobre
+límites, sanciones, disponibilidad y plazos pertenecen al backend. Mientras se conecta la
+API, la interfaz usa `src/data/datosDemo.js`; las peticiones preparadas están en
+`src/services/api.js`.

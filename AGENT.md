@@ -11,20 +11,57 @@ funcionan.
 - Corte 1 completado: dominio + aplicación + API REST con persistencia **in-memory**.
 - 57 tests verdes.
 - El legacy está en el tag `legacy-v0` y en `docs/legacy/`; **no lo borres**.
-- Rama de trabajo actual: `rewrite/v2` (se hará fast-forward a `main` al cerrar el corte).
+- Rama principal: `main`. El corte 1 se desarrolló en `rewrite/v2` y se integra por Pull Request.
 
 ---
 
 ## 2. Comandos
 
+### Requisitos
+
+- JDK 21 (`java -version` debe mostrar `21.x`).
+- `JAVA_HOME` apuntando al JDK 21.
+- No hace falta instalar Maven: se usa el wrapper incluido en `backend/`.
+
+### Linux / macOS
+
 ```bash
 cd backend
-export JAVA_HOME=/home/lizzz/tools/jdk-21.0.12.1+1   # o tu JDK 21
+
+export JAVA_HOME=/ruta/a/jdk-21          # Linux
+# export JAVA_HOME=$(/usr/libexec/java_home -v 21)   # macOS
 export PATH="$JAVA_HOME/bin:$PATH"
 
+./mvnw -v
 ./mvnw clean compile      # debe terminar en BUILD SUCCESS
 ./mvnw test               # 57 tests, 0 fallos
 ./mvnw spring-boot:run    # API en :8080, perfil demo
+```
+
+### Windows PowerShell
+
+```powershell
+cd backend
+
+$env:JAVA_HOME = "C:\ruta\a\jdk-21"
+$env:Path = "$env:JAVA_HOME\bin;$env:Path"
+
+.\mvnw.cmd -v
+.\mvnw.cmd clean compile
+.\mvnw.cmd test
+.\mvnw.cmd spring-boot:run
+```
+
+### Windows CMD
+
+```bat
+cd backend
+set "JAVA_HOME=C:\ruta\a\jdk-21"
+set "PATH=%JAVA_HOME%\bin;%PATH%"
+mvnw.cmd -v
+mvnw.cmd clean compile
+mvnw.cmd test
+mvnw.cmd spring-boot:run
 ```
 
 Health check:
@@ -32,6 +69,8 @@ Health check:
 ```bash
 curl -s http://localhost:8080/actuator/health
 ```
+
+Web: <http://localhost:8080/api/v1>
 
 Demo funcional: [`docs/demo.md`](docs/demo.md).
 
@@ -175,8 +214,10 @@ Ejemplo: reservas.
 
 ## 10. Notas de entorno
 
-- No hay Java del sistema; usa el JDK 21 indicado o instala Temurin.
-- El wrapper de Maven ya está en `backend/mvnw`; no requiere Maven global.
-- GitHub directo puede fallar en este entorno; `codeload.github.com` funcionó para bajar
-  el proyecto original.
-- El repo no tiene credenciales de push; el usuario debe subir los cambios.
+- Requiere JDK 21; verifica `java -version` y define `JAVA_HOME`.
+- El wrapper está en `backend/mvnw` (Linux/macOS) y `backend/mvnw.cmd` (Windows); no hace
+  falta instalar Maven global.
+- La primera compilación descarga dependencias desde Maven Central.
+- En Windows usa PowerShell/CMD y `.\mvnw.cmd`; en Linux/macOS usa `./mvnw`.
+- No commitees rutas absolutas, credenciales, tokens ni archivos `.env`.
+- Si trabajas en equipo, crea una rama por cambio y abre un Pull Request contra `main`.

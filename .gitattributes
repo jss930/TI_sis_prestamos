@@ -1,0 +1,20 @@
+# Normaliza los finales de línea para que el repo funcione en Windows, Linux y macOS.
+* text=auto
+
+# Scripts de Unix: siempre LF.
+*.sh text eol=lf
+mvnw text eol=lf
+
+# Scripts de Windows: siempre CRLF.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Binarios: no tocar.
+*.jar binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary

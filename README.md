@@ -35,7 +35,7 @@ Es suficiente para demo, pruebas y para validar el modelo antes de acoplarlo a u
 |---|---|
 | Lenguaje | Java 21 |
 | Framework | Spring Boot 3.2.0 (Web, Validation, Actuator) |
-| Build | Maven Wrapper (`./mvnw`) |
+| Build | Maven Wrapper (`./mvnw` en Linux/macOS, `mvnw.cmd` en Windows) |
 | Tests | JUnit 5, AssertJ, ArchUnit, Spring Boot Test |
 | Persistencia (fase 1) | Adaptadores in-memory |
 | Persistencia (fase 2) | PostgreSQL 16 + Spring Data JPA + Flyway |
@@ -50,22 +50,87 @@ Persistence, Hibernate ni Jackson; hay una regla de ArchUnit que lo verifica.
 
 ### Requisitos
 
-- JDK 21 (Temurin recomendado).
-- No hace falta instalar Maven: se usa el wrapper.
+- **JDK 21** instalado. Verifica que `java -version` muestre `21.x`.
+- **Maven no es necesario**: el repositorio incluye Maven Wrapper.
+- `JAVA_HOME` debe apuntar al JDK 21. En Linux/macOS `mvnw` puede detectarlo desde
+  `java`/`javac`, pero es recomendable definirlo. En Windows, `mvnw.cmd` lo requiere.
+- Git y conexión a internet la primera vez (Maven descarga dependencias).
+- Docker es opcional: solo se usa en la fase 2 para PostgreSQL.
 
-En este workspace el JDK está en:
+### Configurar Java 21
+
+**Linux**
 
 ```bash
-export JAVA_HOME=/home/lizzz/tools/jdk-21.0.12.1+1
+export JAVA_HOME=/ruta/a/jdk-21
 export PATH="$JAVA_HOME/bin:$PATH"
+java -version
+```
+
+**macOS**
+
+```bash
+export JAVA_HOME=$(/usr/libexec/java_home -v 21)
+export PATH="$JAVA_HOME/bin:$PATH"
+java -version
+```
+
+**Windows PowerShell**
+
+```powershell
+$env:JAVA_HOME = "C:\ruta\a\jdk-21"
+$env:Path = "$env:JAVA_HOME\bin;$env:Path"
+java -version
+```
+
+**Windows CMD**
+
+```bat
+set "JAVA_HOME=C:\ruta\a\jdk-21"
+set "PATH=%JAVA_HOME%\bin;%PATH%"
+java -version
+```
+
+> `C:\ruta\a\jdk-21` y `/ruta/a/jdk-21` son ejemplos. Usa la ruta real de tu instalación;
+> no copies rutas de la máquina de otro compañero.
+
+### Verificar el Maven Wrapper
+
+Los archivos `mvnw` (Unix) y `mvnw.cmd` (Windows) están en `backend/`, junto con
+`.mvn/wrapper/`.
+
+**Linux / macOS**
+
+```bash
+cd backend
+ls -l mvnw mvnw.cmd .mvn/wrapper/
+./mvnw -v
+```
+
+**Windows PowerShell**
+
+```powershell
+cd backend
+dir mvnw, mvnw.cmd, .mvn\wrapper
+.\mvnw.cmd -v
 ```
 
 ### Compilar y probar
+
+**Linux / macOS**
 
 ```bash
 cd backend
 ./mvnw clean compile
 ./mvnw test
+```
+
+**Windows (PowerShell o CMD)**
+
+```powershell
+cd backend
+.\mvnw.cmd clean compile
+.\mvnw.cmd test
 ```
 
 Resultado esperado del corte 1:
@@ -77,15 +142,26 @@ Tests run: 57, Failures: 0, Errors: 0, Skipped: 0
 
 ### Levantar la API
 
+**Linux / macOS**
+
 ```bash
 cd backend
 ./mvnw spring-boot:run
 ```
 
+**Windows**
+
+```powershell
+cd backend
+.\mvnw.cmd spring-boot:run
+```
+
 - API: <http://localhost:8080/api/v1>
 - Health: <http://localhost:8080/actuator/health>
 - Perfil por defecto: `demo` (carga datos de ejemplo).
-- Para arrancar sin datos demo: `./mvnw spring-boot:run -Dspring-boot.run.profiles=test`
+- Para arrancar sin datos demo:
+  - Linux/macOS: `./mvnw spring-boot:run -Dspring-boot.run.profiles=test`
+  - Windows: `.\mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=test`
 
 La demo completa con `curl` está en [`docs/demo.md`](docs/demo.md).
 

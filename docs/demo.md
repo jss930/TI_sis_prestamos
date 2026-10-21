@@ -5,11 +5,23 @@ Todos los datos viven en memoria: **reiniciar la aplicación restaura el escenar
 
 ## 0. Arrancar
 
+### Linux / macOS
+
 ```bash
 cd backend
-export JAVA_HOME=/home/lizzz/tools/jdk-21.0.12.1+1   # ajusta a tu JDK 21
-export PATH="$JAVA_HOME/bin:$PATH"
 ./mvnw spring-boot:run
+```
+
+### Windows (PowerShell)
+
+```powershell
+cd backend
+
+# Si JAVA_HOME no está configurado:
+$env:JAVA_HOME = "C:\ruta\a\jdk-21"
+$env:Path = "$env:JAVA_HOME\bin;$env:Path"
+
+.\mvnw.cmd spring-boot:run
 ```
 
 En otra terminal:
@@ -19,6 +31,18 @@ export BASE=http://localhost:8080/api/v1
 curl -s http://localhost:8080/actuator/health
 # {"status":"UP"}
 ```
+
+> Los comandos de esta demo usan sintaxis bash (`export`, `$BASE`). En Windows puedes
+> ejecutarlos desde **Git Bash** o **WSL**, o adaptarlos a PowerShell:
+>
+> ```powershell
+> $BASE = "http://localhost:8080/api/v1"
+> curl.exe -s http://localhost:8080/actuator/health
+> curl.exe -s "$BASE/catalogo" | ConvertFrom-Json | ConvertTo-Json -Depth 5
+> ```
+>
+> `curl.exe` viene incluido en Windows 10/11. En PowerShell, `curl` sin `.exe` es un alias
+> de `Invoke-WebRequest` y no acepta los mismos parámetros.
 
 IDs que se usan en toda la demo:
 
