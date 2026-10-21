@@ -6,8 +6,10 @@ import com.biblioteca.inventory.domain.vo.Barcode;
 import com.biblioteca.inventory.domain.vo.EjemplarId;
 import com.biblioteca.shared.domain.NotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class ObtenerEjemplarUseCase {
 
     private final EjemplarRepository ejemplares;

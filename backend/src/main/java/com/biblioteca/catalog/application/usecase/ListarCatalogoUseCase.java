@@ -4,11 +4,13 @@ import com.biblioteca.catalog.domain.model.CatalogoItem;
 import com.biblioteca.catalog.domain.model.TipoItem;
 import com.biblioteca.catalog.domain.repository.CatalogoItemRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Locale;
 
 @Service
+@Transactional
 public class ListarCatalogoUseCase {
 
     private final CatalogoItemRepository repositorio;

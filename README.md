@@ -2,10 +2,10 @@
 
 Reescritura del proyecto `TI_sis_prestamos` con arquitectura DDD por contextos delimitados.
 
-> **Estado actual: corte 1 de 4 (≈50 %).**
-> Backend ejecutable con persistencia in-memory, **57 tests verdes** y API REST documentada.
-> La persistencia real (Postgres/JPA), la autenticación JWT y la integración del frontend
-> quedan para las siguientes fases.
+> **Estado actual: fase 2 completada.**
+> Backend con PostgreSQL + Spring Data JPA + Flyway, **58 tests verdes** y API REST
+> documentada. El frontend React + TypeScript + Vite ya consume `/api/v1`.
+> La autenticación JWT, los roles reales y las reservas quedan para las siguientes fases.
 
 El estado anterior del repositorio se conserva en el tag **`legacy-v0`**. El código legacy
 está archivado en `docs/legacy/`; no se intentó reparar porque no compilaba y tenía dos
@@ -17,15 +17,16 @@ fuentes de verdad para el inventario.
 
 - Dominio puro en Java 21: agregados, value objects como `record`, eventos e invariantes.
 - Cinco contextos: `catalog`, `inventory`, `identity`, `circulation` y `penalties`.
-- Puertos de repositorio en el dominio y adaptadores in-memory en infraestructura.
-- Casos de uso de aplicación con transacciones lógicas (sin framework en el dominio).
-- API REST `/api/v1` con validación y errores `ProblemDetail`.
+- Puertos de repositorio en el dominio y adaptadores JPA en infraestructura, sin contaminar
+  las entidades de dominio. Los adaptadores in-memory siguen disponibles para pruebas.
+- Esquema versionado con Flyway (`V1__schema.sql`) para los cinco contextos.
+- Casos de uso transaccionales con `@Transactional`; el dominio no importa Spring ni JPA.
+- API REST `/api/v1` con validación y errores `ProblemDetail` (`application/problem+json`).
+- Frontend React + TypeScript + Vite integrado con la API, con manejo de errores por `codigo`.
 - Datos demo con IDs fijos y un préstamo vencido para demostrar el flujo completo.
 - Reglas de negocio aplicadas en el dominio, no en controladores.
-- Tests unitarios, de aplicación, de flujo completo y de arquitectura (ArchUnit).
-
-**Limitación deliberada del corte 1:** los datos viven en memoria y se pierden al reiniciar.
-Es suficiente para demo, pruebas y para validar el modelo antes de acoplarlo a una base de datos.
+- Tests unitarios, de aplicación, de flujo completo, de persistencia JPA y de arquitectura
+  (ArchUnit). Los tests usan H2 en modo PostgreSQL para no depender de Docker.
 
 ---
 
@@ -34,15 +35,15 @@ Es suficiente para demo, pruebas y para validar el modelo antes de acoplarlo a u
 | Capa | Tecnología |
 |---|---|
 | Lenguaje | Java 21 |
-| Framework | Spring Boot 3.2.0 (Web, Validation, Actuator) |
+| Framework | Spring Boot 3.2.0 (Web, Validation, Actuator, Data JPA) |
 | Build | Maven Wrapper (`./mvnw` en Linux/macOS, `mvnw.cmd` en Windows) |
-| Tests | JUnit 5, AssertJ, ArchUnit, Spring Boot Test |
-| Persistencia (fase 1) | Adaptadores in-memory |
-| Persistencia (fase 2) | PostgreSQL 16 + Spring Data JPA + Flyway |
-| Frontend (fase 3) | React + TypeScript + Vite |
+| Tests | JUnit 5, AssertJ, ArchUnit, Spring Boot Test, H2 |
+| Persistencia | PostgreSQL 16 + Spring Data JPA + Flyway |
+| Frontend | React 18 + TypeScript + Vite 5 |
 
-No se usa Lombok, MapStruct ni JPA en este corte. El dominio no importa Spring, Jakarta
-Persistence, Hibernate ni Jackson; hay una regla de ArchUnit que lo verifica.
+No se usa Lombok ni MapStruct. JPA vive únicamente en `infrastructure/persistence/jpa`;
+el dominio no importa Spring, Jakarta Persistence, Hibernate ni Jackson, y ArchUnit lo
+verifica en cada build.
 
 ---
 
@@ -54,8 +55,9 @@ Persistence, Hibernate ni Jackson; hay una regla de ArchUnit que lo verifica.
 - **Maven no es necesario**: el repositorio incluye Maven Wrapper.
 - `JAVA_HOME` debe apuntar al JDK 21. En Linux/macOS `mvnw` puede detectarlo desde
   `java`/`javac`, pero es recomendable definirlo. En Windows, `mvnw.cmd` lo requiere.
-- Git y conexión a internet la primera vez (Maven descarga dependencias).
-- Docker es opcional: solo se usa en la fase 2 para PostgreSQL.
+- **Docker + Docker Compose** para levantar PostgreSQL (backend por defecto).
+- **Node.js 18 o superior** y `pnpm` (recomendado) o `npm` para el frontend.
+- Git y conexión a internet la primera vez (Maven/npm descargan dependencias).
 
 ### Configurar Java 21
 
@@ -115,6 +117,24 @@ dir mvnw, mvnw.cmd, .mvn\wrapper
 .\mvnw.cmd -v
 ```
 
+### Levantar PostgreSQL
+
+Desde la raíz del repositorio:
+
+```bash
+docker compose up -d
+docker compose ps
+```
+
+Servicios:
+
+- PostgreSQL: `localhost:5432` (base/usuario/clave: `biblioteca`).
+- Adminer: <http://localhost:8081>.
+- Datos persistentes en el volumen `biblioteca_pgdata`.
+
+Para detenerlos: `docker compose down`. Para borrar también los datos:
+`docker compose down -v`.
+
 ### Compilar y probar
 
 **Linux / macOS**
@@ -133,14 +153,17 @@ cd backend
 .\mvnw.cmd test
 ```
 
-Resultado esperado del corte 1:
+Los tests usan H2 en modo PostgreSQL y ejecutan la misma migración Flyway, por lo que no
+necesitan Docker. Resultado esperado:
 
 ```text
 BUILD SUCCESS
-Tests run: 57, Failures: 0, Errors: 0, Skipped: 0
+Tests run: 58, Failures: 0, Errors: 0, Skipped: 0
 ```
 
 ### Levantar la API
+
+Con PostgreSQL ya iniciado:
 
 **Linux / macOS**
 
@@ -158,12 +181,25 @@ cd backend
 
 - API: <http://localhost:8080/api/v1>
 - Health: <http://localhost:8080/actuator/health>
-- Perfil por defecto: `demo` (carga datos de ejemplo).
-- Para arrancar sin datos demo:
-  - Linux/macOS: `./mvnw spring-boot:run -Dspring-boot.run.profiles=test`
-  - Windows: `.\mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=test`
+- Perfil por defecto: `demo` (crea los datos de ejemplo sobre PostgreSQL).
+- Flyway aplica `V1__schema.sql` automáticamente al arrancar.
+- Para arrancar sin datos demo: `./mvnw spring-boot:run -Dspring-boot.run.profiles=prod`
+  (en Windows, `.\mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=prod`).
+- La conexión se puede sobreescribir con `DB_URL`, `DB_USER` y `DB_PASSWORD`.
 
 La demo completa con `curl` está en [`docs/demo.md`](docs/demo.md).
+
+### Levantar el frontend
+
+```bash
+cd frontend
+pnpm install
+pnpm dev
+```
+
+Abre <http://localhost:5173>. El frontend lee `VITE_API_BASE_URL` desde `.env`
+(por defecto `http://localhost:8080/api/v1`). El catálogo puede verse sin sesión; las
+operaciones de ventanilla usan el modo demo porque la autenticación real aún no existe.
 
 ---
 
@@ -181,6 +217,10 @@ La demo completa con `curl` está en [`docs/demo.md`](docs/demo.md).
 | Ejemplar `LIB-002` | `00000000-0000-0000-0000-000000000202` | Prestado a Luis (vencido) |
 | Ejemplar `LAP-001` | `00000000-0000-0000-0000-000000000203` | Disponible |
 | Préstamo vencido | `00000000-0000-0000-0000-000000000301` | Vence 3 días antes de “hoy” |
+
+El seed se ejecuta con el perfil `demo` solo si la tabla `usuarios` está vacía. Los datos
+persisten en PostgreSQL entre reinicios; si quieres volver al escenario inicial, ejecuta
+`docker compose down -v && docker compose up -d` antes de arrancar de nuevo.
 
 ---
 
@@ -280,15 +320,21 @@ TI_sis_prestamos/
 │       │   ├── identity/               # Cuentas, estados y permisos
 │       │   ├── circulation/            # Préstamos, devoluciones, renovaciones
 │       │   ├── penalties/              # Sanciones y multas
-│       │   └── infrastructure/         # Adaptadores in-memory, Spring, REST
-│       └── test/java/com/biblioteca/   # 57 tests + ArchUnit
+│       │   └── infrastructure/         # JPA, in-memory, Spring, REST
+│       │       ├── persistence/jpa/    # Entidades, repositorios y adaptadores JPA
+│       │       ├── persistence/inmemory/ # Adaptadores para tests
+│       │       └── web/                # Controladores y ProblemDetail
+│       ├── main/resources/
+│       │   ├── application.yml         # PostgreSQL/JPA/Flyway por defecto
+│       │   └── db/migration/V1__schema.sql
+│       └── test/java/com/biblioteca/   # 58 tests + ArchUnit
 ├── docs/
 │   ├── arquitectura.md
 │   ├── demo.md
 │   ├── adr/
 │   └── legacy/                         # SQL del proyecto anterior (solo referencia)
-├── frontend/                           # Prototipo React legacy, aún no integrado
-├── docker-compose.yml                  # Postgres + Adminer para la fase 2
+├── frontend/                           # React + TypeScript + Vite integrado con /api/v1
+├── docker-compose.yml                  # PostgreSQL 16 + Adminer
 └── AGENT.md                            # Guía para futuros agentes/desarrolladores
 ```
 
@@ -322,8 +368,9 @@ Cada contexto sigue la misma forma:
 4. **Eventos de dominio detrás de un puerto.** Hoy se publican de forma síncrona con
    Spring; mañana se pueden cambiar por outbox o un broker sin tocar el dominio.
 5. **Sanciones desacopladas.** `circulation` no conoce `penalties`; solo publica el evento.
-6. **Persistencia in-memory primero.** Permite validar el modelo y la API antes de añadir
-   JPA, migraciones y transacciones reales.
+6. **JPA solo en infraestructura.** Las entidades técnicas se mapean a los agregados en
+   adaptadores explícitos; el dominio sigue sin conocer la base de datos. Flyway es la
+   fuente de verdad del esquema y H2 permite correr los tests sin Docker.
 
 Detalle completo en [`docs/arquitectura.md`](docs/arquitectura.md) y en los ADR de
 [`docs/adr/`](docs/adr/).
@@ -337,13 +384,15 @@ cd backend
 ./mvnw test
 ```
 
-Cobertura del corte 1:
+Cobertura actual:
 
 - Value objects: ISBN, email, nombres, códigos de barras.
 - Agregados: `Usuario`, `Ejemplar`, `Prestamo`, `Sancion`.
 - Casos de uso: registrar préstamo, devolver, renovar, sancionar.
 - Flujo completo sin Spring: préstamo → devolución tardía → evento → sanción → bloqueo.
-- Contexto Spring (`@SpringBootTest`).
+- Contexto Spring con JPA + H2 (`@SpringBootTest`).
+- Persistencia JPA: los cinco adaptadores guardan, reconstruyen y consultan sus agregados
+  sobre el esquema Flyway (`JpaPersistenciaTest`).
 - Reglas de arquitectura: dominio sin framework, puertos como interfaces, aplicación
   sin infraestructura.
 
@@ -353,24 +402,25 @@ Cobertura del corte 1:
 
 | Fase | Alcance | Estado |
 |---|---|---|
-| 1. Dominio + API en memoria | Contextos, reglas, REST, tests, demo | ✅ Hoy |
-| 2. Persistencia | JPA, PostgreSQL, Flyway, transacciones, Testcontainers, outbox | ⏳ |
-| 3. Seguridad y frontend | JWT, roles, React + TS + Vite, reservas | ⏳ |
-| 4. Operación | CI/CD, observabilidad, despliegue, backups | ⏳ |
+| 1. Dominio + API en memoria | Contextos, reglas, REST, tests, demo | ✅ |
+| 2. Persistencia | JPA, PostgreSQL, Flyway, transacciones | ✅ |
+| 3. Frontend integrado | React + TS + Vite, cliente HTTP, ProblemDetail, operaciones | ✅ |
+| 4. Seguridad | JWT, roles, sesiones reales, catálogo público con identidad | ⏳ |
+| 5. Operación | Testcontainers/outbox, CI/CD, observabilidad, backups | ⏳ |
 
 **Alcance confirmado para la siguiente fase:** login solo para personal bibliotecario y
 administradores; catálogo público para alumnos; `identity` se mantiene unificado y
-preparado para habilitar el acceso de alumnos en la entrega final sin cambios de esquema.
-Las reservas quedan fuera del alcance principal (ver [ADR-008](docs/adr/ADR-008-reservas-fuera-de-alcance.md)).
+preparado para habilitar el acceso de alumnos sin cambios de esquema. Las reservas quedan
+fuera del alcance principal (ver [ADR-008](docs/adr/ADR-008-reservas-fuera-de-alcance.md)).
 
-### Pendientes conocidos del corte 1
+### Pendientes conocidos
 
-- Los datos se pierden al reiniciar (in-memory).
-- Los eventos se entregan de forma síncrona en el mismo proceso; falta outbox/async.
-- No hay autenticación: los `operadorId` del body se confían para la demo.
+- No hay autenticación real: el login del frontend es demo y los `operadorId` del body se
+  confían; JWT y roles quedan para la fase 4.
+- Los eventos se entregan de forma síncrona en el mismo proceso; falta outbox/async y
+  pruebas con Testcontainers/PostgreSQL real.
 - Los endpoints de catálogo e inventario aún no exigen el permiso `GESTIONAR_CATALOGO`.
 - No hay reservas, paginación, bloqueo optimista ni auditoría persistente.
-- El frontend actual es un prototipo legacy con datos mock; no consume esta API.
 
 ---
 

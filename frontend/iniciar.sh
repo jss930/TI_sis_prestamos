@@ -25,7 +25,7 @@ if [ ! -d node_modules ]; then
 fi
 
 echo
-echo "Iniciando el prototipo de frontend..."
+echo "Iniciando el frontend (React + TypeScript + Vite)..."
 echo "Abre la URL que muestre Vite."
 echo "Para detener el servidor presiona Ctrl+C."
 echo

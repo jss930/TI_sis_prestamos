@@ -5,10 +5,12 @@ import com.biblioteca.circulation.domain.model.Prestamo;
 import com.biblioteca.circulation.domain.repository.PrestamoRepository;
 import com.biblioteca.identity.domain.vo.UsuarioId;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
+@Transactional
 public class ListarPrestamosUseCase {
 
     private final PrestamoRepository prestamos;

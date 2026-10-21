@@ -5,11 +5,13 @@ import com.biblioteca.identity.domain.model.PerfilPrestatario;
 import com.biblioteca.identity.domain.model.Usuario;
 import com.biblioteca.identity.domain.repository.UsuarioRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Locale;
 
 @Service
+@Transactional
 public class ListarUsuariosUseCase {
 
     private final UsuarioRepository usuarios;

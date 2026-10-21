@@ -5,6 +5,7 @@ import com.biblioteca.identity.domain.vo.UsuarioId;
 import com.biblioteca.penalties.domain.model.Sancion;
 import com.biblioteca.penalties.domain.repository.SancionRepository;
 import com.biblioteca.penalties.domain.vo.SancionId;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
@@ -15,6 +16,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Repository
+@ConditionalOnProperty(name = "biblioteca.persistence", havingValue = "inmemory")
 public class InMemorySancionRepository implements SancionRepository {
 
     private final Map<UUID, Sancion> datos = new ConcurrentHashMap<>();

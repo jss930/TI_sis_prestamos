@@ -6,8 +6,10 @@ import com.biblioteca.identity.domain.repository.UsuarioRepository;
 import com.biblioteca.shared.domain.BusinessRuleException;
 import com.biblioteca.shared.domain.NotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class RevocarPermisoUseCase {
 
     private final UsuarioRepository usuarios;

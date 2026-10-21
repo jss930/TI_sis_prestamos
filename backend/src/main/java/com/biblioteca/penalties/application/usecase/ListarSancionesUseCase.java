@@ -7,10 +7,12 @@ import com.biblioteca.penalties.domain.model.EstadoSancion;
 import com.biblioteca.penalties.domain.model.Sancion;
 import com.biblioteca.penalties.domain.repository.SancionRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
+@Transactional
 public class ListarSancionesUseCase {
 
     private final SancionRepository sanciones;

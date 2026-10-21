@@ -1,6 +1,6 @@
 # Arquitectura
 
-Documento de referencia del corte 1. Explica cómo se divide el sistema, qué depende de qué
+Documento de referencia de la fase 2. Explica cómo se divide el sistema, qué depende de qué
 y por qué. Las decisiones puntuales están en [`adr/`](adr/).
 
 ---
@@ -70,7 +70,7 @@ repositorios de escritura.
 ```mermaid
 flowchart TB
     WEB["infrastructure/web (REST)"]
-    PERS["infrastructure/persistence (in-memory hoy, JPA después)"]
+    PERS["infrastructure/persistence (JPA + in-memory)"]
     EVT["infrastructure/events (Spring)"]
     APP["application (casos de uso)"]
     DOM["domain (agregados, VOs, puertos)"]
@@ -312,22 +312,55 @@ La idempotencia se apoya en `SancionRepository.existePorPrestamo`.
 
 ## 7. Persistencia (fase 2)
 
-El corte 1 usa adaptadores in-memory en
-`infrastructure/persistence/inmemory/`. Todos implementan los puertos del dominio.
+La implementación por defecto usa PostgreSQL 16, Spring Data JPA y Flyway. La propiedad
+`biblioteca.persistence` selecciona el adaptador:
 
-Plan para JPA:
+- `jpa` (por defecto): `infrastructure/persistence/jpa/`.
+- `inmemory`: adaptadores de `infrastructure/persistence/inmemory/`, usados por los tests
+  unitarios y disponibles para ejercicios sin base de datos.
 
-- Una entidad JPA por agregado, no por tabla de dominio.
-- Mapear value objects como `@Embeddable` o columnas tipadas.
-- `Prestamo` guarda `estado` y fechas; “vencido” sigue siendo derivado.
-- `Ejemplar` tiene `barcode` único y `catalogoItemId` indexado.
-- `Prestamo` requiere un índice único parcial para “un préstamo ACTIVO por ejemplar”.
-- `Sancion` requiere índice por `(usuarioId, estado, fechaInicio, fechaFin)`.
-- Migraciones con Flyway; seeds de demo solo en perfil `demo`.
-- Tests de integración con Testcontainers.
-- Outbox para eventos: tabla `domain_event` y un publicador posterior.
+### Esquema
 
-El `docker-compose.yml` de la raíz ya define PostgreSQL 16 y Adminer para esa fase.
+`V1__schema.sql` crea las tablas de los cinco contextos:
+
+| Contexto | Tabla | Notas |
+|---|---|---|
+| `identity` | `usuarios` | `email` único; permisos como lista CSV |
+| `catalog` | `catalogo_items` | columnas opcionales según el tipo de detalle |
+| `inventory` | `ejemplares` | `barcode` único; FK al catálogo |
+| `circulation` | `prestamos` | fechas, estado y referencias por ID |
+| `penalties` | `sanciones` | `prestamo_id` opcional; multa `NUMERIC(12,2)` |
+
+Las referencias entre contextos se guardan como UUID y se refuerzan con claves foráneas.
+No hay relaciones JPA entre agregados: el adaptador reconstruye cada agregado de forma
+independiente.
+
+### Entidades y adaptadores
+
+- Las entidades JPA viven en `infrastructure/persistence/jpa/entity/` y usan columnas
+  primitivas, enums y UUID. No son los agregados de dominio.
+- Los adaptadores en `infrastructure/persistence/jpa/adapter/` implementan los puertos del
+  dominio y traducen entidad ↔ agregado.
+- Los repositorios Spring Data están en `.../jpa/repository/`.
+- Los value objects se reconstruyen con los constructores/`reconstruir` del dominio, por lo
+  que las validaciones se siguen aplicando al leer de la base de datos.
+- `Prestamo` persiste `estado` y fechas; “vencido” y `diasRetraso` se derivan al responder.
+- La regla “un préstamo ACTIVO por ejemplar” se aplica en el dominio. El índice único
+  parcial de PostgreSQL queda como mejora de concurrencia pendiente.
+
+### Configuración y tests
+
+- `application.yml` apunta a `jdbc:postgresql://localhost:5432/biblioteca` y permite
+  sobreescribir con `DB_URL`, `DB_USER` y `DB_PASSWORD`.
+- `application-test.yml` usa H2 en modo PostgreSQL, ejecuta la misma migración y valida el
+  esquema con Hibernate (`ddl-auto=validate`).
+- `JpaPersistenciaTest` guarda y reconstruye los cinco agregados.
+- Los casos de uso que escriben están anotados con `@Transactional`; el listener de
+  sanciones participa de la misma transacción.
+- El seed de demo solo se activa con el perfil `demo` y si la tabla `usuarios` está vacía.
+
+El `docker-compose.yml` de la raíz define PostgreSQL 16 y Adminer. La validación con
+Testcontainers/PostgreSQL real y el outbox de eventos quedan para una fase posterior.
 
 ---
 
@@ -339,11 +372,13 @@ El `docker-compose.yml` de la raíz ya define PostgreSQL 16 y Adminer para esa f
 | Agregados | Invariantes y transiciones | `identity`, `inventory`, `circulation`, `penalties` |
 | Aplicación | Orquestación y reglas compuestas | `*UseCaseTest` |
 | Flujo | Préstamo → devolución tardía → sanción → bloqueo | `FlujoPrestamoTest` |
-| Contexto | Beans y wiring de Spring | `ContextLoadsTest` |
+| Contexto | Beans, JPA, Flyway y esquema H2 | `ContextLoadsTest` |
+| Persistencia | Guardar/reconstruir los cinco agregados con JPA | `JpaPersistenciaTest` |
 | Arquitectura | Dependencias y pureza | `ArquitecturaTest` |
 
 Las pruebas de aplicación usan dobles in-memory reales (los mismos adaptadores), no mocks
-frágiles de repositorios. El foco está en el comportamiento observable.
+frágiles de repositorios. Las pruebas de persistencia usan H2 en modo PostgreSQL y la misma
+migración Flyway; no requieren Docker. El foco está en el comportamiento observable.
 
 ---
 
@@ -355,22 +390,24 @@ frágiles de repositorios. El foco está en el comportamiento observable.
 | Imports a `pe.edu.unsa.sisprestamos` inexistentes | Paquete único `com.biblioteca` |
 | UUID en Java vs `BIGINT` en SQL | IDs UUID tipados en todo el sistema |
 | `stockTotal` y `stockDisponible` duplicados | Sin contadores; disponibilidad derivada del ejemplar |
-| Repositorio con `@EntityScan` roto | Adaptadores in-memory explícitos, puertos en dominio |
+| Repositorio con `@EntityScan` roto | Puertos en dominio + adaptadores JPA/in-memory explícitos |
 | Seeds contradictorios | `DemoDataConfig` con IDs fijos y un caso vencido reproducible |
 | Sin restricción de préstamo activo único | Regla en caso de uso + índice único parcial planificado |
 | `target/` versionado | `.gitignore` y build limpio |
-| Sin tests ni documentación | 57 tests, ADRs y demo reproducible |
+| Sin tests ni documentación | 58 tests, ADRs, demo reproducible y frontend integrado |
 
 ---
 
 ## 10. Riesgos y trade-offs
 
-- **In-memory:** no prueba concurrencia real ni transacciones. Es un riesgo aceptado para
-  el corte 1; se mitiga con la fase 2.
-- **Eventos síncronos:** si el listener falla, la devolución podría fallar. En la fase 2 se
-  separa con outbox y reintentos.
-- **Sin auth:** cualquiera puede enviar un `operadorId` válido. La fase 3 introduce JWT y
-  deriva el operador del token, no del body.
+- **Concurrencia:** la regla de un préstamo activo por ejemplar se valida en el dominio,
+  pero todavía no hay índice único parcial ni bloqueo optimista en PostgreSQL. Puede haber
+  carreras entre dos ventanillas simultáneas.
+- **Eventos síncronos:** si el listener falla, la devolución podría fallar. La transacción
+  protege la consistencia, pero falta outbox/reintentos.
+- **Sin auth:** cualquiera puede enviar un `operadorId` válido. La fase de seguridad
+  introduce JWT y deriva el operador del token, no del body.
 - **Políticas en código:** los plazos y multas son clases Java. Se pueden externalizar a
   configuración cuando el negocio lo requiera.
-- **Catálogo sin control de permisos:** pendiente de cerrar en la fase 2/3.
+- **Catálogo sin control de permisos:** los endpoints de escritura aún no exigen
+  `GESTIONAR_CATALOGO`; queda para la fase de seguridad.

@@ -5,6 +5,7 @@ import com.biblioteca.inventory.domain.model.Ejemplar;
 import com.biblioteca.inventory.domain.repository.EjemplarRepository;
 import com.biblioteca.inventory.domain.vo.Barcode;
 import com.biblioteca.inventory.domain.vo.EjemplarId;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -14,6 +15,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Repository
+@ConditionalOnProperty(name = "biblioteca.persistence", havingValue = "inmemory")
 public class InMemoryEjemplarRepository implements EjemplarRepository {
 
     private final Map<UUID, Ejemplar> datos = new ConcurrentHashMap<>();

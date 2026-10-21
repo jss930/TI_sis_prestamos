@@ -72,6 +72,11 @@ public class DemoDataConfig {
                                              EjemplarRepository ejemplares,
                                              PrestamoRepository prestamos) {
         return args -> {
+            if (!usuarios.listarTodos().isEmpty()) {
+                log.info("Datos demo no cargados: la base ya contiene usuarios.");
+                return;
+            }
+
             Instant ahora = Instant.now();
             LocalDate hoy = LocalDate.now();
 
@@ -193,7 +198,7 @@ public class DemoDataConfig {
             log.info("""
 
                     ============================================================
-                     DATOS DEMO CARGADOS (perfil demo, persistencia in-memory)
+                     DATOS DEMO CARGADOS (perfil demo, persistencia JPA/PostgreSQL)
                     ============================================================
                      Bibliotecario : {}
                      Ana (PROVISIONAL, no puede prestar): {}

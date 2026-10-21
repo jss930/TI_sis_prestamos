@@ -6,8 +6,10 @@ import com.biblioteca.catalog.domain.repository.CatalogoItemRepository;
 import com.biblioteca.shared.application.port.DomainEventPublisher;
 import com.biblioteca.shared.domain.BusinessRuleException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class RegistrarLibroUseCase {
 
     private final CatalogoItemRepository repositorio;

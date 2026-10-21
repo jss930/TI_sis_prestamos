@@ -5,6 +5,7 @@ import com.biblioteca.catalog.domain.model.LibroDetalle;
 import com.biblioteca.catalog.domain.repository.CatalogoItemRepository;
 import com.biblioteca.catalog.domain.vo.CatalogoItemId;
 import com.biblioteca.catalog.domain.vo.ISBN;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -18,6 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * sin Postgres. En la fase 2 se reemplaza por un adaptador JPA.
  */
 @Repository
+@ConditionalOnProperty(name = "biblioteca.persistence", havingValue = "inmemory")
 public class InMemoryCatalogoItemRepository implements CatalogoItemRepository {
 
     private final Map<UUID, CatalogoItem> datos = new ConcurrentHashMap<>();

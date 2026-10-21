@@ -6,8 +6,10 @@ import com.biblioteca.identity.domain.repository.UsuarioRepository;
 import com.biblioteca.shared.application.port.DomainEventPublisher;
 import com.biblioteca.shared.domain.BusinessRuleException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class RegistrarUsuarioProvisionalUseCase {
 
     private final UsuarioRepository usuarios;

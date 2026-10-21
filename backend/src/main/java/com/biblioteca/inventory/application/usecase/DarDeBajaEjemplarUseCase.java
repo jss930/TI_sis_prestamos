@@ -5,8 +5,10 @@ import com.biblioteca.inventory.domain.repository.EjemplarRepository;
 import com.biblioteca.inventory.domain.vo.EjemplarId;
 import com.biblioteca.shared.domain.NotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class DarDeBajaEjemplarUseCase {
 
     private final EjemplarRepository ejemplares;

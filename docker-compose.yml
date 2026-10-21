@@ -1,5 +1,5 @@
-# Fase 2: PostgreSQL para la futura persistencia JPA.
-# El backend del corte 1 usa adaptadores in-memory y NO necesita este compose.
+# Fase 2: PostgreSQL para la persistencia JPA (backend por defecto).
+# Los tests usan H2 y no necesitan este compose.
 #
 # Uso:
 #   docker compose up -d

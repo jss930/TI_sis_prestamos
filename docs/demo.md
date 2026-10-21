@@ -1,9 +1,19 @@
 # Demo reproducible con `curl`
 
-Esta demo usa el perfil `demo`, que carga datos con IDs fijos y un préstamo vencido.
-Todos los datos viven en memoria: **reiniciar la aplicación restaura el escenario inicial**.
+Esta demo usa el perfil `demo`, que carga datos con IDs fijos y un préstamo vencido sobre
+PostgreSQL. Flyway crea el esquema al arrancar y el seed solo se ejecuta si la tabla
+`usuarios` está vacía. Los datos **persisten** entre reinicios; si quieres volver al
+escenario inicial, borra el volumen de PostgreSQL.
 
 ## 0. Arrancar
+
+Desde la raíz del repositorio:
+
+```bash
+docker compose up -d
+```
+
+Esto levanta PostgreSQL en `localhost:5432` y Adminer en <http://localhost:8081>.
 
 ### Linux / macOS
 
@@ -331,8 +341,42 @@ Todos los errores son `ProblemDetail` y traen `codigo`:
 ## 12. Reiniciar la demo
 
 ```bash
-# Ctrl+C en la terminal de Spring Boot, luego:
+# Ctrl+C en la terminal de Spring Boot
+docker compose down -v
+docker compose up -d
+cd backend
 ./mvnw spring-boot:run
 ```
 
-El seed vuelve a dejar el préstamo vencido y sin sanciones.
+`docker compose down -v` borra el volumen `biblioteca_pgdata`. Al arrancar de nuevo,
+Flyway aplica la migración y el perfil `demo` vuelve a dejar el préstamo vencido y sin
+sanciones.
+
+---
+
+## 13. Probar el frontend integrado
+
+Con PostgreSQL y el backend en marcha:
+
+```bash
+cd frontend
+pnpm install
+pnpm dev
+```
+
+Abre <http://localhost:5173>. El catálogo es visible sin sesión mediante **Ver catálogo
+público**. Para operar, usa el login demo (cualquier correo y contraseña; no hay
+autenticación real todavía).
+
+Flujo sugerido:
+
+1. Entra con una cuenta demo.
+2. Revisa **Resumen**, **Personas** y **Catálogo**.
+3. En **Préstamos**, registra un préstamo para un usuario `VALIDADO` y un ejemplar
+   `DISPONIBLE`.
+4. Devuelve el préstamo vencido de Luis y observa la sanción generada en **Sanciones**.
+5. Intenta otro préstamo para Luis: el frontend muestra el mensaje amigable de
+   `SANCION_ACTIVA` usando el `codigo` de `application/problem+json`.
+
+El frontend usa `VITE_API_BASE_URL=http://localhost:8080/api/v1`. Si cambias el puerto del
+backend, actualiza `frontend/.env` y la configuración CORS de `WebConfig`.

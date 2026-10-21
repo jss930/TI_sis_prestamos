@@ -1,0 +1,117 @@
+import type {
+  CatalogoItem,
+  Ejemplar,
+  EstadoFisico,
+  NuevoPrestamo,
+  Prestamo,
+  ProblemDetail,
+  Sancion,
+  Usuario,
+} from '../types'
+
+const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api/v1'
+).replace(/\/+$/, '')
+
+const MENSAJES_POR_CODIGO: Record<string, string> = {
+  SANCION_ACTIVA: 'El usuario tiene una sanción activa. Debe cumplirla antes de un nuevo préstamo.',
+  USUARIO_NO_HABILITADO: 'La cuenta del usuario no está validada para solicitar préstamos.',
+  USUARIO_NO_VALIDADO: 'La cuenta debe estar validada para realizar esta operación.',
+  AUTOPRESTAMO_NO_PERMITIDO: 'El operador no puede registrar un préstamo a su propia cuenta.',
+  EJEMPLAR_NO_DISPONIBLE: 'El ejemplar ya no está disponible.',
+  EJEMPLAR_YA_PRESTADO: 'El ejemplar ya tiene un préstamo activo.',
+  PRESTAMO_VENCIDO_PENDIENTE: 'El usuario tiene un préstamo vencido sin devolver.',
+  LIMITE_PRESTAMOS: 'El usuario alcanzó el máximo de préstamos simultáneos.',
+  LIMITE_RENOVACIONES: 'El préstamo alcanzó el máximo de renovaciones permitidas.',
+  DOMICILIO_NO_PERMITIDO: 'El perfil no puede llevar este tipo de bien a domicilio.',
+  OPERADOR_NO_HABILITADO: 'El operador no tiene permiso para realizar esta operación.',
+  ITEM_INACTIVO: 'El bien está fuera de circulación.',
+  RECURSO_NO_ENCONTRADO: 'No se encontró el recurso solicitado.',
+  VALIDACION: 'Revisa los campos del formulario.',
+  PETICION_INVALIDA: 'La solicitud no se pudo interpretar.',
+  ERROR_INTERNO: 'Ocurrió un error interno en el servidor.',
+  SIN_CONEXION:
+    'No se pudo conectar con la API. Verifica que el backend esté ejecutándose en http://localhost:8080.',
+}
+
+export class ApiError extends Error {
+  readonly status: number
+  readonly codigo: string
+  readonly campos?: Record<string, string>
+
+  constructor(status: number, codigo: string, mensaje: string, campos?: Record<string, string>) {
+    super(mensaje)
+    this.name = 'ApiError'
+    this.status = status
+    this.codigo = codigo
+    this.campos = campos
+  }
+}
+
+export function mensajeDeError(error: unknown): string {
+  if (error instanceof ApiError) return error.message
+  if (error instanceof Error) return error.message
+  return 'No se pudo completar la solicitud.'
+}
+
+async function solicitar<T>(ruta: string, init: RequestInit = {}): Promise<T> {
+  const headers = new Headers(init.headers)
+  headers.set('Accept', 'application/json')
+  if (init.body !== undefined && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json')
+  }
+
+  let respuesta: Response
+  try {
+    respuesta = await fetch(`${API_BASE_URL}${ruta}`, { ...init, headers })
+  } catch {
+    throw new ApiError(0, 'SIN_CONEXION', MENSAJES_POR_CODIGO.SIN_CONEXION)
+  }
+
+  const texto = await respuesta.text()
+  let datos: unknown = null
+  if (texto) {
+    try {
+      datos = JSON.parse(texto)
+    } catch {
+      datos = texto
+    }
+  }
+
+  if (!respuesta.ok) {
+    const problema =
+      typeof datos === 'object' && datos !== null ? (datos as ProblemDetail) : null
+    const codigo = problema?.codigo ?? `HTTP_${respuesta.status}`
+    const detalle =
+      problema?.detail ??
+      (typeof datos === 'string' ? datos : 'La API rechazó la solicitud.')
+    throw new ApiError(
+      respuesta.status,
+      codigo,
+      MENSAJES_POR_CODIGO[codigo] ?? detalle,
+      problema?.campos,
+    )
+  }
+
+  return datos as T
+}
+
+export const api = {
+  getCatalogo: () => solicitar<CatalogoItem[]>('/catalogo'),
+  getUsuarios: () => solicitar<Usuario[]>('/usuarios'),
+  getEjemplares: () => solicitar<Ejemplar[]>('/inventario/ejemplares'),
+  getPrestamos: () => solicitar<Prestamo[]>('/prestamos'),
+  getSanciones: () => solicitar<Sancion[]>('/sanciones'),
+  crearPrestamo: (prestamo: NuevoPrestamo) =>
+    solicitar<Prestamo>('/prestamos', {
+      method: 'POST',
+      body: JSON.stringify(prestamo),
+    }),
+  devolverPrestamo: (id: string, estadoFisico: EstadoFisico = 'DISPONIBLE') =>
+    solicitar<Prestamo>(`/prestamos/${id}/devolucion`, {
+      method: 'POST',
+      body: JSON.stringify({ estadoFisico }),
+    }),
+}
+
+export const API_BASE_URL_PUBLICA = API_BASE_URL

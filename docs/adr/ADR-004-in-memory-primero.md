@@ -1,6 +1,6 @@
 # ADR-004 — Persistencia in-memory primero, JPA después
 
-- **Estado:** aceptado (decisión temporal)
+- **Estado:** superado por la implementación JPA de la fase 2
 - **Fecha:** 2026-10-20
 - **Contexto:** el corte 1 debía quedar ejecutable y demostrable hoy, sin depender de
   PostgreSQL, Docker ni credenciales. El modelo todavía se está validando.
@@ -33,3 +33,12 @@ carga datos fijos. No se añade JPA, Flyway ni Testcontainers en este corte.
 - **JPA desde el día 1:** habría retrasado la demo y acoplado el modelo antes de validarlo.
 - **H2:** se parece a SQL, pero no reproduce particularidades de PostgreSQL ni migraciones
   reales; se prefiere Testcontainers en la fase 2.
+
+## Revisión (fase 2)
+
+La fase 2 implementó PostgreSQL + Spring Data JPA + Flyway. Los adaptadores in-memory se
+conservan para los tests unitarios y se activan con `biblioteca.persistence=inmemory`.
+
+Se mantuvo H2 en modo PostgreSQL para los tests de contexto y persistencia, de modo que
+`mvn test` no dependa de Docker. La validación con PostgreSQL real/Testcontainers queda
+pendiente para la fase de operación.

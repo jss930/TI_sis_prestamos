@@ -4,6 +4,7 @@ import com.biblioteca.identity.domain.model.Usuario;
 import com.biblioteca.identity.domain.repository.UsuarioRepository;
 import com.biblioteca.identity.domain.vo.EmailAddress;
 import com.biblioteca.identity.domain.vo.UsuarioId;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -13,6 +14,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Repository
+@ConditionalOnProperty(name = "biblioteca.persistence", havingValue = "inmemory")
 public class InMemoryUsuarioRepository implements UsuarioRepository {
 
     private final Map<UUID, Usuario> datos = new ConcurrentHashMap<>();

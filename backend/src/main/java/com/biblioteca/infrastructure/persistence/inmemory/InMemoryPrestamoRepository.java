@@ -6,6 +6,7 @@ import com.biblioteca.circulation.domain.repository.PrestamoRepository;
 import com.biblioteca.circulation.domain.vo.PrestamoId;
 import com.biblioteca.identity.domain.vo.UsuarioId;
 import com.biblioteca.inventory.domain.vo.EjemplarId;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
@@ -16,6 +17,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Repository
+@ConditionalOnProperty(name = "biblioteca.persistence", havingValue = "inmemory")
 public class InMemoryPrestamoRepository implements PrestamoRepository {
 
     private final Map<UUID, Prestamo> datos = new ConcurrentHashMap<>();

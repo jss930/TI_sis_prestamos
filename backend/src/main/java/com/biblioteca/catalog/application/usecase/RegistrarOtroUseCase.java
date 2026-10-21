@@ -5,8 +5,10 @@ import com.biblioteca.catalog.domain.model.CatalogoItem;
 import com.biblioteca.catalog.domain.repository.CatalogoItemRepository;
 import com.biblioteca.shared.application.port.DomainEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class RegistrarOtroUseCase {
 
     private final CatalogoItemRepository repositorio;

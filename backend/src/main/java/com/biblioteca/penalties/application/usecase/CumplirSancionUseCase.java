@@ -9,8 +9,10 @@ import com.biblioteca.shared.application.port.DomainEventPublisher;
 import com.biblioteca.shared.domain.BusinessRuleException;
 import com.biblioteca.shared.domain.NotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class CumplirSancionUseCase {
 
     private final SancionRepository sanciones;

@@ -37,7 +37,7 @@ if not exist "node_modules" (
 )
 
 echo.
-echo Iniciando el prototipo de frontend...
+echo Iniciando el frontend (React + TypeScript + Vite)...
 echo Abre la URL que muestre Vite.
 echo Para detener el servidor presiona Ctrl+C.
 echo.

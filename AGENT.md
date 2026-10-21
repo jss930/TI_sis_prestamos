@@ -8,10 +8,11 @@ funcionan.
 
 ## 1. Estado del proyecto
 
-- Corte 1 completado: dominio + aplicación + API REST con persistencia **in-memory**.
-- 57 tests verdes.
+- Fase 2 completada: dominio + aplicación + API REST + PostgreSQL/JPA/Flyway.
+- Frontend React + TypeScript + Vite integrado con `/api/v1`.
+- 58 tests verdes (los tests de persistencia usan H2 en modo PostgreSQL).
 - El legacy está en el tag `legacy-v0` y en `docs/legacy/`; **no lo borres**.
-- Rama principal: `main`. El corte 1 se desarrolló en `rewrite/v2` y se integra por Pull Request.
+- Rama principal: `main`; los cambios se integran por Pull Request.
 
 ---
 
@@ -22,6 +23,8 @@ funcionan.
 - JDK 21 (`java -version` debe mostrar `21.x`).
 - `JAVA_HOME` apuntando al JDK 21.
 - No hace falta instalar Maven: se usa el wrapper incluido en `backend/`.
+- Docker + Docker Compose para PostgreSQL.
+- Node.js 18+ y `pnpm` (o `npm`) para el frontend.
 
 ### Linux / macOS
 
@@ -34,8 +37,24 @@ export PATH="$JAVA_HOME/bin:$PATH"
 
 ./mvnw -v
 ./mvnw clean compile      # debe terminar en BUILD SUCCESS
-./mvnw test               # 57 tests, 0 fallos
-./mvnw spring-boot:run    # API en :8080, perfil demo
+./mvnw test               # 58 tests, 0 fallos (H2)
+./mvnw spring-boot:run    # API en :8080, perfil demo, requiere PostgreSQL
+```
+
+Desde la raíz, antes del backend:
+
+```bash
+docker compose up -d      # PostgreSQL :5432 + Adminer :8081
+```
+
+Frontend:
+
+```bash
+cd frontend
+pnpm install
+pnpm typecheck
+pnpm build
+pnpm dev                  # http://localhost:5173
 ```
 
 ### Windows PowerShell
@@ -90,9 +109,10 @@ Demo funcional: [`docs/demo.md`](docs/demo.md).
 6. **No pongas `@Service`, `@Component` ni `@Repository` en `domain`.**
 7. **No hay prefijo `I` para interfaces.**
 8. **No borres ni reescribas el legacy** sin dejar constancia; está tags/archivado.
-9. **No introduzcas JPA todavía** sin actualizar el ADR-004 y el `pom.xml` de forma
-   coherente.
-10. **Mantén los tests pasando** antes de cada commit.
+9. **JPA solo en `infrastructure/persistence/jpa`.** Las entidades JPA no son agregados
+   de dominio; traduce en adaptadores. Mantén Flyway como fuente de verdad del esquema.
+10. **Mantén los tests pasando** antes de cada commit (`./mvnw test` y
+    `pnpm typecheck && pnpm build`).
 
 ---
 
@@ -110,7 +130,9 @@ com.biblioteca
 └── infrastructure
     ├── config             # Beans, demo data, CORS
     ├── events             # SpringDomainEventPublisher
-    ├── persistence        # Adaptadores in-memory
+    ├── persistence
+    │   ├── jpa            # Entidades, repositorios Spring Data y adaptadores
+    │   └── inmemory       # Adaptadores para tests unitarios
     └── web                # Controladores REST + ProblemDetail
 ```
 
@@ -141,10 +163,12 @@ Ejemplo: reservas.
 4. Define el puerto en `domain/repository` (interfaz, sin `I`).
 5. Crea el comando en `application/command`.
 6. Crea el caso de uso en `application/usecase` con `@Service`, inyectando puertos.
-7. Implementa el adaptador in-memory en `infrastructure/persistence/inmemory`.
+7. Implementa el adaptador JPA en `infrastructure/persistence/jpa` y añade la migración
+   Flyway correspondiente. Mantén el adaptador in-memory si los tests unitarios lo usan.
 8. Expón el endpoint en `infrastructure/web/rest`.
-9. Agrega tests: dominio, caso de uso y, si aplica, flujo.
-10. Actualiza `README.md`, `docs/arquitectura.md` y el ADR si cambia una decisión.
+9. Agrega tests: dominio, caso de uso, persistencia y, si aplica, flujo.
+10. Actualiza `README.md`, `docs/arquitectura.md`, `docs/demo.md` y el ADR si cambia una
+    decisión.
 
 ---
 
@@ -176,6 +200,8 @@ Ejemplo: reservas.
   sustentación.
 - Los tests de aplicación usan los adaptadores in-memory reales; no los reemplaces por
   mocks salvo que haya una razón fuerte.
+- `ContextLoadsTest` y `JpaPersistenciaTest` usan H2 en modo PostgreSQL y ejecutan Flyway;
+  no necesitan Docker.
 - Los IDs y fechas de fixtures están en `src/test/java/com/biblioteca/support/Fixtures.java`.
 - El reloj se inyecta (`Clock`) para que las pruebas sean deterministas.
 
@@ -200,24 +226,26 @@ Ejemplo: reservas.
 
 ## 9. Siguiente fase sugerida
 
-1. **Persistencia:** JPA + PostgreSQL + Flyway + Testcontainers. Mantener los puertos.
-2. **Outbox:** tabla de eventos y publicación confiable; el listener pasa a
+1. **Seguridad:** Spring Security + JWT; el operador sale del token, no del body.
+2. **Concurrencia:** índice único parcial para un préstamo activo por ejemplar y bloqueo
+   optimista.
+3. **Outbox:** tabla de eventos y publicación confiable; el listener pasa a
    `@TransactionalEventListener`.
-3. **Seguridad:** Spring Security + JWT; el operador sale del token, no del body.
-4. **Frontend:** migrar el prototipo React legacy a React + TypeScript + Vite consumiendo
-   `/api/v1`; manejar `ProblemDetail.codigo`.
+4. **Pruebas de PostgreSQL real:** Testcontainers o una base de integración en CI.
 5. **Reservas:** fuera del alcance principal; documentar la extensión futura en
    `circulation` (nuevo agregado `Reserva`) sin tocar las reglas actuales.
-6. **Operación:** CI (build + tests + ArchUnit), métricas, logs estructurados, despliegue.
+6. **Operación:** CI (build + tests + ArchUnit + frontend), métricas, logs estructurados,
+   despliegue y backups.
 
 ---
 
 ## 10. Notas de entorno
 
 - Requiere JDK 21; verifica `java -version` y define `JAVA_HOME`.
+- Requiere Docker Compose para PostgreSQL y Node.js 18+ para el frontend.
 - El wrapper está en `backend/mvnw` (Linux/macOS) y `backend/mvnw.cmd` (Windows); no hace
   falta instalar Maven global.
-- La primera compilación descarga dependencias desde Maven Central.
+- La primera compilación descarga dependencias desde Maven Central; el frontend usa pnpm.
 - En Windows usa PowerShell/CMD y `.\mvnw.cmd`; en Linux/macOS usa `./mvnw`.
 - No commitees rutas absolutas, credenciales, tokens ni archivos `.env`.
 - Si trabajas en equipo, crea una rama por cambio y abre un Pull Request contra `main`.

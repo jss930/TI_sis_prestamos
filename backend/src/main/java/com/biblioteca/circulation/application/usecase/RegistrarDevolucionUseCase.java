@@ -8,12 +8,14 @@ import com.biblioteca.inventory.domain.repository.EjemplarRepository;
 import com.biblioteca.shared.application.port.DomainEventPublisher;
 import com.biblioteca.shared.domain.NotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.Objects;
 
 @Service
+@Transactional
 public class RegistrarDevolucionUseCase {
 
     private final PrestamoRepository prestamos;
