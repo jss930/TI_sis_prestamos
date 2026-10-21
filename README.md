@@ -319,6 +319,10 @@ El perfil `demo` carga el siguiente escenario. El seed solo se ejecuta si la tab
 > persisten entre reinicios; para reiniciar el escenario debes borrar el volumen con
 > `docker compose down -v`.
 
+El frontend incluye un selector de cuentas demo (bibliotecario, Luis, Ana, docente) y
+muestra el rol derivado. El login sigue siendo demo: sin contraseña y la API confía en
+`operadorId`.
+
 ---
 
 ## 6. API principal
