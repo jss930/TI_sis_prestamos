@@ -282,6 +282,11 @@ Cobertura del corte 1:
 | 3. Seguridad y frontend | JWT, roles, React + TS + Vite, reservas | ⏳ |
 | 4. Operación | CI/CD, observabilidad, despliegue, backups | ⏳ |
 
+**Alcance confirmado para la siguiente fase:** login solo para personal bibliotecario y
+administradores; catálogo público para alumnos; `identity` se mantiene unificado y
+preparado para habilitar el acceso de alumnos en la entrega final sin cambios de esquema.
+Las reservas quedan fuera del alcance principal (ver [ADR-008](docs/adr/ADR-008-reservas-fuera-de-alcance.md)).
+
 ### Pendientes conocidos del corte 1
 
 - Los datos se pierden al reiniciar (in-memory).

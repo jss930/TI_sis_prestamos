@@ -167,7 +167,8 @@ Ejemplo: reservas.
 3. **Seguridad:** Spring Security + JWT; el operador sale del token, no del body.
 4. **Frontend:** migrar el prototipo React legacy a React + TypeScript + Vite consumiendo
    `/api/v1`; manejar `ProblemDetail.codigo`.
-5. **Reservas:** si el alcance lo confirma, nuevo contexto `reservations` con expiración.
+5. **Reservas:** fuera del alcance principal; documentar la extensión futura en
+   `circulation` (nuevo agregado `Reserva`) sin tocar las reglas actuales.
 6. **Operación:** CI (build + tests + ArchUnit), métricas, logs estructurados, despliegue.
 
 ---

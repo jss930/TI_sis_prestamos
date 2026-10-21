@@ -14,6 +14,18 @@ en él. Los permisos se validan contra la cuenta indicada (`puedeOperarVentanill
 
 Los endpoints de catálogo e inventario todavía no exigen `GESTIONAR_CATALOGO`.
 
+## Alcance confirmado (2026-10-20)
+
+- Login habilitado para **personal bibliotecario y administradores**.
+- El catálogo queda **público** para que los alumnos consulten disponibilidad sin
+  autenticarse.
+- `identity` se mantiene como un contexto unificado: una sola entidad `Usuario` con perfil
+  de prestatario, máquina de estados (`PROVISIONAL → VALIDADO → SUSPENDIDO`) y permisos
+  operativos.
+- La activación del acceso para alumnos queda preparada para la entrega final **sin cambios
+  de esquema ni del dominio**: solo se añaden credenciales y reglas de autorización en el
+  borde.
+
 ## Consecuencias
 
 - La demo es simple y reproducible con `curl`.
