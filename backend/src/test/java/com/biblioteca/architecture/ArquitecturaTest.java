@@ -34,4 +34,22 @@ class ArquitecturaTest {
     static final ArchRule aplicacion_no_depende_de_infraestructura = noClasses()
             .that().resideInAPackage("..application..")
             .should().dependOnClassesThat().resideInAPackage("..infrastructure..");
+
+    @ArchTest
+    static final ArchRule catalogo_no_depende_de_otros_contextos = noClasses()
+            .that().resideInAPackage("com.biblioteca.catalog..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.biblioteca.identity..",
+                    "com.biblioteca.inventory..",
+                    "com.biblioteca.circulation..",
+                    "com.biblioteca.penalties..");
+
+    @ArchTest
+    static final ArchRule identity_no_depende_de_otros_contextos = noClasses()
+            .that().resideInAPackage("com.biblioteca.identity..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.biblioteca.catalog..",
+                    "com.biblioteca.inventory..",
+                    "com.biblioteca.circulation..",
+                    "com.biblioteca.penalties..");
 }
