@@ -1,0 +1,24 @@
+package com.biblioteca.catalog.application.usecase;
+
+import com.biblioteca.catalog.domain.model.CatalogoItem;
+import com.biblioteca.catalog.domain.repository.CatalogoItemRepository;
+import com.biblioteca.catalog.domain.vo.CatalogoItemId;
+import com.biblioteca.shared.domain.NotFoundException;
+import org.springframework.stereotype.Service;
+
+@Service
+public class DesactivarCatalogoItemUseCase {
+
+    private final CatalogoItemRepository repositorio;
+
+    public DesactivarCatalogoItemUseCase(CatalogoItemRepository repositorio) {
+        this.repositorio = repositorio;
+    }
+
+    public CatalogoItem ejecutar(CatalogoItemId id) {
+        CatalogoItem item = repositorio.buscarPorId(id)
+                .orElseThrow(() -> new NotFoundException("Item de catalogo", id.value()));
+        item.desactivar();
+        return repositorio.guardar(item);
+    }
+}

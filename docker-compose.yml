@@ -1,0 +1,37 @@
+# Fase 2: PostgreSQL para la futura persistencia JPA.
+# El backend del corte 1 usa adaptadores in-memory y NO necesita este compose.
+#
+# Uso:
+#   docker compose up -d
+#   PostgreSQL: localhost:5432  (biblioteca / biblioteca / biblioteca)
+#   Adminer:    http://localhost:8081
+#
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: biblioteca-postgres
+    environment:
+      POSTGRES_DB: biblioteca
+      POSTGRES_USER: biblioteca
+      POSTGRES_PASSWORD: biblioteca
+    ports:
+      - "5432:5432"
+    volumes:
+      - biblioteca_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U biblioteca -d biblioteca"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  adminer:
+    image: adminer:4
+    container_name: biblioteca-adminer
+    ports:
+      - "8081:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  biblioteca_pgdata:
