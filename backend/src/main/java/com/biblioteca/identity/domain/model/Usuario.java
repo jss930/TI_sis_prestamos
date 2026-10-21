@@ -146,6 +146,26 @@ public final class Usuario extends AggregateRoot<UsuarioId> {
         return permisos.contains(permiso);
     }
 
+    /**
+     * Rol de acceso derivado. Una cuenta solo es administrador si esta validada
+     * y tiene al menos un permiso de gestion. Los permisos son la unica fuente
+     * de verdad; el perfil solo define la politica de prestamo.
+     */
+    public RolAcceso rolAcceso() {
+        if (estado == EstadoCuentaUsuario.VALIDADO) {
+            for (PermisoOperativo permiso : PermisoOperativo.PERMISOS_DE_GESTION) {
+                if (permisos.contains(permiso)) {
+                    return RolAcceso.ADMINISTRADOR;
+                }
+            }
+        }
+        return switch (perfil) {
+            case ALUMNO -> RolAcceso.ESTUDIANTE;
+            case DOCENTE -> RolAcceso.DOCENTE;
+            case ADMINISTRATIVO -> RolAcceso.ADMINISTRATIVO;
+        };
+    }
+
     private void exigirEstado(EstadoCuentaUsuario esperado, String accion) {
         if (estado != esperado) {
             throw new BusinessRuleException("TRANSICION_INVALIDA",

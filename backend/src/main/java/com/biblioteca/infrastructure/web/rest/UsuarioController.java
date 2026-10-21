@@ -17,6 +17,7 @@ import com.biblioteca.identity.application.usecase.ValidarUsuarioUseCase;
 import com.biblioteca.identity.domain.model.EstadoCuentaUsuario;
 import com.biblioteca.identity.domain.model.PerfilPrestatario;
 import com.biblioteca.identity.domain.model.PermisoOperativo;
+import com.biblioteca.identity.domain.model.RolAcceso;
 import com.biblioteca.identity.domain.model.Usuario;
 import com.biblioteca.identity.domain.vo.EmailAddress;
 import com.biblioteca.identity.domain.vo.NombreCompleto;
@@ -132,7 +133,7 @@ public class UsuarioController {
         return new UsuarioResponse(usuario.id().value(), usuario.email().value(),
                 usuario.nombreCompleto().value(), usuario.estado(), usuario.perfil(),
                 usuario.permisos(), usuario.fechaAlta(), usuario.fechaValidacion(),
-                usuario.motivoSuspension());
+                usuario.motivoSuspension(), usuario.rolAcceso());
     }
 
     public record RegistrarUsuarioRequest(
@@ -163,6 +164,7 @@ public class UsuarioController {
             Set<PermisoOperativo> permisos,
             Instant fechaAlta,
             Instant fechaValidacion,
-            String motivoSuspension) {
+            String motivoSuspension,
+            RolAcceso rolAcceso) {
     }
 }
