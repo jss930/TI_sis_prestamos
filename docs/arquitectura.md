@@ -284,8 +284,11 @@ PROVISIONAL --validar--> VALIDADO --suspender--> SUSPENDIDO
 | `VALIDAR_USUARIO_PROVISIONAL` | Validar cuentas |
 | `GESTIONAR_CATALOGO` | Administrar catálogo e inventario |
 | `GESTIONAR_SANCIONES` | Registrar y cumplir sanciones |
+| `GESTIONAR_USUARIOS` | Registrar, suspender, reactivar y administrar permisos de cuentas |
 
 No son roles: se otorgan explícitamente y no saltan la validación de la cuenta.
+Una cuenta `VALIDADO` con al menos un permiso de gestión expone el rol derivado
+`rolAcceso = ADMINISTRADOR` (calculado en el dominio, única fuente de verdad).
 
 **Puerto:** `UsuarioRepository` (`guardar`, `buscarPorId`, `buscarPorEmail`,
 `listarTodos`, `existePorEmail`).

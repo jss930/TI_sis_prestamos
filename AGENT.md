@@ -7,7 +7,7 @@
 ![Java 21](https://img.shields.io/badge/Java-21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.2.0-6DB33F?style=for-the-badge&logo=springboot&logoColor=white)
 ![DDD](https://img.shields.io/badge/Arquitectura-DDD-1D5B40?style=for-the-badge)
-![Tests](https://img.shields.io/badge/Tests-58_passing-brightgreen?style=for-the-badge)
+![Tests](https://img.shields.io/badge/Tests-78_passing-brightgreen?style=for-the-badge)
 
 **Reglas que no se rompen, comandos que sí funcionan y mapa del código**
 
@@ -29,7 +29,7 @@
 | API REST `/api/v1` | ✅ Implementada con `ProblemDetail` |
 | Persistencia | ✅ PostgreSQL 16 + Spring Data JPA + Flyway |
 | Frontend | ✅ React + TypeScript + Vite integrado |
-| Tests | ✅ 58 verdes (57 originales + `JpaPersistenciaTest`) |
+| Tests | ✅ 78 verdes (57 originales + `JpaPersistenciaTest`) |
 | Autenticación real | ⏳ Pendiente (fase de seguridad) |
 | Reservas | ❌ Fuera del alcance principal |
 

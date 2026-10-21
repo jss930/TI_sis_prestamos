@@ -166,6 +166,25 @@ curl -s "$BASE/inventario/ejemplares"
 
 La disponibilidad no sale de un contador: sale del `estadoFisico` de cada ejemplar.
 
+### Gestión del catálogo (alta, título y activación)
+
+```bash
+# Alta de libro
+curl -s -i -X POST "$BASE/catalogo/libros" \
+  -H 'Content-Type: application/json' \
+  -d '{"titulo":"Refactoring","isbn":"9780201485677","autor":"Martin Fowler","editorial":"Addison-Wesley","anioPublicacion":1999}'
+
+# Cambio de titulo (idempotente en activar/desactivar)
+ITEM_ID=00000000-0000-0000-0000-000000000101
+curl -s -i -X PATCH "$BASE/catalogo/$ITEM_ID/titulo" \
+  -H 'Content-Type: application/json' \
+  -d '{"titulo":"Clean Code (edicion revisada)"}'
+curl -s -i -X POST "$BASE/catalogo/$ITEM_ID/desactivar"
+curl -s -i -X POST "$BASE/catalogo/$ITEM_ID/activar"
+```
+
+**Resultado esperado:** 200/201 con el ítem actualizado; repetir activar o desactivar no falla.
+
 > [!NOTE]
 > Esta separación es intencional. `catalog` describe la obra; `inventory` describe la
 > unidad física. Un mismo libro puede tener varios ejemplares con estados distintos.
