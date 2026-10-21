@@ -3,6 +3,8 @@ package com.biblioteca.infrastructure.web.rest;
 import com.biblioteca.catalog.application.command.RegistrarEquipoCommand;
 import com.biblioteca.catalog.application.command.RegistrarLibroCommand;
 import com.biblioteca.catalog.application.command.RegistrarOtroCommand;
+import com.biblioteca.catalog.application.usecase.ActivarCatalogoItemUseCase;
+import com.biblioteca.catalog.application.usecase.ActualizarTituloCatalogoItemUseCase;
 import com.biblioteca.catalog.application.usecase.DesactivarCatalogoItemUseCase;
 import com.biblioteca.catalog.application.usecase.ListarCatalogoUseCase;
 import com.biblioteca.catalog.application.usecase.ObtenerCatalogoItemUseCase;
@@ -24,6 +26,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -45,19 +48,25 @@ public class CatalogoController {
     private final ListarCatalogoUseCase listar;
     private final ObtenerCatalogoItemUseCase obtener;
     private final DesactivarCatalogoItemUseCase desactivar;
+    private final ActivarCatalogoItemUseCase activar;
+    private final ActualizarTituloCatalogoItemUseCase actualizarTitulo;
 
     public CatalogoController(RegistrarLibroUseCase registrarLibro,
                               RegistrarEquipoUseCase registrarEquipo,
                               RegistrarOtroUseCase registrarOtro,
                               ListarCatalogoUseCase listar,
                               ObtenerCatalogoItemUseCase obtener,
-                              DesactivarCatalogoItemUseCase desactivar) {
+                              DesactivarCatalogoItemUseCase desactivar,
+                              ActivarCatalogoItemUseCase activar,
+                              ActualizarTituloCatalogoItemUseCase actualizarTitulo) {
         this.registrarLibro = registrarLibro;
         this.registrarEquipo = registrarEquipo;
         this.registrarOtro = registrarOtro;
         this.listar = listar;
         this.obtener = obtener;
         this.desactivar = desactivar;
+        this.activar = activar;
+        this.actualizarTitulo = actualizarTitulo;
     }
 
     @GetMapping
@@ -104,6 +113,17 @@ public class CatalogoController {
         return aResponse(desactivar.ejecutar(new CatalogoItemId(id)));
     }
 
+    @PostMapping("/{id}/activar")
+    public ItemResponse activar(@PathVariable UUID id) {
+        return aResponse(activar.ejecutar(new CatalogoItemId(id)));
+    }
+
+    @PatchMapping("/{id}/titulo")
+    public ItemResponse actualizarTitulo(@PathVariable UUID id,
+                                         @Valid @RequestBody TituloRequest request) {
+        return aResponse(actualizarTitulo.ejecutar(new CatalogoItemId(id), new Titulo(request.titulo())));
+    }
+
     private static ItemResponse aResponse(CatalogoItem item) {
         return new ItemResponse(item.id().value(), item.titulo().value(), item.tipo(),
                 item.activo(), aDetalle(item.detalle()));
@@ -141,6 +161,9 @@ public class CatalogoController {
     public record OtroRequest(
             @NotBlank String titulo,
             @NotBlank String descripcion) {
+    }
+
+    public record TituloRequest(@NotBlank String titulo) {
     }
 
     public record ItemResponse(
