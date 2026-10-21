@@ -2,6 +2,7 @@ export type Pagina =
   | 'resumen'
   | 'personas'
   | 'catalogo'
+  | 'mis-prestamos'
   | 'prestamos'
   | 'sanciones'
   | 'administracion'

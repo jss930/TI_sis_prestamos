@@ -5,6 +5,7 @@ import Login from './pages/Login'
 import Resumen from './pages/Resumen'
 import Personas from './pages/Personas'
 import Catalogo from './pages/Catalogo'
+import MisPrestamos from './pages/MisPrestamos'
 import Prestamos from './pages/Prestamos'
 import Sanciones from './pages/Sanciones'
 import Administracion from './pages/Administracion'
@@ -84,6 +85,15 @@ export default function App() {
   const rolActual = usuarioActual?.rolAcceso ?? sesion?.rolAcceso
   const esPersonal =
     usuarioActual?.estado === 'VALIDADO' && permisosActuales.length > 0
+  const misPrestamos = usuarioActual
+    ? datos.prestamos.filter((prestamo) => prestamo.prestatarioId === usuarioActual.id)
+    : []
+
+  useEffect(() => {
+    if (pagina === 'prestamos' && !permisosActuales.includes('REGISTRAR_PRESTAMO')) {
+      setPagina('catalogo')
+    }
+  }, [pagina, permisosActuales])
 
   const crearLibroCatalogo = useCallback(
     async (libro: NuevoLibroCatalogo) => {
@@ -217,6 +227,14 @@ export default function App() {
             reactivarUsuario={reactivarUsuarioCuenta}
             otorgarPermiso={otorgarPermisoUsuarioCuenta}
             revocarPermiso={revocarPermisoUsuarioCuenta}
+          />
+        )
+      case 'mis-prestamos':
+        return (
+          <MisPrestamos
+            prestamos={misPrestamos}
+            catalogo={datos.catalogo}
+            ejemplares={datos.ejemplares}
           />
         )
       case 'catalogo':

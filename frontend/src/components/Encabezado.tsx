@@ -4,6 +4,7 @@ const TITULOS: Record<Pagina, [string, string]> = {
   resumen: ['Resumen general', 'Consulta la actividad de préstamos de hoy.'],
   personas: ['Personas', 'Alumnos, docentes y administrativos registrados en la API.'],
   catalogo: ['Catálogo de bienes', 'Libros, equipos y otros recursos disponibles.'],
+  'mis-prestamos': ['Mis préstamos', 'Historial de préstamos de tu cuenta demo.'],
   prestamos: ['Préstamos', 'Registra entregas y devoluciones.'],
   sanciones: ['Sanciones', 'Restricciones informadas por el sistema.'],
   administracion: ['Panel administrador', 'Configuración y estado de la integración.'],
