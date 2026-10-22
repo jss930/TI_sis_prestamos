@@ -6,6 +6,8 @@ const OPCIONES: Array<{ id: Pagina; icono: string; texto: string }> = [
   { id: 'personas', icono: '♙', texto: 'Personas' },
   { id: 'catalogo', icono: '▦', texto: 'Catálogo' },
   { id: 'mis-prestamos', icono: '↗', texto: 'Mis préstamos' },
+  { id: 'mis-reservas', icono: '☰', texto: 'Mis reservas' },
+  { id: 'reservas', icono: '☰', texto: 'Reservas' },
   { id: 'prestamos', icono: '↗', texto: 'Préstamos' },
   { id: 'sanciones', icono: '!', texto: 'Sanciones' },
   { id: 'administracion', icono: '⚙', texto: 'Administración' },
@@ -38,6 +40,10 @@ export default function BarraLateral({
         if (opcion.id === 'catalogo') return true
         if (opcion.id === 'mis-prestamos')
           return !sesion.publica && !permisos.includes('REGISTRAR_PRESTAMO')
+        if (opcion.id === 'mis-reservas')
+          return !sesion.publica
+        if (opcion.id === 'reservas')
+          return permisos.includes('GESTIONAR_RESERVAS') || permisos.includes('GESTIONAR_CATALOGO')
         if (opcion.id === 'resumen') return esPersonal
         if (opcion.id === 'prestamos') return permisos.includes('REGISTRAR_PRESTAMO')
         if (opcion.id === 'personas')

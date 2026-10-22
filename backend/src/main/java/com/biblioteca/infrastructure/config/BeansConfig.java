@@ -2,6 +2,8 @@ package com.biblioteca.infrastructure.config;
 
 import com.biblioteca.circulation.domain.policy.PoliticaPrestamo;
 import com.biblioteca.circulation.domain.policy.PoliticaPrestamoEstandar;
+import com.biblioteca.reservations.domain.policy.PoliticaReserva;
+import com.biblioteca.reservations.domain.policy.PoliticaReservaEstandar;
 import com.biblioteca.penalties.domain.policy.PoliticaSancion;
 import com.biblioteca.penalties.domain.policy.PoliticaSancionEstandar;
 import org.springframework.context.annotation.Bean;
@@ -29,5 +31,10 @@ public class BeansConfig {
     @Bean
     public PoliticaSancion politicaSancion() {
         return new PoliticaSancionEstandar();
+    }
+
+    @Bean
+    public PoliticaReserva politicaReserva() {
+        return new PoliticaReservaEstandar();
     }
 }

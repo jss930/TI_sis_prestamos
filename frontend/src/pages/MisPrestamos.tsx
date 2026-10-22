@@ -54,12 +54,8 @@ export default function MisPrestamos({ prestamos, catalogo, ejemplares }: Props)
       <div className="panel-titulo">
         <div>
           <h2>Mis préstamos</h2>
-          <p>{ordenados.length} registros de tu cuenta demo</p>
+          <p>{ordenados.length} registros de tu cuenta</p>
         </div>
-      </div>
-      <div className="aviso">
-        Modo demo: solo lectura. La lista se filtra por tu cuenta demo. La seguridad real
-        queda para la fase de autenticación.
       </div>
       <Tabla filas={ordenados} columnas={columnas} vacio="Todavía no tienes préstamos registrados" />
     </section>

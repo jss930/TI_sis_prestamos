@@ -15,6 +15,10 @@ const ESTADOS: Record<string, { texto: string; clase: ClaseEtiqueta }> = {
   PRESTADO: { texto: 'Prestado', clase: 'espera' },
   DANADO: { texto: 'Dañado', clase: 'peligro' },
   BAJA: { texto: 'Baja', clase: 'neutro' },
+  SOLICITADA: { texto: 'Solicitada', clase: 'espera' },
+  ACEPTADA: { texto: 'Aceptada', clase: 'correcto' },
+  DENEGADA: { texto: 'Denegada', clase: 'peligro' },
+  CANCELADA: { texto: 'Cancelada', clase: 'neutro' },
 }
 
 export default function EtiquetaEstado({ estado }: { estado: string }) {

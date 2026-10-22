@@ -6,10 +6,11 @@ import Resumen from './pages/Resumen'
 import Personas from './pages/Personas'
 import Catalogo from './pages/Catalogo'
 import MisPrestamos from './pages/MisPrestamos'
+import MisReservas from './pages/MisReservas'
+import Reservas from './pages/Reservas'
 import Prestamos from './pages/Prestamos'
 import Sanciones from './pages/Sanciones'
 import Administracion from './pages/Administracion'
-import { OPERADOR_DEMO_ID } from './constants'
 import { api, mensajeDeError } from './services/api'
 import type {
   DatosBiblioteca,
@@ -30,10 +31,18 @@ const DATOS_VACIOS: DatosBiblioteca = {
   ejemplares: [],
   prestamos: [],
   sanciones: [],
+  reservas: [],
 }
 
 export default function App() {
-  const [sesion, setSesion] = useState<Sesion | null>(null)
+  const [sesion, setSesion] = useState<Sesion | null>(() => {
+    try {
+      const raw = localStorage.getItem('biblioteca_sesion')
+      return raw ? (JSON.parse(raw) as Sesion) : null
+    } catch {
+      return null
+    }
+  })
   const [pagina, setPagina] = useState<Pagina>('resumen')
   const [datos, setDatos] = useState<DatosBiblioteca>(DATOS_VACIOS)
   const [cargando, setCargando] = useState(true)
@@ -43,14 +52,15 @@ export default function App() {
     if (!silencioso) setCargando(true)
     setErrorCarga(null)
     try {
-      const [catalogo, usuarios, ejemplares, prestamos, sanciones] = await Promise.all([
+      const [catalogo, usuarios, ejemplares, prestamos, sanciones, reservas] = await Promise.all([
         api.getCatalogo(),
         api.getUsuarios(),
         api.getEjemplares(),
         api.getPrestamos(),
         api.getSanciones(),
+        api.getReservas(),
       ])
-      setDatos({ catalogo, usuarios, ejemplares, prestamos, sanciones })
+      setDatos({ catalogo, usuarios, ejemplares, prestamos, sanciones, reservas })
     } catch (error) {
       setErrorCarga(mensajeDeError(error))
     } finally {
@@ -61,6 +71,17 @@ export default function App() {
   useEffect(() => {
     void cargarDatos()
   }, [cargarDatos])
+
+  const usuarioActual = sesion && !sesion.publica
+    ? datos.usuarios.find((usuario) => usuario.email === sesion.email) ?? null
+    : null
+  const permisosActuales = usuarioActual?.permisos ?? sesion?.permisos ?? []
+  const rolActual = usuarioActual?.rolAcceso ?? sesion?.rolAcceso
+  const esPersonal =
+    usuarioActual?.estado === 'VALIDADO' && permisosActuales.length > 0
+  const misPrestamos = usuarioActual
+    ? datos.prestamos.filter((prestamo) => prestamo.prestatarioId === usuarioActual.id)
+    : []
 
   const crearPrestamo = useCallback(
     async (nuevoPrestamo: NuevoPrestamo) => {
@@ -78,19 +99,44 @@ export default function App() {
     [cargarDatos],
   )
 
-  const usuarioActual = sesion && !sesion.publica
-    ? datos.usuarios.find((usuario) => usuario.email === sesion.email) ?? null
-    : null
-  const permisosActuales = usuarioActual?.permisos ?? sesion?.permisos ?? []
-  const rolActual = usuarioActual?.rolAcceso ?? sesion?.rolAcceso
-  const esPersonal =
-    usuarioActual?.estado === 'VALIDADO' && permisosActuales.length > 0
-  const misPrestamos = usuarioActual
-    ? datos.prestamos.filter((prestamo) => prestamo.prestatarioId === usuarioActual.id)
-    : []
+  const solicitarReserva = useCallback(
+    async (prestatarioId: string, catalogoItemId: string) => {
+      await api.solicitarReserva(prestatarioId, catalogoItemId)
+      await cargarDatos(true)
+    },
+    [cargarDatos],
+  )
+  const cancelarReserva = useCallback(
+    async (id: string) => {
+      if (!usuarioActual?.id) return
+      await api.cancelarReserva(id, usuarioActual.id)
+      await cargarDatos(true)
+    },
+    [cargarDatos, usuarioActual],
+  )
+  const aceptarReserva = useCallback(
+    async (id: string) => {
+      if (!usuarioActual?.id) return
+      await api.aceptarReserva(id, usuarioActual.id)
+      await cargarDatos(true)
+    },
+    [cargarDatos, usuarioActual],
+  )
+  const denegarReserva = useCallback(
+    async (id: string, motivo: string) => {
+      if (!usuarioActual?.id) return
+      await api.denegarReserva(id, usuarioActual.id, motivo)
+      await cargarDatos(true)
+    },
+    [cargarDatos, usuarioActual],
+  )
+
 
   useEffect(() => {
     if (pagina === 'prestamos' && !permisosActuales.includes('REGISTRAR_PRESTAMO')) {
+      setPagina('catalogo')
+    }
+    if (pagina === 'reservas' && !permisosActuales.includes('GESTIONAR_RESERVAS') && !permisosActuales.includes('GESTIONAR_CATALOGO')) {
       setPagina('catalogo')
     }
   }, [pagina, permisosActuales])
@@ -137,6 +183,13 @@ export default function App() {
     },
     [cargarDatos],
   )
+  const crearEjemplar = useCallback(
+    async (ejemplar: import('./types').NuevoEjemplar) => {
+      await api.crearEjemplar(ejemplar)
+      await cargarDatos(true)
+    },
+    [cargarDatos],
+  )
 
   const crearUsuarioCuenta = useCallback(
     async (usuario: NuevoUsuarioCuenta) => {
@@ -147,35 +200,35 @@ export default function App() {
   )
   const validarUsuarioCuenta = useCallback(
     async (id: string) => {
-      await api.validarUsuario(id, OPERADOR_DEMO_ID)
+      await api.validarUsuario(id, usuarioActual?.id ?? sesion?.id ?? '')
       await cargarDatos(true)
     },
     [cargarDatos],
   )
   const suspenderUsuarioCuenta = useCallback(
     async (id: string, motivo: string) => {
-      await api.suspenderUsuario(id, OPERADOR_DEMO_ID, motivo)
+      await api.suspenderUsuario(id, usuarioActual?.id ?? sesion?.id ?? '', motivo)
       await cargarDatos(true)
     },
     [cargarDatos],
   )
   const reactivarUsuarioCuenta = useCallback(
     async (id: string) => {
-      await api.reactivarUsuario(id, OPERADOR_DEMO_ID)
+      await api.reactivarUsuario(id, usuarioActual?.id ?? sesion?.id ?? '')
       await cargarDatos(true)
     },
     [cargarDatos],
   )
   const otorgarPermisoUsuarioCuenta = useCallback(
     async (id: string, permiso: PermisoOperativo) => {
-      await api.otorgarPermisoUsuario(id, OPERADOR_DEMO_ID, permiso)
+      await api.otorgarPermisoUsuario(id, usuarioActual?.id ?? sesion?.id ?? '', permiso)
       await cargarDatos(true)
     },
     [cargarDatos],
   )
   const revocarPermisoUsuarioCuenta = useCallback(
     async (id: string, permiso: PermisoOperativo) => {
-      await api.revocarPermisoUsuario(id, permiso, OPERADOR_DEMO_ID)
+      await api.revocarPermisoUsuario(id, permiso, usuarioActual?.id ?? sesion?.id ?? '')
       await cargarDatos(true)
     },
     [cargarDatos],
@@ -183,6 +236,8 @@ export default function App() {
 
   function cerrarSesion() {
     setSesion(null)
+    localStorage.removeItem('biblioteca_sesion')
+    localStorage.removeItem('biblioteca_token')
     setPagina('resumen')
   }
 
@@ -193,12 +248,15 @@ export default function App() {
           const usuario = datos.usuarios.find((item) => item.email === nuevaSesion.email)
           const esPersonal =
             usuario?.estado === 'VALIDADO' && (usuario?.permisos.length ?? 0) > 0
-          setSesion({
+          const sesionCompleta = {
             ...nuevaSesion,
             id: usuario?.id,
             permisos: usuario?.permisos ?? [],
             rolAcceso: usuario?.rolAcceso,
-          })
+          }
+          setSesion(sesionCompleta)
+          localStorage.setItem('biblioteca_sesion', JSON.stringify(sesionCompleta))
+          if (nuevaSesion.token) localStorage.setItem('biblioteca_token', nuevaSesion.token)
           setPagina(nuevaSesion.publica ? 'catalogo' : esPersonal ? 'resumen' : 'catalogo')
         }}
         alVerCatalogo={() => {
@@ -251,6 +309,14 @@ export default function App() {
             actualizarTitulo={actualizarTituloCatalogo}
             activar={activarCatalogo}
             desactivar={desactivarCatalogo}
+            crearEjemplar={crearEjemplar}
+            puedeReservar={!soloCatalogo && !!usuarioActual?.id}
+            itemsReservados={datos.reservas
+              .filter((r) => r.prestatarioId === usuarioActual?.id && r.estado === 'SOLICITADA')
+              .map((r) => r.catalogoItemId)}
+            reservar={(catalogoItemId) =>
+              usuarioActual?.id ? solicitarReserva(usuarioActual.id, catalogoItemId) : Promise.resolve()
+            }
           />
         )
       case 'prestamos':
@@ -268,6 +334,26 @@ export default function App() {
         )
       case 'sanciones':
         return <Sanciones sanciones={datos.sanciones} usuarios={datos.usuarios} />
+      case 'mis-reservas':
+        return (
+          <MisReservas
+            reservas={datos.reservas}
+            catalogo={datos.catalogo}
+            usuarioId={usuarioActual?.id ?? null}
+            cancelarReserva={cancelarReserva}
+          />
+        )
+      case 'reservas':
+        return (
+          <Reservas
+            reservas={datos.reservas}
+            usuarios={datos.usuarios}
+            catalogo={datos.catalogo}
+            operadorId={permisosActuales.includes('GESTIONAR_RESERVAS') || permisosActuales.includes('GESTIONAR_CATALOGO') ? usuarioActual?.id ?? null : null}
+            aceptarReserva={aceptarReserva}
+            denegarReserva={denegarReserva}
+          />
+        )
       case 'administracion':
         return <Administracion datos={datos} />
       default:
@@ -289,12 +375,6 @@ export default function App() {
       />
       <main className="contenido">
         <Encabezado pagina={paginaActual} publica={soloCatalogo} />
-        {!soloCatalogo && (
-          <div className="banner-demo">
-            Modo demo: la sesión es local y la autenticación real está pendiente. Los datos se
-            consultan a la API en tiempo real.
-          </div>
-        )}
         {errorCarga && (
           <div className="aviso error-aviso">
             ⚠ {errorCarga}

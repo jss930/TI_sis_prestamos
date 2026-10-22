@@ -3,6 +3,7 @@ import type {
   CatalogoItem,
   Ejemplar,
   NuevoEquipoCatalogo,
+  NuevoEjemplar,
   NuevoLibroCatalogo,
   NuevoOtroCatalogo,
   Pagina,
@@ -29,12 +30,16 @@ interface Props {
   puedeSolicitar: boolean
   irA: (pagina: Pagina) => void
   permisos: PermisoOperativo[]
+  puedeReservar?: boolean
+  itemsReservados?: string[]
+  reservar?: (catalogoItemId: string) => Promise<void>
   crearLibro: (libro: NuevoLibroCatalogo) => Promise<void>
   crearEquipo: (equipo: NuevoEquipoCatalogo) => Promise<void>
   crearOtro: (otro: NuevoOtroCatalogo) => Promise<void>
   actualizarTitulo: (id: string, titulo: string) => Promise<void>
   activar: (id: string) => Promise<void>
   desactivar: (id: string) => Promise<void>
+  crearEjemplar?: (ejemplar: NuevoEjemplar) => Promise<void>
 }
 
 export default function Catalogo({
@@ -43,17 +48,24 @@ export default function Catalogo({
   puedeSolicitar,
   irA,
   permisos,
+  puedeReservar = false,
+  itemsReservados = [],
+  reservar,
   crearLibro,
   crearEquipo,
   crearOtro,
   actualizarTitulo,
   activar,
   desactivar,
+  crearEjemplar,
 }: Props) {
   const [categoria, setCategoria] = useState<'TODOS' | CatalogoItem['tipo']>('TODOS')
   const [error, setError] = useState<string | null>(null)
+  const [reservando, setReservando] = useState<string | null>(null)
   const [editando, setEditando] = useState<string | null>(null)
   const [nuevoTitulo, setNuevoTitulo] = useState('')
+  const [gestionandoEjemplar, setGestionandoEjemplar] = useState<string | null>(null)
+  const [formEjemplar, setFormEjemplar] = useState({ barcode: '', sala: 'Sala general', estante: 'Estante A-1', notas: '' })
   const [tipoAlta, setTipoAlta] = useState<'LIBRO' | 'EQUIPO' | 'OTRO'>('LIBRO')
   const [formLibro, setFormLibro] = useState<NuevoLibroCatalogo>({
     titulo: '',
@@ -217,6 +229,51 @@ export default function Catalogo({
                 <span className={habilitado ? 'punto' : 'punto no'} />
                 {habilitado ? `${disponibles} disponibles` : 'No disponible'}
               </div>
+              {puedeGestionar && gestionandoEjemplar === item.id && (
+                <form
+                  className="form-inline"
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    void ejecutar(async () => {
+                      if (crearEjemplar) {
+                        await crearEjemplar({
+                          catalogoItemId: item.id,
+                          barcode: formEjemplar.barcode,
+                          sala: formEjemplar.sala,
+                          estante: formEjemplar.estante,
+                          notas: formEjemplar.notas || null,
+                        })
+                        setGestionandoEjemplar(null)
+                      }
+                    })
+                  }}
+                >
+                  <input
+                    placeholder="Barcode"
+                    value={formEjemplar.barcode}
+                    onChange={(e) => setFormEjemplar((f) => ({ ...f, barcode: e.target.value }))}
+                    required
+                  />
+                  <input
+                    placeholder="Sala"
+                    value={formEjemplar.sala}
+                    onChange={(e) => setFormEjemplar((f) => ({ ...f, sala: e.target.value }))}
+                    required
+                  />
+                  <input
+                    placeholder="Estante"
+                    value={formEjemplar.estante}
+                    onChange={(e) => setFormEjemplar((f) => ({ ...f, estante: e.target.value }))}
+                    required
+                  />
+                  <input
+                    placeholder="Notas"
+                    value={formEjemplar.notas}
+                    onChange={(e) => setFormEjemplar((f) => ({ ...f, notas: e.target.value }))}
+                  />
+                  <button className="boton primario" type="submit">Guardar ejemplar</button>
+                </form>
+              )}
               <div className="acciones-fila">
                 <button
                   className="boton secundario"
@@ -226,6 +283,30 @@ export default function Catalogo({
                 >
                   {puedeSolicitar ? 'Solicitar préstamo' : 'Consulta en ventanilla'}
                 </button>
+                {puedeReservar && item.activo && (
+                  <button
+                    className="boton secundario"
+                    disabled={reservando === item.id || itemsReservados.includes(item.id)}
+                    aria-busy={reservando === item.id}
+                    onClick={() =>
+                      void ejecutar(async () => {
+                        setReservando(item.id)
+                        try {
+                          if (reservar) await reservar(item.id)
+                        } finally {
+                          setReservando(null)
+                        }
+                      })
+                    }
+                    type="button"
+                  >
+                    {reservando === item.id
+                      ? 'Reservando…'
+                      : itemsReservados.includes(item.id)
+                        ? 'Reserva solicitada'
+                        : 'Reservar'}
+                  </button>
+                )}
                 {puedeGestionar && (
                   <>
                     <button
@@ -246,6 +327,16 @@ export default function Catalogo({
                       type="button"
                     >
                       {item.activo ? 'Desactivar' : 'Activar'}
+                    </button>
+                    <button
+                      className="boton secundario"
+                      onClick={() => {
+                        setGestionandoEjemplar(gestionandoEjemplar === item.id ? null : item.id)
+                        setFormEjemplar({ barcode: '', sala: 'Sala general', estante: 'Estante A-1', notas: '' })
+                      }}
+                      type="button"
+                    >
+                      {gestionandoEjemplar === item.id ? 'Cerrar' : 'Añadir ejemplar'}
                     </button>
                   </>
                 )}

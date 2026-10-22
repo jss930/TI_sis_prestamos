@@ -8,7 +8,8 @@ public enum PermisoOperativo {
     VALIDAR_USUARIO_PROVISIONAL,
     GESTIONAR_CATALOGO,
     GESTIONAR_SANCIONES,
-    GESTIONAR_USUARIOS;
+    GESTIONAR_USUARIOS,
+    GESTIONAR_RESERVAS;
 
     /**
      * Conjunto unico de permisos que convierten a una cuenta validada en
@@ -17,5 +18,5 @@ public enum PermisoOperativo {
      */
     public static final Set<PermisoOperativo> PERMISOS_DE_GESTION =
             Set.of(VALIDAR_USUARIO_PROVISIONAL, GESTIONAR_CATALOGO,
-                    GESTIONAR_SANCIONES, GESTIONAR_USUARIOS);
+                    GESTIONAR_SANCIONES, GESTIONAR_USUARIOS, GESTIONAR_RESERVAS);
 }

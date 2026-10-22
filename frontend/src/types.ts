@@ -3,15 +3,18 @@ export type Pagina =
   | 'personas'
   | 'catalogo'
   | 'mis-prestamos'
+  | 'mis-reservas'
   | 'prestamos'
   | 'sanciones'
   | 'administracion'
+  | 'reservas'
 
 export interface Sesion {
   nombre: string
   email: string
   publica: boolean
   id?: string
+  token?: string
   permisos?: PermisoOperativo[]
   rolAcceso?: RolAcceso
 }
@@ -30,6 +33,7 @@ export type PermisoOperativo =
   | 'GESTIONAR_CATALOGO'
   | 'GESTIONAR_SANCIONES'
   | 'GESTIONAR_USUARIOS'
+  | 'GESTIONAR_RESERVAS'
 
 export type EstadoFisico = 'DISPONIBLE' | 'PRESTADO' | 'DANADO' | 'PERDIDO' | 'BAJA'
 
@@ -40,6 +44,8 @@ export type LugarUso = 'EN_CAMPUS' | 'DOMICILIO'
 export type MotivoSancion = 'RETRASO' | 'DANO' | 'PERDIDA'
 
 export type EstadoSancion = 'ACTIVA' | 'CUMPLIDA' | 'ANULADA'
+
+export type EstadoReserva = 'SOLICITADA' | 'ACEPTADA' | 'DENEGADA' | 'CANCELADA'
 
 export interface CatalogoDetalle {
   isbn: string | null
@@ -111,6 +117,26 @@ export interface Sancion {
   observaciones: string | null
 }
 
+export interface Reserva {
+  id: string
+  prestatarioId: string
+  catalogoItemId: string
+  estado: EstadoReserva
+  operadorId: string | null
+  prestamoId: string | null
+  motivo: string | null
+  fechaAlta: string
+  fechaDecision: string | null
+}
+
+export interface NuevoEjemplar {
+  catalogoItemId: string
+  barcode: string
+  sala: string
+  estante: string
+  notas?: string | null
+}
+
 export interface NuevoPrestamo {
   operadorId: string
   prestatarioId: string
@@ -159,4 +185,5 @@ export interface DatosBiblioteca {
   ejemplares: Ejemplar[]
   prestamos: Prestamo[]
   sanciones: Sancion[]
+  reservas: Reserva[]
 }

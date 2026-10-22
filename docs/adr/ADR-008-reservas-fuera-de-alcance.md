@@ -1,6 +1,6 @@
 # ADR-008 — Reservas fuera del alcance del corte 1
 
-- **Estado:** aceptado
+- **Estado:** superado por ADR-010
 - **Fecha:** 2026-10-20
 - **Contexto:** el hito del 50 % debía priorizar la solidez del núcleo: persistencia real,
   autenticación JWT, préstamo directo en ventanilla e integración de un frontend básico.

@@ -19,6 +19,7 @@ import com.biblioteca.identity.domain.model.EstadoCuentaUsuario;
 import com.biblioteca.identity.domain.model.PerfilPrestatario;
 import com.biblioteca.identity.domain.model.PermisoOperativo;
 import com.biblioteca.identity.domain.model.Usuario;
+import com.biblioteca.identity.domain.repository.CredencialRepository;
 import com.biblioteca.identity.domain.repository.UsuarioRepository;
 import com.biblioteca.identity.domain.vo.EmailAddress;
 import com.biblioteca.identity.domain.vo.NombreCompleto;
@@ -27,6 +28,7 @@ import com.biblioteca.inventory.domain.model.Ejemplar;
 import com.biblioteca.inventory.domain.model.EstadoFisico;
 import com.biblioteca.inventory.domain.model.Ubicacion;
 import com.biblioteca.inventory.domain.repository.EjemplarRepository;
+import com.biblioteca.infrastructure.security.PasswordHasher;
 import com.biblioteca.inventory.domain.vo.Barcode;
 import com.biblioteca.inventory.domain.vo.EjemplarId;
 import org.slf4j.Logger;
@@ -68,6 +70,8 @@ public class DemoDataConfig {
 
     @Bean
     public ApplicationRunner cargarDatosDemo(UsuarioRepository usuarios,
+                                             CredencialRepository credenciales,
+                                             PasswordHasher passwordHasher,
                                              CatalogoItemRepository catalogo,
                                              EjemplarRepository ejemplares,
                                              PrestamoRepository prestamos) {
@@ -128,6 +132,12 @@ public class DemoDataConfig {
             usuarios.guardar(ana);
             usuarios.guardar(luis);
             usuarios.guardar(docente);
+
+            String hash = passwordHasher.hash("password");
+            credenciales.guardar(bibliotecario.id(), hash);
+            credenciales.guardar(ana.id(), hash);
+            credenciales.guardar(luis.id(), hash);
+            credenciales.guardar(docente.id(), hash);
 
             CatalogoItem libro = CatalogoItem.reconstruir(
                     new CatalogoItemId(LIBRO_ID),
