@@ -2,9 +2,17 @@ import type {
   CatalogoItem,
   Ejemplar,
   EstadoFisico,
+  NuevoEquipoCatalogo,
+  NuevoEjemplar,
+  NuevoLibroCatalogo,
+  NuevoOtroCatalogo,
   NuevoPrestamo,
+  NuevoUsuarioCuenta,
+  PermisoOperativo,
   Prestamo,
   ProblemDetail,
+  Reserva,
+
   Sancion,
   Usuario,
 } from '../types'
@@ -22,6 +30,7 @@ const MENSAJES_POR_CODIGO: Record<string, string> = {
   EJEMPLAR_YA_PRESTADO: 'El ejemplar ya tiene un préstamo activo.',
   PRESTAMO_VENCIDO_PENDIENTE: 'El usuario tiene un préstamo vencido sin devolver.',
   LIMITE_PRESTAMOS: 'El usuario alcanzó el máximo de préstamos simultáneos.',
+  LIMITE_RESERVAS: 'El usuario alcanzó el máximo de reservas activas.',
   LIMITE_RENOVACIONES: 'El préstamo alcanzó el máximo de renovaciones permitidas.',
   DOMICILIO_NO_PERMITIDO: 'El perfil no puede llevar este tipo de bien a domicilio.',
   OPERADOR_NO_HABILITADO: 'El operador no tiene permiso para realizar esta operación.',
@@ -61,6 +70,8 @@ async function solicitar<T>(ruta: string, init: RequestInit = {}): Promise<T> {
     headers.set('Content-Type', 'application/json')
   }
 
+  const token = localStorage.getItem('biblioteca_token')
+  if (token) headers.set('Authorization', `Bearer ${token}`)
   let respuesta: Response
   try {
     respuesta = await fetch(`${API_BASE_URL}${ruta}`, { ...init, headers })
@@ -111,6 +122,110 @@ export const api = {
     solicitar<Prestamo>(`/prestamos/${id}/devolucion`, {
       method: 'POST',
       body: JSON.stringify({ estadoFisico }),
+    }),
+
+  // Catalogo
+  crearLibroCatalogo: (libro: NuevoLibroCatalogo) =>
+    solicitar<CatalogoItem>('/catalogo/libros', {
+      method: 'POST',
+      body: JSON.stringify(libro),
+    }),
+  crearEquipoCatalogo: (equipo: NuevoEquipoCatalogo) =>
+    solicitar<CatalogoItem>('/catalogo/equipos', {
+      method: 'POST',
+      body: JSON.stringify(equipo),
+    }),
+  crearOtroCatalogo: (otro: NuevoOtroCatalogo) =>
+    solicitar<CatalogoItem>('/catalogo/otros', {
+      method: 'POST',
+      body: JSON.stringify(otro),
+    }),
+  actualizarTituloCatalogo: (id: string, titulo: string) =>
+    solicitar<CatalogoItem>(`/catalogo/${id}/titulo`, {
+      method: 'PATCH',
+      body: JSON.stringify({ titulo }),
+    }),
+  activarCatalogo: (id: string) =>
+    solicitar<CatalogoItem>(`/catalogo/${id}/activar`, { method: 'POST' }),
+  desactivarCatalogo: (id: string) =>
+    solicitar<CatalogoItem>(`/catalogo/${id}/desactivar`, { method: 'POST' }),
+
+  // Usuarios
+  crearUsuario: (usuario: NuevoUsuarioCuenta) =>
+    solicitar<Usuario>('/usuarios', {
+      method: 'POST',
+      body: JSON.stringify(usuario),
+    }),
+  validarUsuario: (id: string, operadorId: string) =>
+    solicitar<Usuario>(`/usuarios/${id}/validar`, {
+      method: 'POST',
+      body: JSON.stringify({ operadorId }),
+    }),
+  suspenderUsuario: (id: string, operadorId: string, motivo: string) =>
+    solicitar<Usuario>(`/usuarios/${id}/suspender`, {
+      method: 'POST',
+      body: JSON.stringify({ operadorId, motivo }),
+    }),
+  reactivarUsuario: (id: string, operadorId: string) =>
+    solicitar<Usuario>(`/usuarios/${id}/reactivar`, {
+      method: 'POST',
+      body: JSON.stringify({ operadorId }),
+    }),
+  otorgarPermisoUsuario: (id: string, operadorId: string, permiso: PermisoOperativo) =>
+    solicitar<Usuario>(`/usuarios/${id}/permisos`, {
+      method: 'POST',
+      body: JSON.stringify({ operadorId, permiso }),
+    }),
+  revocarPermisoUsuario: (id: string, permiso: PermisoOperativo, operadorId: string) =>
+    solicitar<Usuario>(`/usuarios/${id}/permisos/${permiso}?operadorId=${operadorId}`, {
+      method: 'DELETE',
+    }),
+
+  // Inventario
+  crearEjemplar: (ejemplar: NuevoEjemplar) =>
+    solicitar<Ejemplar>('/inventario/ejemplares', {
+      method: 'POST',
+      body: JSON.stringify(ejemplar),
+    }),
+  darDeBajaEjemplar: (id: string, motivo: string) =>
+    solicitar<Ejemplar>(`/inventario/ejemplares/${id}/baja`, {
+      method: 'POST',
+      body: JSON.stringify({ motivo }),
+    }),
+
+  // Reservas
+  login: (email: string, password: string) =>
+    solicitar<{ token: string; usuario: Usuario }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    }),
+
+  getReservas: (prestatarioId?: string, estado?: string) => {
+    const params = new URLSearchParams()
+    if (prestatarioId) params.set('prestatarioId', prestatarioId)
+    if (estado) params.set('estado', estado)
+    const qs = params.toString()
+    return solicitar<Reserva[]>(`/reservas${qs ? `?${qs}` : ''}`)
+  },
+  solicitarReserva: (prestatarioId: string, catalogoItemId: string) =>
+    solicitar<Reserva>('/reservas', {
+      method: 'POST',
+      body: JSON.stringify({ prestatarioId, catalogoItemId }),
+    }),
+  aceptarReserva: (id: string, operadorId: string) =>
+    solicitar<Reserva>(`/reservas/${id}/aceptar`, {
+      method: 'POST',
+      body: JSON.stringify({ operadorId }),
+    }),
+  denegarReserva: (id: string, operadorId: string, motivo: string) =>
+    solicitar<Reserva>(`/reservas/${id}/denegar`, {
+      method: 'POST',
+      body: JSON.stringify({ operadorId, motivo }),
+    }),
+  cancelarReserva: (id: string, prestatarioId: string) =>
+    solicitar<Reserva>(`/reservas/${id}/cancelar`, {
+      method: 'POST',
+      body: JSON.stringify({ prestatarioId }),
     }),
 }
 

@@ -18,7 +18,8 @@ interface Props {
   usuarios: Usuario[]
   catalogo: CatalogoItem[]
   ejemplares: Ejemplar[]
-  operadorDemoId: string
+  operadorId: string | null
+  puedeOperar: boolean
   crearPrestamo: (datos: NuevoPrestamo) => Promise<void>
   devolverPrestamo: (id: string, estadoFisico?: EstadoFisico) => Promise<void>
 }
@@ -34,7 +35,8 @@ export default function Prestamos({
   usuarios,
   catalogo,
   ejemplares,
-  operadorDemoId,
+  operadorId,
+  puedeOperar,
   crearPrestamo,
   devolverPrestamo,
 }: Props) {
@@ -48,9 +50,12 @@ export default function Prestamos({
   )
 
   const [formulario, setFormulario] = useState<NuevoPrestamo>(() => ({
-    operadorId: operadores.some((operador) => operador.id === operadorDemoId)
-      ? operadorDemoId
-      : operadores[0]?.id ?? '',
+    operadorId:
+      operadorId && operadores.some((operador) => operador.id === operadorId)
+        ? operadorId
+        : puedeOperar
+          ? (operadores[0]?.id ?? '')
+          : '',
     prestatarioId: '',
     ejemplarId: '',
     lugarUso: 'EN_CAMPUS',
@@ -62,15 +67,18 @@ export default function Prestamos({
 
   useEffect(() => {
     setFormulario((actual) => {
-      if (operadores.some((operador) => operador.id === actual.operadorId)) return actual
-      const operadorId = operadores[0]?.id ?? ''
+      const preferido =
+        puedeOperar && operadorId && operadores.some((operador) => operador.id === operadorId)
+          ? operadorId
+          : operadores[0]?.id ?? ''
+      if (!preferido || operadores.some((operador) => operador.id === actual.operadorId)) return actual
       return {
         ...actual,
-        operadorId,
-        prestatarioId: actual.prestatarioId === operadorId ? '' : actual.prestatarioId,
+        operadorId: preferido,
+        prestatarioId: actual.prestatarioId === preferido ? '' : actual.prestatarioId,
       }
     })
-  }, [operadores])
+  }, [operadores, operadorId, puedeOperar])
 
   const prestatarios = useMemo(
     () =>
@@ -205,13 +213,20 @@ export default function Prestamos({
       <div className="acciones">
         <button
           className="boton primario"
-          disabled={!operadores.length || !prestatarios.length || !disponibles.length}
+          disabled={!puedeOperar || !operadores.length || !prestatarios.length || !disponibles.length}
           onClick={() => setMostrarFormulario((visible) => !visible)}
           type="button"
         >
           {mostrarFormulario ? 'Cancelar registro' : '+ Registrar préstamo'}
         </button>
       </div>
+
+      {!puedeOperar && (
+        <div className="aviso error-aviso">
+          Tu cuenta no tiene permiso para registrar préstamos. La API sigue confiando en
+          operadorId; esto es solo control de interfaz.
+        </div>
+      )}
 
       {mensaje && (
         <div className={`aviso ${mensaje.tipo === 'ok' ? 'correcto-aviso' : 'error-aviso'}`}>
@@ -237,6 +252,7 @@ export default function Prestamos({
               Operador
               <select
                 required
+                disabled={Boolean(operadorId)}
                 value={formulario.operadorId}
                 onChange={(evento) => {
                   const operadorId = evento.target.value

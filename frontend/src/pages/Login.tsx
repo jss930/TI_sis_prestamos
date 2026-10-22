@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import type { Sesion } from '../types'
+import { api, mensajeDeError } from '../services/api'
 
 interface Props {
   alIngresar: (sesion: Sesion) => void
@@ -7,13 +8,32 @@ interface Props {
 }
 
 export default function Login({ alIngresar, alVerCatalogo }: Props) {
-  const [correo, setCorreo] = useState('encargado@unsa.edu.pe')
+  const [correo, setCorreo] = useState('')
   const [clave, setClave] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [cargando, setCargando] = useState(false)
 
-  function enviar(evento: FormEvent<HTMLFormElement>) {
+  async function enviar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault()
-    const nombre = correo.split('@')[0]?.replace(/[._-]/g, ' ') || 'Personal bibliotecario'
-    alIngresar({ nombre, email: correo, publica: false })
+    setError(null)
+    setCargando(true)
+    try {
+      const respuesta = await api.login(correo, clave)
+      localStorage.setItem('biblioteca_token', respuesta.token)
+      alIngresar({
+        nombre: respuesta.usuario.nombreCompleto,
+        email: respuesta.usuario.email,
+        publica: false,
+        id: respuesta.usuario.id,
+        token: respuesta.token,
+        permisos: respuesta.usuario.permisos as Sesion['permisos'],
+        rolAcceso: respuesta.usuario.rolAcceso as Sesion['rolAcceso'],
+      })
+    } catch (e) {
+      setError(mensajeDeError(e))
+    } finally {
+      setCargando(false)
+    }
   }
 
   return (
@@ -37,7 +57,10 @@ export default function Login({ alIngresar, alVerCatalogo }: Props) {
         <form onSubmit={enviar}>
           <p className="sobrelinea">PORTAL INSTITUCIONAL</p>
           <h2>Bienvenido</h2>
-          <p>Ingresa con tu cuenta de personal para operar el sistema.</p>
+          <p>Ingresa con tu cuenta para operar el sistema.</p>
+
+          {error && <div className="aviso error-aviso">{error}</div>}
+
           <label>
             Correo institucional
             <input
@@ -53,20 +76,15 @@ export default function Login({ alIngresar, alVerCatalogo }: Props) {
               type="password"
               value={clave}
               onChange={(evento) => setClave(evento.target.value)}
-              placeholder="••••••••"
               required
             />
           </label>
-          <button className="boton primario" type="submit">
-            Ingresar al sistema →
+          <button className="boton primario" type="submit" disabled={cargando}>
+            {cargando ? 'Ingresando…' : 'Ingresar al sistema →'}
           </button>
-          <button className="boton secundario boton-catalogo" type="button" onClick={alVerCatalogo}>
+          <button className="boton secundario" type="button" onClick={alVerCatalogo}>
             Ver catálogo público
           </button>
-          <small>
-            Modo demo: la autenticación real todavía no está implementada. Cualquier contraseña permite
-            continuar; no uses credenciales reales.
-          </small>
         </form>
       </section>
     </main>

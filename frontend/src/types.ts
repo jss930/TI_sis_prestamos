@@ -2,14 +2,21 @@ export type Pagina =
   | 'resumen'
   | 'personas'
   | 'catalogo'
+  | 'mis-prestamos'
+  | 'mis-reservas'
   | 'prestamos'
   | 'sanciones'
   | 'administracion'
+  | 'reservas'
 
 export interface Sesion {
   nombre: string
   email: string
   publica: boolean
+  id?: string
+  token?: string
+  permisos?: PermisoOperativo[]
+  rolAcceso?: RolAcceso
 }
 
 export type TipoItem = 'LIBRO' | 'EQUIPO' | 'OTRO'
@@ -18,11 +25,15 @@ export type EstadoCuenta = 'PROVISIONAL' | 'VALIDADO' | 'SUSPENDIDO'
 
 export type PerfilPrestatario = 'ALUMNO' | 'DOCENTE' | 'ADMINISTRATIVO'
 
+export type RolAcceso = 'ESTUDIANTE' | 'DOCENTE' | 'ADMINISTRATIVO' | 'ADMINISTRADOR'
+
 export type PermisoOperativo =
   | 'REGISTRAR_PRESTAMO'
   | 'VALIDAR_USUARIO_PROVISIONAL'
   | 'GESTIONAR_CATALOGO'
   | 'GESTIONAR_SANCIONES'
+  | 'GESTIONAR_USUARIOS'
+  | 'GESTIONAR_RESERVAS'
 
 export type EstadoFisico = 'DISPONIBLE' | 'PRESTADO' | 'DANADO' | 'PERDIDO' | 'BAJA'
 
@@ -33,6 +44,8 @@ export type LugarUso = 'EN_CAMPUS' | 'DOMICILIO'
 export type MotivoSancion = 'RETRASO' | 'DANO' | 'PERDIDA'
 
 export type EstadoSancion = 'ACTIVA' | 'CUMPLIDA' | 'ANULADA'
+
+export type EstadoReserva = 'SOLICITADA' | 'ACEPTADA' | 'DENEGADA' | 'CANCELADA'
 
 export interface CatalogoDetalle {
   isbn: string | null
@@ -62,6 +75,7 @@ export interface Usuario {
   fechaAlta: string
   fechaValidacion: string | null
   motivoSuspension: string | null
+  rolAcceso: RolAcceso
 }
 
 export interface Ejemplar {
@@ -103,6 +117,26 @@ export interface Sancion {
   observaciones: string | null
 }
 
+export interface Reserva {
+  id: string
+  prestatarioId: string
+  catalogoItemId: string
+  estado: EstadoReserva
+  operadorId: string | null
+  prestamoId: string | null
+  motivo: string | null
+  fechaAlta: string
+  fechaDecision: string | null
+}
+
+export interface NuevoEjemplar {
+  catalogoItemId: string
+  barcode: string
+  sala: string
+  estante: string
+  notas?: string | null
+}
+
 export interface NuevoPrestamo {
   operadorId: string
   prestatarioId: string
@@ -120,10 +154,36 @@ export interface ProblemDetail {
   campos?: Record<string, string>
 }
 
+export interface NuevoLibroCatalogo {
+  titulo: string
+  isbn: string
+  autor: string
+  editorial: string
+  anioPublicacion: number
+}
+
+export interface NuevoEquipoCatalogo {
+  titulo: string
+  marca: string
+  modelo: string
+}
+
+export interface NuevoOtroCatalogo {
+  titulo: string
+  descripcion: string
+}
+
+export interface NuevoUsuarioCuenta {
+  email: string
+  nombreCompleto: string
+  perfil: PerfilPrestatario
+}
+
 export interface DatosBiblioteca {
   catalogo: CatalogoItem[]
   usuarios: Usuario[]
   ejemplares: Ejemplar[]
   prestamos: Prestamo[]
   sanciones: Sancion[]
+  reservas: Reserva[]
 }

@@ -19,6 +19,10 @@ public class RevocarPermisoUseCase {
     }
 
     public Usuario ejecutar(RevocarPermisoCommand command) {
+        if (command.operadorId().equals(command.usuarioId())) {
+            throw new BusinessRuleException("AUTOREVOCACION_NO_PERMITIDA",
+                    "Un operador no puede revocarse permisos a si mismo");
+        }
         Usuario operador = usuarios.buscarPorId(command.operadorId())
                 .orElseThrow(() -> new NotFoundException("Operador", command.operadorId().value()));
         if (!operador.puedeValidarProvisionales()) {

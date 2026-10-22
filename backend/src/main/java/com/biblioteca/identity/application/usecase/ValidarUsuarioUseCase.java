@@ -22,6 +22,10 @@ public class ValidarUsuarioUseCase {
     }
 
     public Usuario ejecutar(ValidarUsuarioCommand command) {
+        if (command.operadorId().equals(command.usuarioId())) {
+            throw new BusinessRuleException("AUTOVALIDACION_NO_PERMITIDA",
+                    "Un operador no puede validar su propia cuenta");
+        }
         Usuario operador = usuarios.buscarPorId(command.operadorId())
                 .orElseThrow(() -> new NotFoundException("Operador", command.operadorId().value()));
         if (!operador.puedeValidarProvisionales()) {

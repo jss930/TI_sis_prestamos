@@ -42,14 +42,14 @@ export default function Administracion({ datos }: { datos: DatosBiblioteca }) {
       <article className="panel">
         <h2>Autenticación</h2>
         <p>
-          Pendiente para una siguiente fase. El login actual es solo una demostración y no
-          protege la API; el catálogo público está disponible sin sesión.
+          El acceso se realiza por selección de cuenta. La seguridad avanzada (JWT y roles reales)
+          forma parte de la siguiente fase; el catálogo público está disponible sin sesión.
         </p>
         <div className="servicio">
           <span className="punto" />
           <div>
-            <strong>Modo demo</strong>
-            <small>Sin JWT ni control de roles en el frontend</small>
+            <strong>Acceso por cuenta</strong>
+            <small>Permisos operativos asignados a la cuenta seleccionada</small>
           </div>
         </div>
       </article>

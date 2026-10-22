@@ -35,6 +35,11 @@ export function nombreUsuario(usuarios: Usuario[], id: string): string {
   return usuarios.find((usuario) => usuario.id === id)?.nombreCompleto ?? id
 }
 
+export function tituloDeCatalogo(catalogo: CatalogoItem[], catalogoItemId: string): string {
+  const item = catalogo.find((actual) => actual.id === catalogoItemId)
+  return item ? item.titulo : catalogoItemId
+}
+
 export function tituloDeEjemplar(
   ejemplares: Ejemplar[],
   catalogo: CatalogoItem[],

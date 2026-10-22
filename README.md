@@ -11,15 +11,14 @@
 ![Maven](https://img.shields.io/badge/Maven-3.9%2B-C71A36?style=for-the-badge&logo=apachemaven&logoColor=white)
 ![DDD](https://img.shields.io/badge/Arquitectura-DDD-1D5B40?style=for-the-badge)
 ![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-58_passing-brightgreen?style=for-the-badge)
+![Tests](https://img.shields.io/badge/Tests-82_passing-brightgreen?style=for-the-badge)
 
 </div>
 
 > [!NOTE]
 > **Estado actual del repositorio.** El núcleo DDD, la API REST, la persistencia
 > PostgreSQL/JPA/Flyway y el frontend React + TypeScript + Vite están implementados.
-> La suite suma **58 tests verdes**: los **57 tests originales** más
-> `JpaPersistenciaTest`. La autenticación JWT, los roles reales y las reservas quedan
+> La suite suma **82 tests verdes**: los **57 tests originales**, `JpaPersistenciaTest` y `ReservaTest`. La autenticación JWT, los roles reales y las reservas quedan
 > fuera de esta entrega.
 
 Este repositorio reescribe el proyecto `TI_sis_prestamos` con **Domain-Driven Design (DDD)**
@@ -88,9 +87,9 @@ internos de `penalties`.
 | API REST `/api/v1` | ✅ Completado | Controladores, validación y `ProblemDetail` |
 | Persistencia PostgreSQL/JPA | ✅ Completado | Adaptadores JPA, Flyway y esquema `V1__schema.sql` |
 | Frontend React + TypeScript | ✅ Completado | Catálogo público, login demo y operaciones |
-| Tests automatizados | ✅ 58 verdes | Dominio, aplicación, flujo, JPA y ArchUnit |
+| Tests automatizados | ✅ 82 verdes | Dominio, aplicación, flujo, JPA, reservas y ArchUnit |
 | Autenticación JWT y roles | ⏳ Pendiente | Fase de seguridad |
-| Reservas | ⏳ Fuera de alcance | Ver [ADR-008](docs/adr/ADR-008-reservas-fuera-de-alcance.md) |
+| Reservas | ✅ Implementadas | Contexto `reservations`, API `/api/v1/reservas`, ADR-010 |
 
 > [!IMPORTANT]
 > **El login del frontend es una demostración.** No valida credenciales ni protege la API;
@@ -319,6 +318,10 @@ El perfil `demo` carga el siguiente escenario. El seed solo se ejecuta si la tab
 > persisten entre reinicios; para reiniciar el escenario debes borrar el volumen con
 > `docker compose down -v`.
 
+El frontend incluye un selector de cuentas demo (bibliotecario, Luis, Ana, docente) y
+muestra el rol derivado. El login sigue siendo demo: sin contraseña y la API confía en
+`operadorId`.
+
 ---
 
 ## 6. API principal
@@ -335,6 +338,8 @@ Base: `http://localhost:8080/api/v1`
 | `POST` | `/catalogo/equipos` | Registra un equipo |
 | `POST` | `/catalogo/otros` | Registra otro recurso |
 | `POST` | `/catalogo/{id}/desactivar` | Saca un ítem de circulación |
+| `POST` | `/catalogo/{id}/activar` | Reactiva un ítem desactivado |
+| `PATCH` | `/catalogo/{id}/titulo` | Actualiza el título de un ítem |
 
 ### Inventario
 
@@ -392,8 +397,10 @@ estable para el frontend, por ejemplo `SANCION_ACTIVA`, `USUARIO_NO_HABILITADO` 
 | `ADMINISTRATIVO` | ✅ | ✅ si está `VALIDADO` | Solo con permiso | 5 | 2 |
 
 Los permisos operativos son explícitos: `REGISTRAR_PRESTAMO`,
-`VALIDAR_USUARIO_PROVISIONAL`, `GESTIONAR_CATALOGO` y `GESTIONAR_SANCIONES`. No son roles
-y no saltan la validación de la cuenta.
+`VALIDAR_USUARIO_PROVISIONAL`, `GESTIONAR_CATALOGO`, `GESTIONAR_SANCIONES` y
+`GESTIONAR_USUARIOS`. No son roles y no saltan la validación de la cuenta. Un usuario
+`VALIDADO` con al menos un permiso de gestión se considera administrador (rol derivado
+`rolAcceso`).
 
 ### 7.2 Identidad
 
@@ -484,7 +491,7 @@ TI_sis_prestamos/
 │       ├── main/resources/
 │       │   ├── application.yml             # PostgreSQL/JPA/Flyway
 │       │   └── db/migration/V1__schema.sql
-│       └── test/java/com/biblioteca/       # 58 tests + ArchUnit
+│       └── test/java/com/biblioteca/       # 82 tests + ArchUnit
 ├── docs/
 │   ├── arquitectura.md
 │   ├── demo.md
@@ -528,7 +535,7 @@ Resultado esperado:
 
 ```text
 BUILD SUCCESS
-Tests run: 58, Failures: 0, Errors: 0, Skipped: 0
+Tests run: 82, Failures: 0, Errors: 0, Skipped: 0
 ```
 
 ### Composición de la suite
@@ -579,6 +586,9 @@ fuera del alcance principal.
 - No hay autenticación real: el login del frontend es demo y los `operadorId` se confían.
 - Los eventos se entregan de forma síncrona; falta outbox/async y Testcontainers.
 - Los endpoints de catálogo e inventario aún no exigen `GESTIONAR_CATALOGO`.
+- `POST /usuarios` sigue abierto (sin operador ni permiso) hasta la fase de seguridad.
+- Sin autenticación, cualquier cliente puede suplantar a un operador enviando su
+  `operadorId`.
 - No hay reservas, paginación, bloqueo optimista ni auditoría persistente.
 - La regla “un préstamo activo por ejemplar” se aplica en el caso de uso, pero aún no tiene
   índice único parcial en PostgreSQL.

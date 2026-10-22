@@ -22,6 +22,10 @@ public class OtorgarPermisoUseCase {
     }
 
     public Usuario ejecutar(OtorgarPermisoCommand command) {
+        if (command.operadorId().equals(command.usuarioId())) {
+            throw new BusinessRuleException("AUTOOTORGAMIENTO_NO_PERMITIDO",
+                    "Un operador no puede otorgarse permisos a si mismo");
+        }
         Usuario operador = usuarios.buscarPorId(command.operadorId())
                 .orElseThrow(() -> new NotFoundException("Operador", command.operadorId().value()));
         if (!operador.puedeValidarProvisionales()) {
