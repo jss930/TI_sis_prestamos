@@ -22,6 +22,7 @@ import com.biblioteca.identity.domain.model.Usuario;
 import com.biblioteca.identity.domain.vo.EmailAddress;
 import com.biblioteca.identity.domain.vo.NombreCompleto;
 import com.biblioteca.identity.domain.vo.UsuarioId;
+import com.biblioteca.infrastructure.security.UsuarioAutenticado;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -33,6 +34,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -54,6 +56,7 @@ public class UsuarioController {
     private final RevocarPermisoUseCase revocarPermiso;
     private final ListarUsuariosUseCase listar;
     private final ObtenerUsuarioUseCase obtener;
+    private final UsuarioAutenticado autenticado;
 
     public UsuarioController(RegistrarUsuarioProvisionalUseCase registrar,
                              ValidarUsuarioUseCase validar,
@@ -62,7 +65,8 @@ public class UsuarioController {
                              OtorgarPermisoUseCase otorgarPermiso,
                              RevocarPermisoUseCase revocarPermiso,
                              ListarUsuariosUseCase listar,
-                             ObtenerUsuarioUseCase obtener) {
+                             ObtenerUsuarioUseCase obtener,
+                             UsuarioAutenticado autenticado) {
         this.registrar = registrar;
         this.validar = validar;
         this.suspender = suspender;
@@ -71,6 +75,7 @@ public class UsuarioController {
         this.revocarPermiso = revocarPermiso;
         this.listar = listar;
         this.obtener = obtener;
+        this.autenticado = autenticado;
     }
 
     @GetMapping
@@ -92,41 +97,43 @@ public class UsuarioController {
         Usuario usuario = registrar.ejecutar(new RegistrarUsuarioCommand(
                 new EmailAddress(request.email()),
                 new NombreCompleto(request.nombreCompleto()),
-                request.perfil()));
+                request.perfil(), request.password()));
         return aResponse(usuario);
     }
 
     @PostMapping("/{id}/validar")
-    public UsuarioResponse validar(@PathVariable UUID id, @Valid @RequestBody OperadorRequest request) {
+    public UsuarioResponse validar(@PathVariable UUID id, @RequestHeader(value = "Authorization", required = false) String token, @Valid @RequestBody OperadorRequest request) {
         return aResponse(validar.ejecutar(new ValidarUsuarioCommand(
-                new UsuarioId(request.operadorId()), new UsuarioId(id))));
+                autenticado.exigir(token), new UsuarioId(id))));
     }
 
     @PostMapping("/{id}/suspender")
-    public UsuarioResponse suspender(@PathVariable UUID id, @Valid @RequestBody SuspenderRequest request) {
+    public UsuarioResponse suspender(@PathVariable UUID id, @RequestHeader(value = "Authorization", required = false) String token, @Valid @RequestBody SuspenderRequest request) {
         return aResponse(suspender.ejecutar(new SuspenderUsuarioCommand(
-                new UsuarioId(request.operadorId()), new UsuarioId(id), request.motivo())));
+                autenticado.exigir(token), new UsuarioId(id), request.motivo())));
     }
 
     @PostMapping("/{id}/reactivar")
-    public UsuarioResponse reactivar(@PathVariable UUID id, @Valid @RequestBody OperadorRequest request) {
+    public UsuarioResponse reactivar(@PathVariable UUID id, @RequestHeader(value = "Authorization", required = false) String token, @Valid @RequestBody OperadorRequest request) {
         return aResponse(reactivar.ejecutar(new ReactivarUsuarioCommand(
-                new UsuarioId(request.operadorId()), new UsuarioId(id))));
+                autenticado.exigir(token), new UsuarioId(id))));
     }
 
     @PostMapping("/{id}/permisos")
     public UsuarioResponse otorgarPermiso(@PathVariable UUID id,
+                                          @RequestHeader(value = "Authorization", required = false) String token,
                                           @Valid @RequestBody PermisoRequest request) {
         return aResponse(otorgarPermiso.ejecutar(new OtorgarPermisoCommand(
-                new UsuarioId(request.operadorId()), new UsuarioId(id), request.permiso())));
+                autenticado.exigir(token), new UsuarioId(id), request.permiso())));
     }
 
     @DeleteMapping("/{id}/permisos/{permiso}")
     public UsuarioResponse revocarPermiso(@PathVariable UUID id,
                                           @PathVariable PermisoOperativo permiso,
-                                          @RequestParam UUID operadorId) {
+                                          @RequestParam UUID operadorId,
+                                          @RequestHeader(value = "Authorization", required = false) String token) {
         return aResponse(revocarPermiso.ejecutar(new RevocarPermisoCommand(
-                new UsuarioId(operadorId), new UsuarioId(id), permiso)));
+                autenticado.exigir(token), new UsuarioId(id), permiso)));
     }
 
     private static UsuarioResponse aResponse(Usuario usuario) {
@@ -139,7 +146,8 @@ public class UsuarioController {
     public record RegistrarUsuarioRequest(
             @NotBlank @Email String email,
             @NotBlank String nombreCompleto,
-            @NotNull PerfilPrestatario perfil) {
+            @NotNull PerfilPrestatario perfil,
+            @jakarta.validation.constraints.Size(min = 8, max = 128) @NotBlank String password) {
     }
 
     public record OperadorRequest(@NotNull UUID operadorId) {

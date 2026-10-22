@@ -14,6 +14,7 @@ const ESTADOS: Record<string, { texto: string; clase: ClaseEtiqueta }> = {
   DISPONIBLE: { texto: 'Disponible', clase: 'correcto' },
   PRESTADO: { texto: 'Prestado', clase: 'espera' },
   DANADO: { texto: 'Dañado', clase: 'peligro' },
+  EN_REVISION: { texto: 'En revisión', clase: 'espera' },
   BAJA: { texto: 'Baja', clase: 'neutro' },
   SOLICITADA: { texto: 'Solicitada', clase: 'espera' },
   ACEPTADA: { texto: 'Aceptada', clase: 'correcto' },

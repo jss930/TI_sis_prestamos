@@ -127,6 +127,16 @@ public final class Usuario extends AggregateRoot<UsuarioId> {
                 && permisos.contains(PermisoOperativo.REGISTRAR_PRESTAMO);
     }
 
+    public boolean puedeRegistrarDevolucion() {
+        return estado == EstadoCuentaUsuario.VALIDADO
+                && permisos.contains(PermisoOperativo.REGISTRAR_DEVOLUCION);
+    }
+
+    public boolean puedeAdministrarSistema() {
+        return estado == EstadoCuentaUsuario.VALIDADO
+                && permisos.contains(PermisoOperativo.ADMINISTRAR_SISTEMA);
+    }
+
     public boolean puedeValidarProvisionales() {
         return estado == EstadoCuentaUsuario.VALIDADO
                 && permisos.contains(PermisoOperativo.VALIDAR_USUARIO_PROVISIONAL);
@@ -157,12 +167,8 @@ public final class Usuario extends AggregateRoot<UsuarioId> {
      * de verdad; el perfil solo define la politica de prestamo.
      */
     public RolAcceso rolAcceso() {
-        if (estado == EstadoCuentaUsuario.VALIDADO) {
-            for (PermisoOperativo permiso : PermisoOperativo.PERMISOS_DE_GESTION) {
-                if (permisos.contains(permiso)) {
-                    return RolAcceso.ADMINISTRADOR;
-                }
-            }
+        if (puedeAdministrarSistema()) {
+            return RolAcceso.ADMINISTRADOR;
         }
         return switch (perfil) {
             case ALUMNO -> RolAcceso.ESTUDIANTE;

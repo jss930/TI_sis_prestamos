@@ -14,7 +14,7 @@ import Administracion from './pages/Administracion'
 import { api, mensajeDeError } from './services/api'
 import type {
   DatosBiblioteca,
-  EstadoFisico,
+  NuevaInspeccionDevolucion,
   NuevoEquipoCatalogo,
   NuevoLibroCatalogo,
   NuevoOtroCatalogo,
@@ -92,9 +92,10 @@ export default function App() {
   )
 
   const devolverPrestamo = useCallback(
-    async (id: string, estadoFisico?: EstadoFisico) => {
-      await api.devolverPrestamo(id, estadoFisico)
+    async (id: string, inspeccion: NuevaInspeccionDevolucion) => {
+      const registrada = await api.inspeccionarDevolucion(id, inspeccion)
       await cargarDatos(true)
+      return registrada
     },
     [cargarDatos],
   )
@@ -115,9 +116,9 @@ export default function App() {
     [cargarDatos, usuarioActual],
   )
   const aceptarReserva = useCallback(
-    async (id: string) => {
+    async (id: string, ejemplarId: string) => {
       if (!usuarioActual?.id) return
-      await api.aceptarReserva(id, usuarioActual.id)
+      await api.aceptarReserva(id, usuarioActual.id, ejemplarId)
       await cargarDatos(true)
     },
     [cargarDatos, usuarioActual],
@@ -133,7 +134,7 @@ export default function App() {
 
 
   useEffect(() => {
-    if (pagina === 'prestamos' && !permisosActuales.includes('REGISTRAR_PRESTAMO')) {
+    if (pagina === 'prestamos' && !permisosActuales.includes('REGISTRAR_PRESTAMO') && !permisosActuales.includes('REGISTRAR_DEVOLUCION')) {
       setPagina('catalogo')
     }
     if (pagina === 'reservas' && !permisosActuales.includes('GESTIONAR_RESERVAS') && !permisosActuales.includes('GESTIONAR_CATALOGO')) {
@@ -193,7 +194,7 @@ export default function App() {
 
   const crearUsuarioCuenta = useCallback(
     async (usuario: NuevoUsuarioCuenta) => {
-      await api.crearUsuario(usuario)
+      await api.registrarCuenta(usuario)
       await cargarDatos(true)
     },
     [cargarDatos],
@@ -250,12 +251,13 @@ export default function App() {
             usuario?.estado === 'VALIDADO' && (usuario?.permisos.length ?? 0) > 0
           const sesionCompleta = {
             ...nuevaSesion,
-            id: usuario?.id,
-            permisos: usuario?.permisos ?? [],
-            rolAcceso: usuario?.rolAcceso,
+            id: usuario?.id ?? nuevaSesion.id,
+            permisos: usuario?.permisos ?? nuevaSesion.permisos ?? [],
+            rolAcceso: usuario?.rolAcceso ?? nuevaSesion.rolAcceso,
           }
           setSesion(sesionCompleta)
           localStorage.setItem('biblioteca_sesion', JSON.stringify(sesionCompleta))
+          void cargarDatos(true)
           if (nuevaSesion.token) localStorage.setItem('biblioteca_token', nuevaSesion.token)
           setPagina(nuevaSesion.publica ? 'catalogo' : esPersonal ? 'resumen' : 'catalogo')
         }}
@@ -326,8 +328,9 @@ export default function App() {
             usuarios={datos.usuarios}
             catalogo={datos.catalogo}
             ejemplares={datos.ejemplares}
-            operadorId={permisosActuales.includes('REGISTRAR_PRESTAMO') ? usuarioActual?.id ?? null : null}
+            operadorId={permisosActuales.includes('REGISTRAR_PRESTAMO') || permisosActuales.includes('REGISTRAR_DEVOLUCION') ? usuarioActual?.id ?? null : null}
             puedeOperar={permisosActuales.includes('REGISTRAR_PRESTAMO')}
+            puedeDevolver={permisosActuales.includes('REGISTRAR_DEVOLUCION')}
             crearPrestamo={crearPrestamo}
             devolverPrestamo={devolverPrestamo}
           />
@@ -346,6 +349,8 @@ export default function App() {
       case 'reservas':
         return (
           <Reservas
+            ejemplares={datos.ejemplares}
+            prestamos={datos.prestamos}
             reservas={datos.reservas}
             usuarios={datos.usuarios}
             catalogo={datos.catalogo}
@@ -355,7 +360,7 @@ export default function App() {
           />
         )
       case 'administracion':
-        return <Administracion datos={datos} />
+        return <Administracion datos={datos} permisos={permisosActuales} />
       default:
         return <Resumen datos={datos} irA={setPagina} />
     }

@@ -1,4 +1,8 @@
 import type {
+  CategoriaResponsable,
+  ResumenResponsables,
+  NuevaInspeccionDevolucion,
+  InspeccionDevolucion,
   CatalogoItem,
   Ejemplar,
   EstadoFisico,
@@ -108,6 +112,20 @@ async function solicitar<T>(ruta: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
+  getResponsables: () => solicitar<ResumenResponsables>('/responsables'),
+  cambiarCapacitacion: (usuarioId: string, verificada: boolean) =>
+    solicitar<ResumenResponsables>(`/responsables/${usuarioId}/capacitacion`, {
+      method: 'PUT', body: JSON.stringify({ verificada }),
+    }),
+  asignarResponsable: (usuarioId: string, categoria: CategoriaResponsable, asignada: boolean) =>
+    solicitar<ResumenResponsables>(`/responsables/${usuarioId}/categorias/${categoria}`, {
+      method: 'PUT', body: JSON.stringify({ asignada }),
+    }),
+  getInspeccionesDevolucion: () => solicitar<InspeccionDevolucion[]>('/inspecciones-devolucion'),
+  inspeccionarDevolucion: (id: string, inspeccion: NuevaInspeccionDevolucion) =>
+    solicitar<InspeccionDevolucion>(`/prestamos/${id}/inspeccion-devolucion`, {
+      method: 'POST', body: JSON.stringify(inspeccion),
+    }),
   getCatalogo: () => solicitar<CatalogoItem[]>('/catalogo'),
   getUsuarios: () => solicitar<Usuario[]>('/usuarios'),
   getEjemplares: () => solicitar<Ejemplar[]>('/inventario/ejemplares'),
@@ -151,7 +169,7 @@ export const api = {
     solicitar<CatalogoItem>(`/catalogo/${id}/desactivar`, { method: 'POST' }),
 
   // Usuarios
-  crearUsuario: (usuario: NuevoUsuarioCuenta) =>
+  registrarCuenta: (usuario: NuevoUsuarioCuenta) =>
     solicitar<Usuario>('/usuarios', {
       method: 'POST',
       body: JSON.stringify(usuario),
@@ -212,10 +230,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ prestatarioId, catalogoItemId }),
     }),
-  aceptarReserva: (id: string, operadorId: string) =>
+  aceptarReserva: (id: string, operadorId: string, ejemplarId?: string) =>
     solicitar<Reserva>(`/reservas/${id}/aceptar`, {
       method: 'POST',
-      body: JSON.stringify({ operadorId }),
+      body: JSON.stringify({ operadorId, ejemplarId }),
     }),
   denegarReserva: (id: string, operadorId: string, motivo: string) =>
     solicitar<Reserva>(`/reservas/${id}/denegar`, {

@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import Tabla, { type Columna } from '../components/Tabla'
 import EtiquetaEstado from '../components/EtiquetaEstado'
-import { ApiError, mensajeDeError } from '../services/api'
+import FormularioInspeccion from '../components/FormularioInspeccion'
+import { api, ApiError, mensajeDeError } from '../services/api'
 import type {
   CatalogoItem,
   Ejemplar,
-  EstadoFisico,
+  NuevaInspeccionDevolucion,
+  InspeccionDevolucion,
   LugarUso,
   NuevoPrestamo,
   Prestamo,
   Usuario,
 } from '../types'
-import { etiquetaLugar, etiquetaPerfil, fechaCorta, tituloDeEjemplar } from '../utils/format'
+import { nombreUsuario, etiquetaLugar, etiquetaPerfil, fechaCorta, tituloDeEjemplar } from '../utils/format'
 
 interface Props {
   prestamos: Prestamo[]
@@ -20,8 +22,9 @@ interface Props {
   ejemplares: Ejemplar[]
   operadorId: string | null
   puedeOperar: boolean
+  puedeDevolver: boolean
   crearPrestamo: (datos: NuevoPrestamo) => Promise<void>
-  devolverPrestamo: (id: string, estadoFisico?: EstadoFisico) => Promise<void>
+  devolverPrestamo: (id: string, inspeccion: NuevaInspeccionDevolucion) => Promise<InspeccionDevolucion>
 }
 
 type Mensaje = {
@@ -37,6 +40,7 @@ export default function Prestamos({
   ejemplares,
   operadorId,
   puedeOperar,
+  puedeDevolver,
   crearPrestamo,
   devolverPrestamo,
 }: Props) {
@@ -60,10 +64,23 @@ export default function Prestamos({
     ejemplarId: '',
     lugarUso: 'EN_CAMPUS',
   }))
+  const [catalogoItemId, setCatalogoItemId] = useState('')
   const [mostrarFormulario, setMostrarFormulario] = useState(false)
   const [mensaje, setMensaje] = useState<Mensaje | null>(null)
   const [enviando, setEnviando] = useState(false)
   const [devolviendoId, setDevolviendoId] = useState<string | null>(null)
+  const [seleccionado, setSeleccionado] = useState<Prestamo | null>(null)
+  const [inspecciones, setInspecciones] = useState<InspeccionDevolucion[]>([])
+  const [errorHistorial, setErrorHistorial] = useState<string | null>(null)
+  const [recargaHistorial, setRecargaHistorial] = useState(0)
+  useEffect(() => {
+    if (!puedeDevolver) return
+    let vigente = true
+    setErrorHistorial(null)
+    void api.getInspeccionesDevolucion().then((datos) => { if (vigente) setInspecciones(datos) })
+      .catch((e: unknown) => { if (vigente) setErrorHistorial(mensajeDeError(e)) })
+    return () => { vigente = false }
+  }, [puedeOperar, recargaHistorial])
 
   useEffect(() => {
     setFormulario((actual) => {
@@ -90,8 +107,9 @@ export default function Prestamos({
   )
 
   const disponibles = useMemo(
-    () => ejemplares.filter((ejemplar) => ejemplar.estadoFisico === 'DISPONIBLE'),
-    [ejemplares],
+    () => ejemplares.filter((ejemplar) => ejemplar.estadoFisico === 'DISPONIBLE' &&
+      catalogo.some((item) => item.id === ejemplar.catalogoItemId && item.activo)),
+    [ejemplares, catalogo],
   )
 
   const ordenados = useMemo(
@@ -112,6 +130,7 @@ export default function Prestamos({
       await crearPrestamo(formulario)
       setMensaje({ tipo: 'ok', texto: 'Préstamo registrado correctamente.' })
       setFormulario((actual) => ({ ...actual, prestatarioId: '', ejemplarId: '' }))
+      setCatalogoItemId('')
       setMostrarFormulario(false)
     } catch (error) {
       setMensaje({
@@ -124,11 +143,14 @@ export default function Prestamos({
     }
   }
 
-  async function devolver(prestamo: Prestamo) {
+  async function devolver(prestamo: Prestamo, inspeccion: NuevaInspeccionDevolucion) {
+    if (devolviendoId || !puedeDevolver) return
     setDevolviendoId(prestamo.id)
     setMensaje(null)
     try {
-      await devolverPrestamo(prestamo.id)
+      const registrada = await devolverPrestamo(prestamo.id, inspeccion)
+      setInspecciones((actuales) => [registrada, ...actuales.filter((i) => i.prestamoId !== prestamo.id)])
+      setSeleccionado(null)
       setMensaje({ tipo: 'ok', texto: 'Devolución registrada correctamente.' })
     } catch (error) {
       setMensaje({
@@ -196,8 +218,8 @@ export default function Prestamos({
         prestamo.estado === 'ACTIVO' ? (
           <button
             className="enlace"
-            disabled={devolviendoId === prestamo.id}
-            onClick={() => void devolver(prestamo)}
+            disabled={!puedeDevolver || devolviendoId !== null}
+            onClick={() => { setSeleccionado(prestamo); setMensaje(null) }}
             type="button"
           >
             {devolviendoId === prestamo.id ? 'Registrando…' : 'Registrar devolución'}
@@ -223,8 +245,7 @@ export default function Prestamos({
 
       {!puedeOperar && (
         <div className="aviso error-aviso">
-          Tu cuenta no tiene permiso para registrar préstamos. La API sigue confiando en
-          operadorId; esto es solo control de interfaz.
+          Tu cuenta no tiene permiso para registrar préstamos.
         </div>
       )}
 
@@ -290,16 +311,29 @@ export default function Prestamos({
               </select>
             </label>
             <label>
+              Bien
+              <select required value={catalogoItemId} onChange={(evento) => {
+                setCatalogoItemId(evento.target.value)
+                setFormulario((actual) => ({ ...actual, ejemplarId: '' }))
+              }}>
+                <option value="">Seleccionar bien…</option>
+                {catalogo.filter((item) => item.activo).map((item) => (
+                  <option key={item.id} value={item.id}>{item.titulo}</option>
+                ))}
+              </select>
+            </label>
+            <label>
               Ejemplar disponible
               <select
                 required
+                disabled={!catalogoItemId}
                 value={formulario.ejemplarId}
                 onChange={(evento) =>
                   setFormulario({ ...formulario, ejemplarId: evento.target.value })
                 }
               >
                 <option value="">Seleccionar…</option>
-                {disponibles.map((ejemplar) => (
+                {disponibles.filter((ejemplar) => ejemplar.catalogoItemId === catalogoItemId).map((ejemplar) => (
                   <option value={ejemplar.id} key={ejemplar.id}>
                     {tituloDeEjemplar(ejemplares, catalogo, ejemplar.id)}
                   </option>
@@ -328,6 +362,15 @@ export default function Prestamos({
         </form>
       )}
 
+      {seleccionado && <FormularioInspeccion
+        key={seleccionado.id}
+        bien={tituloDeEjemplar(ejemplares, catalogo, seleccionado.ejemplarId)}
+        persona={nombreUsuario(usuarios, seleccionado.prestatarioId)}
+        enviando={devolviendoId !== null}
+        confirmar={(inspeccion) => devolver(seleccionado, inspeccion)}
+        cancelar={() => setSeleccionado(null)}
+      />}
+
       <section className="panel">
         <div className="panel-titulo">
           <div>
@@ -340,6 +383,28 @@ export default function Prestamos({
           columnas={columnas}
           vacio="Todavía no hay préstamos registrados"
         />
+      </section>
+      <section className="panel">
+        <h2>Historial de inspecciones de devolución</h2>
+        <p>Recepciones registradas con inspección. Las devoluciones anteriores siguen en el historial de préstamos.</p>
+        {errorHistorial && <div className="aviso error-aviso" role="alert">{errorHistorial}
+          <button className="enlace" type="button" onClick={() => setRecargaHistorial((v) => v + 1)}>Reintentar</button>
+        </div>}
+        {!inspecciones.length ? <p>Aún no hay inspecciones registradas.</p> : <div className="tabla-contenedor"><table>
+          <thead><tr><th>Fecha</th><th>Bien / código</th><th>Persona</th><th>Recibido por</th><th>Estado físico</th><th>Accesorios</th><th>Observaciones</th></tr></thead>
+          <tbody>{inspecciones.map((inspeccion) => {
+            const prestamo = prestamos.find((p) => p.id === inspeccion.prestamoId)
+            return <tr key={inspeccion.prestamoId}>
+              <td>{new Date(inspeccion.fecha).toLocaleString('es-PE')}</td>
+              <td>{prestamo ? tituloDeEjemplar(ejemplares, catalogo, prestamo.ejemplarId) : inspeccion.prestamoId}</td>
+              <td>{prestamo ? nombreUsuario(usuarios, prestamo.prestatarioId) : '—'}</td>
+              <td>{nombreUsuario(usuarios, inspeccion.recibidoPorId)}</td>
+              <td><EtiquetaEstado estado={inspeccion.estadoResultante} /></td>
+              <td>{inspeccion.accesoriosFaltantes ? 'Faltantes' : 'Sin faltantes registrados'}</td>
+              <td>{inspeccion.observaciones || '—'}</td>
+            </tr>
+          })}</tbody>
+        </table></div>}
       </section>
     </>
   )

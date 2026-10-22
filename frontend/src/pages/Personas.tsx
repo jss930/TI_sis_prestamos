@@ -16,11 +16,14 @@ interface Props {
 }
 
 const PERMISOS: PermisoOperativo[] = [
+  'ADMINISTRAR_SISTEMA',
   'REGISTRAR_PRESTAMO',
+  'REGISTRAR_DEVOLUCION',
   'VALIDAR_USUARIO_PROVISIONAL',
   'GESTIONAR_CATALOGO',
   'GESTIONAR_SANCIONES',
   'GESTIONAR_USUARIOS',
+  'GESTIONAR_RESERVAS',
 ]
 
 export default function Personas({
@@ -38,6 +41,7 @@ export default function Personas({
     email: '',
     nombreCompleto: '',
     perfil: 'ALUMNO',
+    password: '',
   })
   const [motivos, setMotivos] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
@@ -188,7 +192,7 @@ export default function Personas({
             e.preventDefault()
             void ejecutar(async () => {
               await crearUsuario(nuevo)
-              setNuevo({ email: '', nombreCompleto: '', perfil: 'ALUMNO' })
+              setNuevo({ email: '', nombreCompleto: '', perfil: 'ALUMNO', password: '' })
             })
           }}
         >
@@ -202,6 +206,14 @@ export default function Personas({
             placeholder="Nombre completo"
             value={nuevo.nombreCompleto}
             onChange={(e) => setNuevo({ ...nuevo, nombreCompleto: e.target.value })}
+            required
+          />
+          <input
+            type="password"
+            placeholder="Contraseña inicial (8+ caracteres)"
+            value={nuevo.password}
+            onChange={(e) => setNuevo({ ...nuevo, password: e.target.value })}
+            minLength={8}
             required
           />
           <select

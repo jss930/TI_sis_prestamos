@@ -11,6 +11,11 @@ import com.biblioteca.identity.domain.vo.UsuarioId;
  */
 public interface RegistrarPrestamoPort {
 
+    default PrestamoId registrarPrestamo(UsuarioId operadorId, UsuarioId prestatarioId,
+                                        CatalogoItemId catalogoItemId) {
+        return registrarPrestamo(operadorId, prestatarioId, catalogoItemId, null);
+    }
+
     PrestamoId registrarPrestamo(UsuarioId operadorId, UsuarioId prestatarioId,
-                                 CatalogoItemId catalogoItemId);
+            CatalogoItemId catalogoItemId, com.biblioteca.inventory.domain.vo.EjemplarId ejemplarId);
 }

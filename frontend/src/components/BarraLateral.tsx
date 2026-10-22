@@ -7,7 +7,7 @@ const OPCIONES: Array<{ id: Pagina; icono: string; texto: string }> = [
   { id: 'catalogo', icono: '▦', texto: 'Catálogo' },
   { id: 'mis-prestamos', icono: '↗', texto: 'Mis préstamos' },
   { id: 'mis-reservas', icono: '☰', texto: 'Mis reservas' },
-  { id: 'reservas', icono: '☰', texto: 'Reservas' },
+  { id: 'reservas', icono: '☰', texto: 'Solicitudes y reservas' },
   { id: 'prestamos', icono: '↗', texto: 'Préstamos' },
   { id: 'sanciones', icono: '!', texto: 'Sanciones' },
   { id: 'administracion', icono: '⚙', texto: 'Administración' },
@@ -45,14 +45,14 @@ export default function BarraLateral({
         if (opcion.id === 'reservas')
           return permisos.includes('GESTIONAR_RESERVAS') || permisos.includes('GESTIONAR_CATALOGO')
         if (opcion.id === 'resumen') return esPersonal
-        if (opcion.id === 'prestamos') return permisos.includes('REGISTRAR_PRESTAMO')
+        if (opcion.id === 'prestamos') return permisos.includes('REGISTRAR_PRESTAMO') || permisos.includes('REGISTRAR_DEVOLUCION')
         if (opcion.id === 'personas')
           return (
             permisos.includes('GESTIONAR_USUARIOS') ||
             permisos.includes('VALIDAR_USUARIO_PROVISIONAL')
           )
         if (opcion.id === 'sanciones') return permisos.includes('GESTIONAR_SANCIONES')
-        if (opcion.id === 'administracion') return rolAcceso === 'ADMINISTRADOR'
+        if (opcion.id === 'administracion') return permisos.includes('ADMINISTRAR_SISTEMA')
         return false
       })
 

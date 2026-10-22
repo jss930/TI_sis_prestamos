@@ -46,6 +46,11 @@ public class UsuarioJpaAdapter implements UsuarioRepository {
     }
 
     @Override
+    public Optional<Usuario> buscarPorIdParaActualizar(UsuarioId id) {
+        return repositorio.buscarParaActualizar(id.value()).map(UsuarioJpaAdapter::aDominio);
+    }
+
+    @Override
     public List<Usuario> listarTodos() {
         return repositorio.findAll().stream().map(UsuarioJpaAdapter::aDominio).toList();
     }

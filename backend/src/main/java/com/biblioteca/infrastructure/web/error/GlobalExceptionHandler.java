@@ -63,6 +63,13 @@ public class GlobalExceptionHandler {
         return problema;
     }
 
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public ProblemDetail estadoHttp(org.springframework.web.server.ResponseStatusException ex) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(ex.getStatusCode(), ex.getReason());
+        problema.setProperty("codigo", ex.getStatusCode().value() == 401 ? "SESION_REQUERIDA" : "ACCESO_DENEGADO");
+        return problema;
+    }
+
     @ExceptionHandler(Exception.class)
     public ProblemDetail inesperado(Exception ex) {
         log.error("Error no controlado", ex);

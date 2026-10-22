@@ -1,6 +1,8 @@
 package com.biblioteca.infrastructure.web.rest;
 
 import com.biblioteca.identity.domain.vo.UsuarioId;
+import com.biblioteca.infrastructure.security.UsuarioAutenticado;
+import org.springframework.web.bind.annotation.RequestHeader;
 import com.biblioteca.reservations.application.command.AceptarReservaCommand;
 import com.biblioteca.reservations.application.command.CancelarReservaCommand;
 import com.biblioteca.reservations.application.command.DenegarReservaCommand;
@@ -41,19 +43,22 @@ public class ReservaController {
     private final CancelarReservaUseCase cancelar;
     private final ListarReservasUseCase listar;
     private final ObtenerReservaUseCase obtener;
+    private final UsuarioAutenticado autenticado;
 
     public ReservaController(SolicitarReservaUseCase solicitar,
                              AceptarReservaUseCase aceptar,
                              DenegarReservaUseCase denegar,
                              CancelarReservaUseCase cancelar,
                              ListarReservasUseCase listar,
-                             ObtenerReservaUseCase obtener) {
+                             ObtenerReservaUseCase obtener,
+                             UsuarioAutenticado autenticado) {
         this.solicitar = solicitar;
         this.aceptar = aceptar;
         this.denegar = denegar;
         this.cancelar = cancelar;
         this.listar = listar;
         this.obtener = obtener;
+        this.autenticado = autenticado;
     }
 
     @GetMapping
@@ -71,32 +76,36 @@ public class ReservaController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public ReservaResponse solicitar(@Valid @RequestBody SolicitarReservaRequest request) {
+    public ReservaResponse solicitar(@RequestHeader(value = "Authorization", required = false) String token, @Valid @RequestBody SolicitarReservaRequest request) {
         Reserva reserva = solicitar.ejecutar(new SolicitarReservaCommand(
-                new UsuarioId(request.prestatarioId()),
+                autenticado.exigir(token),
                 new CatalogoItemId(request.catalogoItemId())));
         return aResponse(reserva);
     }
 
     @PostMapping("/{id}/aceptar")
     public ReservaResponse aceptar(@PathVariable UUID id,
+                                  @RequestHeader(value = "Authorization", required = false) String token,
                                   @Valid @RequestBody OperadorRequest request) {
         return aResponse(aceptar.ejecutar(new AceptarReservaCommand(
-                new UsuarioId(request.operadorId()), new ReservaId(id))));
+                autenticado.exigir(token), new ReservaId(id), request.ejemplarId() == null
+                        ? null : new com.biblioteca.inventory.domain.vo.EjemplarId(request.ejemplarId()))));
     }
 
     @PostMapping("/{id}/denegar")
     public ReservaResponse denegar(@PathVariable UUID id,
+                                  @RequestHeader(value = "Authorization", required = false) String token,
                                   @Valid @RequestBody DenegarRequest request) {
         return aResponse(denegar.ejecutar(new DenegarReservaCommand(
-                new UsuarioId(request.operadorId()), new ReservaId(id), request.motivo())));
+                autenticado.exigir(token), new ReservaId(id), request.motivo())));
     }
 
     @PostMapping("/{id}/cancelar")
     public ReservaResponse cancelar(@PathVariable UUID id,
+                                    @RequestHeader(value = "Authorization", required = false) String token,
                                     @Valid @RequestBody CancelarRequest request) {
         return aResponse(cancelar.ejecutar(new CancelarReservaCommand(
-                new UsuarioId(request.prestatarioId()), new ReservaId(id))));
+                autenticado.exigir(token), new ReservaId(id))));
     }
 
     private static ReservaResponse aResponse(Reserva reserva) {
@@ -112,7 +121,7 @@ public class ReservaController {
             @NotNull UUID catalogoItemId) {
     }
 
-    public record OperadorRequest(@NotNull UUID operadorId) {
+    public record OperadorRequest(@NotNull UUID operadorId, UUID ejemplarId) {
     }
 
     public record DenegarRequest(

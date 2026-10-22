@@ -5,6 +5,7 @@ public enum EstadoFisico {
     DISPONIBLE,
     PRESTADO,
     DANADO,
+    EN_REVISION,
     PERDIDO,
     BAJA
 }

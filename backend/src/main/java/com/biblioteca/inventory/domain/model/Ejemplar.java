@@ -75,9 +75,10 @@ public final class Ejemplar extends AggregateRoot<EjemplarId> {
         }
         if (estadoDevolucion != EstadoFisico.DISPONIBLE
                 && estadoDevolucion != EstadoFisico.DANADO
-                && estadoDevolucion != EstadoFisico.PERDIDO) {
+                && estadoDevolucion != EstadoFisico.PERDIDO
+                && estadoDevolucion != EstadoFisico.EN_REVISION) {
             throw new DomainException("ESTADO_DEVOLUCION_INVALIDO",
-                    "La devolucion solo admite DISPONIBLE, DANADO o PERDIDO");
+                    "La devolucion solo admite DISPONIBLE, DANADO, PERDIDO o EN_REVISION");
         }
         estadoFisico = estadoDevolucion;
         registrarEvento(new EjemplarDevueltoEvent(id, estadoDevolucion, Instant.now()));

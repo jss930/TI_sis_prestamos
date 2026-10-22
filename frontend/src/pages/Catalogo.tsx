@@ -10,6 +10,7 @@ import type {
   PermisoOperativo,
 } from '../types'
 import { descripcionItem } from '../utils/format'
+import { imagenCatalogo } from '../utils/imagenesCatalogo'
 
 const CATEGORIAS: Array<{ id: 'TODOS' | CatalogoItem['tipo']; texto: string }> = [
   { id: 'TODOS', texto: 'Todos' },
@@ -60,6 +61,7 @@ export default function Catalogo({
   crearEjemplar,
 }: Props) {
   const [categoria, setCategoria] = useState<'TODOS' | CatalogoItem['tipo']>('TODOS')
+  const [busqueda, setBusqueda] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [reservando, setReservando] = useState<string | null>(null)
   const [editando, setEditando] = useState<string | null>(null)
@@ -93,8 +95,16 @@ export default function Catalogo({
     }
   }
 
-  const visibles =
-    categoria === 'TODOS' ? catalogo : catalogo.filter((item) => item.tipo === categoria)
+  const consulta = busqueda.trim().toLocaleLowerCase('es')
+  const visibles = catalogo.filter((item) => {
+    const coincideCategoria = categoria === 'TODOS' || item.tipo === categoria
+    const codigos = ejemplares
+      .filter((ejemplar) => ejemplar.catalogoItemId === item.id)
+      .map((ejemplar) => ejemplar.barcode)
+    const texto = [item.titulo, item.id, item.detalle.isbn, ...codigos]
+      .filter(Boolean).join(' ').toLocaleLowerCase('es')
+    return coincideCategoria && texto.includes(consulta)
+  })
 
   async function ejecutar(accion: () => Promise<void>) {
     setError(null)
@@ -107,6 +117,17 @@ export default function Catalogo({
 
   return (
     <>
+      <label className="busqueda-catalogo">
+        Buscar en el catálogo
+        <input
+          className="buscador"
+          type="search"
+          placeholder="Nombre, ISBN o código de inventario"
+          value={busqueda}
+          onChange={(evento) => setBusqueda(evento.target.value)}
+        />
+      </label>
+      <p role="status">{visibles.length} bienes encontrados</p>
       {puedeGestionar && (
         <section className="panel">
           <h2>Gestion del catalogo</h2>
@@ -197,7 +218,7 @@ export default function Catalogo({
           const habilitado = item.activo && disponibles > 0
           return (
             <article className="item" key={item.id}>
-              <div className={`item-imagen ${item.tipo.toLowerCase()}`}>{ICONOS[item.tipo]}</div>
+              <div className={`item-imagen ${item.tipo.toLowerCase()}`}><img src={imagenCatalogo(item)} alt={`Imagen de ${item.titulo}`} loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none' }} /><span aria-hidden="true">{ICONOS[item.tipo]}</span></div>
               <small>
                 {item.tipo} · {item.activo ? 'Activo' : 'Inactivo'}
               </small>

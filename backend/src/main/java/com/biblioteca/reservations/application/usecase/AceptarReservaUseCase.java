@@ -89,7 +89,7 @@ public class AceptarReservaUseCase {
         }
 
         com.biblioteca.circulation.domain.vo.PrestamoId prestamoId =
-                prestamos.registrarPrestamo(operador.id(), prestatario.id(), item.id());
+                prestamos.registrarPrestamo(operador.id(), prestatario.id(), item.id(), command.ejemplarId());
 
         reserva.aceptar(operador.id(), prestamoId);
         reservas.guardar(reserva);

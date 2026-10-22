@@ -38,6 +38,11 @@ public class PrestamoJpaAdapter implements PrestamoRepository {
     }
 
     @Override
+    public Optional<Prestamo> buscarPorIdParaActualizar(PrestamoId id) {
+        return repositorio.buscarParaActualizar(id.value()).map(PrestamoJpaAdapter::aDominio);
+    }
+
+    @Override
     public List<Prestamo> listarTodos() {
         return repositorio.findAll().stream().map(PrestamoJpaAdapter::aDominio).toList();
     }

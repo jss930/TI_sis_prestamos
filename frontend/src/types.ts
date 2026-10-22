@@ -28,14 +28,16 @@ export type PerfilPrestatario = 'ALUMNO' | 'DOCENTE' | 'ADMINISTRATIVO'
 export type RolAcceso = 'ESTUDIANTE' | 'DOCENTE' | 'ADMINISTRATIVO' | 'ADMINISTRADOR'
 
 export type PermisoOperativo =
+  | 'ADMINISTRAR_SISTEMA'
   | 'REGISTRAR_PRESTAMO'
+  | 'REGISTRAR_DEVOLUCION'
   | 'VALIDAR_USUARIO_PROVISIONAL'
   | 'GESTIONAR_CATALOGO'
   | 'GESTIONAR_SANCIONES'
   | 'GESTIONAR_USUARIOS'
   | 'GESTIONAR_RESERVAS'
 
-export type EstadoFisico = 'DISPONIBLE' | 'PRESTADO' | 'DANADO' | 'PERDIDO' | 'BAJA'
+export type EstadoFisico = 'DISPONIBLE' | 'PRESTADO' | 'DANADO' | 'PERDIDO' | 'BAJA' | 'EN_REVISION'
 
 export type EstadoPrestamo = 'ACTIVO' | 'DEVUELTO' | 'PERDIDO'
 
@@ -177,6 +179,7 @@ export interface NuevoUsuarioCuenta {
   email: string
   nombreCompleto: string
   perfil: PerfilPrestatario
+  password: string
 }
 
 export interface DatosBiblioteca {
@@ -186,4 +189,35 @@ export interface DatosBiblioteca {
   prestamos: Prestamo[]
   sanciones: Sancion[]
   reservas: Reserva[]
+}
+
+
+export type CategoriaResponsable = 'BIBLIOTECA' | 'DEPORTES' | 'TECNOLOGIA' | 'COMPUTACION'
+export interface Responsable {
+  usuarioId: string
+  capacitacionVerificada: boolean
+  categorias: CategoriaResponsable[]
+}
+export interface CambioResponsable {
+  id: string
+  usuarioId: string
+  operadorId: string
+  categoria: CategoriaResponsable | null
+  accion: 'ASIGNADO' | 'RETIRADO' | 'CAPACITACION_VERIFICADA' | 'CAPACITACION_RETIRADA'
+  fecha: string
+}
+export interface ResumenResponsables {
+  responsables: Responsable[]
+  historial: CambioResponsable[]
+}
+export interface NuevaInspeccionDevolucion {
+  estadoFisico: 'DISPONIBLE' | 'DANADO' | 'PERDIDO'
+  accesoriosFaltantes: boolean
+  observaciones: string
+}
+export interface InspeccionDevolucion extends NuevaInspeccionDevolucion {
+  prestamoId: string
+  recibidoPorId: string
+  fecha: string
+  estadoResultante: EstadoFisico
 }

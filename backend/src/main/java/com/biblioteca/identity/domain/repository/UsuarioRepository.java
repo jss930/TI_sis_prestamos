@@ -14,6 +14,10 @@ public interface UsuarioRepository {
 
     Optional<Usuario> buscarPorId(UsuarioId id);
 
+    default Optional<Usuario> buscarPorIdParaActualizar(UsuarioId id) {
+        return buscarPorId(id);
+    }
+
     Optional<Usuario> buscarPorEmail(EmailAddress email);
 
     List<Usuario> listarTodos();
