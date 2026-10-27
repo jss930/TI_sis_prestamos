@@ -45,7 +45,6 @@ export default function App() {
       return null
     }
   })
-  const [personaResponsableId, setPersonaResponsableId] = useState<string | null>(null)
   const [pagina, setPagina] = useState<Pagina>('resumen')
   const [datos, setDatos] = useState<DatosBiblioteca>(DATOS_VACIOS)
   const [cargando, setCargando] = useState(true)
@@ -128,8 +127,8 @@ export default function App() {
   )
 
   const solicitarReserva = useCallback(
-    async (prestatarioId: string, catalogoItemId: string, lugarUso: LugarUso) => {
-      await api.solicitarReserva(prestatarioId, catalogoItemId, lugarUso)
+    async (prestatarioId: string, catalogoItemId: string, lugarUso: LugarUso, inicioReserva: string, finReserva: string) => {
+      await api.solicitarReserva(prestatarioId, catalogoItemId, lugarUso, inicioReserva, finReserva)
       await cargarDatos(true)
     },
     [cargarDatos],
@@ -161,13 +160,17 @@ export default function App() {
 
 
   useEffect(() => {
+    if (usuarioActual && usuarioActual.estado !== 'VALIDADO' && pagina !== 'catalogo' && pagina !== 'mi-cuenta') {
+      setPagina('catalogo')
+      return
+    }
     if (pagina === 'prestamos' && !permisosActuales.includes('REGISTRAR_PRESTAMO') && !permisosActuales.includes('REGISTRAR_DEVOLUCION')) {
       setPagina('catalogo')
     }
-    if (pagina === 'reservas' && !permisosActuales.includes('GESTIONAR_RESERVAS') && !permisosActuales.includes('GESTIONAR_CATALOGO')) {
+    if (pagina === 'reservas' && !permisosActuales.includes('ADMINISTRAR_SISTEMA')) {
       setPagina('catalogo')
     }
-  }, [pagina, permisosActuales])
+  }, [pagina, permisosActuales, usuarioActual])
 
   const crearLibroCatalogo = useCallback(
     async (libro: NuevoLibroCatalogo) => {
@@ -247,11 +250,6 @@ export default function App() {
     },
     [cargarDatos],
   )
-  const gestionarResponsables = useCallback((usuarioId?: string) => {
-    setPersonaResponsableId(usuarioId ?? null)
-    setPagina('administracion')
-  }, [])
-
   function cerrarSesion() {
     setSesion(null)
     localStorage.removeItem('biblioteca_sesion')
@@ -304,7 +302,8 @@ export default function App() {
             actualizarDatos={actualizarDatosCuenta}
             suspenderUsuario={suspenderUsuarioCuenta}
             reactivarUsuario={reactivarUsuarioCuenta}
-            gestionarResponsables={gestionarResponsables}
+            otorgarPermiso={async (id, permiso) => { await api.otorgarPermisoUsuario(id, usuarioActual?.id ?? '', permiso); await cargarDatos(true) }}
+            revocarPermiso={async (id, permiso) => { await api.revocarPermisoUsuario(id, permiso, usuarioActual?.id ?? ''); await cargarDatos(true) }}
           />
         )
       case 'mis-prestamos':
@@ -330,13 +329,12 @@ export default function App() {
             activar={activarCatalogo}
             desactivar={desactivarCatalogo}
             crearEjemplar={crearEjemplar}
-            asignarArea={async (id, area) => { await api.asignarAreaCatalogo(id, area); await cargarDatos(true) }}
             puedeReservar={!soloCatalogo && usuarioActual?.estado === 'VALIDADO'}
             itemsReservados={datos.reservas
               .filter((r) => r.prestatarioId === usuarioActual?.id && (r.estado === 'SOLICITADA' || r.estado === 'APROBADA'))
               .map((r) => r.catalogoItemId)}
-            reservar={(catalogoItemId, lugarUso) =>
-              usuarioActual?.id ? solicitarReserva(usuarioActual.id, catalogoItemId, lugarUso) : Promise.resolve()
+            reservar={(catalogoItemId, lugarUso, inicioReserva, finReserva) =>
+              usuarioActual?.id ? solicitarReserva(usuarioActual.id, catalogoItemId, lugarUso, inicioReserva, finReserva) : Promise.resolve()
             }
           />
         )
@@ -363,6 +361,7 @@ export default function App() {
             catalogo={datos.catalogo}
             usuarioId={usuarioActual?.id ?? null}
             cancelarReserva={cancelarReserva}
+            reprogramarReserva={async (id, inicio, fin) => { await api.reprogramarReserva(id, inicio, fin); await cargarDatos(true) }}
           />
         )
       case 'reservas':
@@ -373,14 +372,14 @@ export default function App() {
             reservas={datos.reservas}
             usuarios={datos.usuarios}
             catalogo={datos.catalogo}
-            operadorId={permisosActuales.includes('GESTIONAR_RESERVAS') || permisosActuales.includes('GESTIONAR_CATALOGO') ? usuarioActual?.id ?? null : null}
+            operadorId={permisosActuales.includes('ADMINISTRAR_SISTEMA') ? usuarioActual?.id ?? null : null}
             entregarSolicitud={async (id) => { await api.entregarSolicitud(id); await cargarDatos(true) }}
-            aceptarReserva={aceptarReserva}
+            aceptarReserva={async (id) => aceptarReserva(id, '')}
             denegarReserva={denegarReserva}
           />
         )
       case 'administracion':
-        return <Administracion datos={datos} permisos={permisosActuales} personaInicialId={personaResponsableId} />
+        return <Administracion datos={datos} permisos={permisosActuales} />
       default:
         return <Resumen datos={datos} irA={setPagina} />
     }
@@ -391,7 +390,6 @@ export default function App() {
       <BarraLateral
         pagina={paginaActual}
         cambiarPagina={(destino) => {
-          if (destino === 'administracion') setPersonaResponsableId(null)
           setPagina(destino)
         }}
         cerrarSesion={cerrarSesion}
@@ -400,6 +398,7 @@ export default function App() {
         permisos={permisosActuales}
         rolAcceso={rolActual}
         esPersonal={esPersonal}
+        cuentaValidada={usuarioActual?.estado === 'VALIDADO'}
       />
       <main className="contenido">
         <Encabezado pagina={paginaActual} publica={soloCatalogo} />

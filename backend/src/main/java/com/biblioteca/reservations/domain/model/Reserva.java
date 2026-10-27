@@ -16,8 +16,10 @@ import com.biblioteca.reservations.domain.vo.ReservaId;
 import com.biblioteca.shared.domain.AggregateRoot;
 import com.biblioteca.shared.domain.BusinessRuleException;
 import com.biblioteca.shared.domain.DomainException;
+import com.biblioteca.reservations.domain.policy.PoliticaHorarioReserva;
 
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.Objects;
 
 public final class Reserva extends AggregateRoot<ReservaId> {
@@ -37,6 +39,8 @@ public final class Reserva extends AggregateRoot<ReservaId> {
     private Instant fechaEntrega;
     private UsuarioId entregadoPorId;
     private LugarUso lugarUso = LugarUso.EN_CAMPUS;
+    private Instant inicioReserva;
+    private Instant finReserva;
 
     private Reserva(ReservaId id, UsuarioId prestatarioId, CatalogoItemId catalogoItemId,
                     EstadoReserva estado, UsuarioId operadorId, PrestamoId prestamoId,
@@ -72,11 +76,13 @@ public final class Reserva extends AggregateRoot<ReservaId> {
             EstadoReserva estado, UsuarioId operadorId, PrestamoId prestamoId, String motivo,
             Instant fechaAlta, Instant fechaDecision, EjemplarId ejemplarId,
             Instant fechaLimiteRetiro, Instant fechaEntrega, UsuarioId entregadoPorId,
-            LugarUso lugarUso) {
+            LugarUso lugarUso, Instant inicioReserva, Instant finReserva) {
         Reserva reserva = reconstruir(id, prestatarioId, catalogoItemId, estado, operadorId, prestamoId, motivo, fechaAlta, fechaDecision);
         reserva.ejemplarId = ejemplarId; reserva.fechaLimiteRetiro = fechaLimiteRetiro;
         reserva.fechaEntrega = fechaEntrega; reserva.entregadoPorId = entregadoPorId;
         reserva.lugarUso = Objects.requireNonNull(lugarUso);
+        reserva.inicioReserva = inicioReserva;
+        reserva.finReserva = finReserva;
         if ((estado == EstadoReserva.APROBADA || estado == EstadoReserva.ATENDIDA || estado == EstadoReserva.EXPIRADA)
                 && (ejemplarId == null || fechaLimiteRetiro == null || operadorId == null))
             throw new DomainException("RESERVA_INCONSISTENTE", "La aprobacion requiere ejemplar, responsable y plazo");
@@ -85,11 +91,34 @@ public final class Reserva extends AggregateRoot<ReservaId> {
         return reserva;
     }
 
+    /** Compatibilidad con registros creados antes de incorporar horarios. */
+    public static Reserva reconstruirSolicitud(ReservaId id, UsuarioId prestatarioId, CatalogoItemId catalogoItemId,
+            EstadoReserva estado, UsuarioId operadorId, PrestamoId prestamoId, String motivo,
+            Instant fechaAlta, Instant fechaDecision, EjemplarId ejemplarId,
+            Instant fechaLimiteRetiro, Instant fechaEntrega, UsuarioId entregadoPorId,
+            LugarUso lugarUso) {
+        return reconstruirSolicitud(id, prestatarioId, catalogoItemId, estado, operadorId, prestamoId,
+                motivo, fechaAlta, fechaDecision, ejemplarId, fechaLimiteRetiro, fechaEntrega,
+                entregadoPorId, lugarUso, null, null);
+    }
+
     public static Reserva solicitar(UsuarioId prestatarioId, CatalogoItemId itemId,
             LugarUso lugarUso, Instant ahora) {
         Reserva reserva = new Reserva(ReservaId.nuevo(), prestatarioId, itemId,
                 EstadoReserva.SOLICITADA, null, null, null, ahora, null);
         reserva.lugarUso = Objects.requireNonNull(lugarUso);
+        reserva.registrarEvento(new ReservaSolicitadaEvent(reserva.id, prestatarioId, itemId, ahora));
+        return reserva;
+    }
+
+    public static Reserva solicitarProgramada(UsuarioId prestatarioId, CatalogoItemId itemId,
+            LugarUso lugarUso, Instant inicio, Instant fin, Instant ahora, ZoneId zona) {
+        PoliticaHorarioReserva.validar(inicio, fin, ahora, zona);
+        Reserva reserva = new Reserva(ReservaId.nuevo(), prestatarioId, itemId,
+                EstadoReserva.SOLICITADA, null, null, null, ahora, null);
+        reserva.lugarUso = Objects.requireNonNull(lugarUso);
+        reserva.inicioReserva = inicio;
+        reserva.finReserva = fin;
         reserva.registrarEvento(new ReservaSolicitadaEvent(reserva.id, prestatarioId, itemId, ahora));
         return reserva;
     }
@@ -104,9 +133,38 @@ public final class Reserva extends AggregateRoot<ReservaId> {
         registrarEvento(new ReservaAprobadaEvent(id, operadorId, ejemplarId, limite, ahora));
     }
 
+    public void aprobarProgramada(UsuarioId operadorId, EjemplarId ejemplarId, Instant ahora) {
+        exigirEstado(EstadoReserva.SOLICITADA, "APROBAR");
+        if (inicioReserva == null || finReserva == null) {
+            throw new DomainException("HORARIO_REQUERIDO", "La reserva necesita fecha y hora");
+        }
+        this.operadorId = Objects.requireNonNull(operadorId);
+        this.ejemplarId = Objects.requireNonNull(ejemplarId);
+        this.fechaDecision = ahora;
+        this.fechaLimiteRetiro = inicioReserva.plus(PoliticaHorarioReserva.TOLERANCIA_RECOJO);
+        this.estado = EstadoReserva.APROBADA;
+        registrarEvento(new ReservaAprobadaEvent(id, operadorId, ejemplarId, fechaLimiteRetiro, ahora));
+    }
+
     public void exigirRetiroVigente(Instant ahora) {
         exigirEstado(EstadoReserva.APROBADA, "ENTREGAR");
+        if (inicioReserva != null && ahora.isBefore(inicioReserva)) {
+            throw new BusinessRuleException("RECOJO_ANTICIPADO",
+                    "El prestamo se entrega desde la hora inicial reservada");
+        }
         if (!ahora.isBefore(fechaLimiteRetiro)) throw new BusinessRuleException("SOLICITUD_EXPIRADA", "El plazo para recoger el bien ha vencido");
+    }
+
+    public void reprogramar(Instant inicio, Instant fin, Instant ahora, ZoneId zona) {
+        exigirEstado(EstadoReserva.SOLICITADA, "REPROGRAMAR");
+        if (inicioReserva != null
+                && !ahora.isBefore(inicioReserva.minus(PoliticaHorarioReserva.LIMITE_REPROGRAMACION))) {
+            throw new BusinessRuleException("REPROGRAMACION_FUERA_DE_PLAZO",
+                    "Solo puedes reprogramar hasta una hora antes del inicio");
+        }
+        PoliticaHorarioReserva.validar(inicio, fin, ahora, zona);
+        this.inicioReserva = inicio;
+        this.finReserva = fin;
     }
 
     public void entregar(UsuarioId entregadoPorId, PrestamoId prestamoId, Instant ahora) {
@@ -129,6 +187,8 @@ public final class Reserva extends AggregateRoot<ReservaId> {
     public Instant fechaEntrega() { return fechaEntrega; }
     public UsuarioId entregadoPorId() { return entregadoPorId; }
     public LugarUso lugarUso() { return lugarUso; }
+    public Instant inicioReserva() { return inicioReserva; }
+    public Instant finReserva() { return finReserva; }
 
     public void aceptar(UsuarioId operadorId, PrestamoId prestamoId) {
         exigirEstado(EstadoReserva.SOLICITADA, "ACEPTAR");

@@ -44,15 +44,22 @@ public class AceptarReservaUseCase {
         long apartados = reservas.listarPorPrestatario(alumno.id()).stream().filter(r -> r.estado()==EstadoReserva.APROBADA).count();
         PoliticaElegibilidadSolicitud.validar(acceso.usuario(command.operadorId()), alumno, item, reserva.lugarUso(),
                 sanciones.existeActivaPara(alumno.id(), hoy), prestamos.tieneVencido(alumno.id(), hoy), prestamos.contarActivosPor(alumno.id())+apartados, politica);
-        var id = command.ejemplarId();
-        if (id == null) id = ejemplares.listarPorItem(item.id()).stream().filter(e -> e.estaDisponible())
-                .map(e -> e.id()).findFirst().orElseThrow(() -> new BusinessRuleException("EJEMPLAR_NO_DISPONIBLE", "No hay ejemplares disponibles"));
-        var ejemplar = ejemplares.buscarPorIdParaActualizar(id).orElseThrow(() -> new BusinessRuleException("EJEMPLAR_NO_DISPONIBLE", "El ejemplar no existe"));
-        if (!ejemplar.catalogoItemId().equals(item.id()) || prestamos.existeActivoPara(ejemplar.id()))
-            throw new BusinessRuleException("EJEMPLAR_NO_DISPONIBLE", "El ejemplar no pertenece al bien o ya esta prestado");
-        ejemplar.reservar();
-        reserva.aprobar(command.operadorId(), ejemplar.id(), clock.instant(), clock.instant().plus(Duration.ofHours(48)));
-        ejemplares.guardar(ejemplar);
+        if (reserva.inicioReserva() == null || reserva.finReserva() == null)
+            throw new BusinessRuleException("HORARIO_REQUERIDO", "La solicitud no tiene un horario valido");
+        var candidato = ejemplares.listarPorItem(item.id()).stream()
+                .filter(e -> e.estaDisponible())
+                .filter(e -> !reservas.existeSolapamiento(e.id(), reserva.inicioReserva(), reserva.finReserva(), reserva.id()))
+                .map(e -> e.id()).findFirst()
+                .orElseThrow(() -> new BusinessRuleException("EJEMPLAR_NO_DISPONIBLE",
+                        "No hay ejemplares libres durante el horario solicitado"));
+        // El bloqueo de la unidad serializa dos aprobaciones que compiten por la última copia.
+        var ejemplar = ejemplares.buscarPorIdParaActualizar(candidato)
+                .orElseThrow(() -> new BusinessRuleException("EJEMPLAR_NO_DISPONIBLE", "El ejemplar no existe"));
+        if (!ejemplar.estaDisponible() || prestamos.existeActivoPara(ejemplar.id())
+                || reservas.existeSolapamiento(ejemplar.id(), reserva.inicioReserva(), reserva.finReserva(), reserva.id()))
+            throw new BusinessRuleException("EJEMPLAR_NO_DISPONIBLE",
+                    "El ultimo ejemplar disponible acaba de ser asignado");
+        reserva.aprobarProgramada(command.operadorId(), ejemplar.id(), clock.instant());
         reservas.guardar(reserva);
         eventos.publicarTodos(reserva.extraerEventos());
         return reserva;

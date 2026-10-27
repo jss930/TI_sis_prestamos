@@ -22,9 +22,13 @@ public class ExpirarSolicitudUseCase {
     public void ejecutar(ReservaId id) {
         var reserva=reservas.buscarPorIdParaActualizar(id).orElseThrow();
         if (!reserva.expirar(clock.instant())) return;
-        var ejemplar=ejemplares.buscarPorIdParaActualizar(reserva.ejemplarId()).orElseThrow();
-        ejemplar.liberarReserva();
-        ejemplares.guardar(ejemplar);
+        if (reserva.inicioReserva() == null) {
+            var ejemplar = ejemplares.buscarPorIdParaActualizar(reserva.ejemplarId()).orElseThrow();
+            if (ejemplar.estadoFisico() == com.biblioteca.inventory.domain.model.EstadoFisico.RESERVADO) {
+                ejemplar.liberarReserva();
+                ejemplares.guardar(ejemplar);
+            }
+        }
         reservas.guardar(reserva);
         eventos.publicarTodos(reserva.extraerEventos());
     }

@@ -4,6 +4,7 @@ import com.biblioteca.circulation.domain.model.LugarUso;
 import com.biblioteca.inventory.domain.vo.EjemplarId;
 import com.biblioteca.reservations.application.usecase.AccesoSolicitudes;
 import com.biblioteca.reservations.application.usecase.EntregarSolicitudUseCase;
+import com.biblioteca.reservations.application.usecase.ReprogramarReservaUseCase;
 
 import com.biblioteca.identity.domain.vo.UsuarioId;
 import com.biblioteca.infrastructure.security.UsuarioAutenticado;
@@ -28,6 +29,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -51,6 +53,7 @@ public class ReservaController {
     private final UsuarioAutenticado autenticado;
     private final AccesoSolicitudes acceso;
     private final EntregarSolicitudUseCase entregar;
+    private final ReprogramarReservaUseCase reprogramar;
 
     public ReservaController(SolicitarReservaUseCase solicitar,
                              AceptarReservaUseCase aceptar,
@@ -60,7 +63,8 @@ public class ReservaController {
                              ObtenerReservaUseCase obtener,
                              UsuarioAutenticado autenticado,
                              AccesoSolicitudes acceso,
-                             EntregarSolicitudUseCase entregar) {
+                             EntregarSolicitudUseCase entregar,
+                             ReprogramarReservaUseCase reprogramar) {
         this.solicitar = solicitar;
         this.aceptar = aceptar;
         this.denegar = denegar;
@@ -70,6 +74,7 @@ public class ReservaController {
         this.autenticado = autenticado;
         this.acceso = acceso;
         this.entregar = entregar;
+        this.reprogramar = reprogramar;
     }
 
     @GetMapping
@@ -95,8 +100,17 @@ public class ReservaController {
     public ReservaResponse solicitar(@RequestHeader(value = "Authorization", required = false) String token, @Valid @RequestBody SolicitarReservaRequest request) {
         Reserva reserva = solicitar.ejecutar(new SolicitarReservaCommand(
                 autenticado.exigir(token),
-                new CatalogoItemId(request.catalogoItemId()), request.lugarUso() == null ? LugarUso.EN_CAMPUS : request.lugarUso()));
+                new CatalogoItemId(request.catalogoItemId()), request.lugarUso() == null ? LugarUso.EN_CAMPUS : request.lugarUso(),
+                request.inicioReserva(), request.finReserva()));
         return aResponse(reserva);
+    }
+
+    @PatchMapping("/{id}/horario")
+    public ReservaResponse reprogramar(@PathVariable UUID id,
+            @RequestHeader(value = "Authorization", required = false) String token,
+            @Valid @RequestBody HorarioReservaRequest request) {
+        return aResponse(reprogramar.ejecutar(autenticado.exigir(token), new ReservaId(id),
+                request.inicioReserva(), request.finReserva()));
     }
 
     @PostMapping("/{id}/aceptar")
@@ -137,13 +151,17 @@ public class ReservaController {
                 reserva.prestamoId() == null ? null : reserva.prestamoId().value(),
                 reserva.motivo(), reserva.fechaAlta(), reserva.fechaDecision(),
                 reserva.ejemplarId() == null ? null : reserva.ejemplarId().value(), reserva.fechaLimiteRetiro(),
-                reserva.fechaEntrega(), reserva.entregadoPorId() == null ? null : reserva.entregadoPorId().value(), reserva.lugarUso());
+                reserva.fechaEntrega(), reserva.entregadoPorId() == null ? null : reserva.entregadoPorId().value(), reserva.lugarUso(),
+                reserva.inicioReserva(), reserva.finReserva());
     }
 
     public record SolicitarReservaRequest(
             @NotNull UUID prestatarioId,
-            @NotNull UUID catalogoItemId, LugarUso lugarUso) {
+            @NotNull UUID catalogoItemId, LugarUso lugarUso,
+            @NotNull Instant inicioReserva, @NotNull Instant finReserva) {
     }
+
+    public record HorarioReservaRequest(@NotNull Instant inicioReserva, @NotNull Instant finReserva) { }
 
     public record OperadorRequest(@NotNull UUID operadorId, UUID ejemplarId) {
     }
@@ -170,6 +188,8 @@ public class ReservaController {
             Instant fechaLimiteRetiro,
             Instant fechaEntrega,
             UUID entregadoPorId,
-            LugarUso lugarUso) {
+            LugarUso lugarUso,
+            Instant inicioReserva,
+            Instant finReserva) {
     }
 }

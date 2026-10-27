@@ -7,6 +7,9 @@ import com.biblioteca.reservations.domain.vo.ReservaId;
 
 import java.util.List;
 import java.util.Optional;
+import java.time.Instant;
+import com.biblioteca.inventory.domain.vo.EjemplarId;
+import com.biblioteca.reservations.domain.policy.PoliticaHorarioReserva;
 
 /** Puerto de salida del contexto reservations. */
 public interface ReservaRepository {
@@ -26,4 +29,13 @@ public interface ReservaRepository {
     List<Reserva> listarPorEstado(EstadoReserva estado);
 
     long contarActivasPor(UsuarioId prestatarioId);
+
+    default boolean existeSolapamiento(EjemplarId ejemplarId, Instant inicio, Instant fin,
+                                       ReservaId excluir) {
+        return listarTodos().stream().anyMatch(r -> r.estado() == EstadoReserva.APROBADA
+                && r.ejemplarId() != null && r.ejemplarId().equals(ejemplarId)
+                && r.inicioReserva() != null && r.finReserva() != null
+                && (excluir == null || !r.id().equals(excluir))
+                && PoliticaHorarioReserva.seSolapan(inicio, fin, r.inicioReserva(), r.finReserva()));
+    }
 }

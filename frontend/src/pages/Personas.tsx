@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import Tabla, { type Columna } from '../components/Tabla'
 import EtiquetaEstado from '../components/EtiquetaEstado'
 import DatosCuentaForm from '../components/DatosCuentaForm'
-import { api, mensajeDeError } from '../services/api'
-import type { CategoriaResponsable, DatosCuentaPendiente, NuevoUsuarioCuenta, PermisoOperativo, Responsable, Usuario } from '../types'
+import { mensajeDeError } from '../services/api'
+import type { DatosCuentaPendiente, NuevoUsuarioCuenta, PermisoOperativo, Usuario } from '../types'
 import { etiquetaPerfil, fechaCorta, nombreUsuario } from '../utils/format'
 
 interface Props {
@@ -16,14 +16,22 @@ interface Props {
   actualizarDatos: (id: string, datos: DatosCuentaPendiente) => Promise<void>
   suspenderUsuario: (id: string, motivo: string) => Promise<void>
   reactivarUsuario: (id: string) => Promise<void>
-  gestionarResponsables: (usuarioId?: string) => void
+  otorgarPermiso: (id: string, permiso: PermisoOperativo) => Promise<void>
+  revocarPermiso: (id: string, permiso: PermisoOperativo) => Promise<void>
 }
 
-const AREAS: Record<CategoriaResponsable, string> = {
-  BIBLIOTECA: 'Biblioteca', DEPORTES: 'Deportes', TECNOLOGIA: 'Tecnología', COMPUTACION: 'Computación y periféricos',
-}
+const PERMISOS: Array<{ id: PermisoOperativo; texto: string }> = [
+  { id: 'ADMINISTRAR_SISTEMA', texto: 'Administrar todo el sistema' },
+  { id: 'REGISTRAR_PRESTAMO', texto: 'Registrar préstamos' },
+  { id: 'REGISTRAR_DEVOLUCION', texto: 'Registrar devoluciones' },
+  { id: 'VALIDAR_USUARIO_PROVISIONAL', texto: 'Validar cuentas' },
+  { id: 'GESTIONAR_CATALOGO', texto: 'Gestionar catálogo' },
+  { id: 'GESTIONAR_SANCIONES', texto: 'Gestionar sanciones' },
+  { id: 'GESTIONAR_USUARIOS', texto: 'Gestionar usuarios' },
+  { id: 'GESTIONAR_RESERVAS', texto: 'Gestionar reservas' },
+]
 export default function Personas({ usuarios, permisos, operadorId, crearUsuario, validarUsuario,
-  suspenderUsuario, reactivarUsuario, gestionarResponsables, solicitarCorreccion, actualizarDatos }: Props) {
+  suspenderUsuario, reactivarUsuario, otorgarPermiso, revocarPermiso, solicitarCorreccion, actualizarDatos }: Props) {
   const [mostrarRegistro, setMostrarRegistro] = useState(false)
   const [mostrarSuspension, setMostrarSuspension] = useState(false)
   const [filtro, setFiltro] = useState('TODAS')
@@ -37,26 +45,10 @@ export default function Personas({ usuarios, permisos, operadorId, crearUsuario,
   const [error, setError] = useState<string | null>(null)
   const [exito, setExito] = useState<string | null>(null)
   const [procesando, setProcesando] = useState(false)
-  const [responsables, setResponsables] = useState<Responsable[] | null>(null)
-  const [errorResponsables, setErrorResponsables] = useState<string | null>(null)
-  const [recarga, setRecarga] = useState(0)
   const puedeAdministrar = permisos.includes('ADMINISTRAR_SISTEMA')
   const puedeValidar = puedeAdministrar || permisos.includes('VALIDAR_USUARIO_PROVISIONAL')
   const puedeGestionar = permisos.includes('GESTIONAR_USUARIOS') || permisos.includes('VALIDAR_USUARIO_PROVISIONAL')
   const seleccionada = usuarios.find((usuario) => usuario.id === seleccionadaId)
-
-  useEffect(() => {
-    let vigente = true
-    if (!puedeAdministrar) {
-      setResponsables(null)
-      setErrorResponsables(null)
-      return
-    }
-    setErrorResponsables(null)
-    void api.getResponsables().then((datos) => { if (vigente) setResponsables(datos.responsables) })
-      .catch((e: unknown) => { if (vigente) setErrorResponsables(mensajeDeError(e)) })
-    return () => { vigente = false }
-  }, [usuarios, puedeAdministrar, recarga])
 
   useEffect(() => {
     if (!seleccionadaId || !detalleRef.current) return
@@ -67,23 +59,13 @@ export default function Personas({ usuarios, permisos, operadorId, crearUsuario,
   }, [seleccionadaId, revisionDetalle])
 
   function funciones(usuario: Usuario): string[] {
-    const resultado: string[] = []
-    if (usuario.rolAcceso === 'ADMINISTRADOR') resultado.push('Administrador')
-    const responsabilidad = responsables?.find((r) => r.usuarioId === usuario.id)
-    if (responsabilidad) {
-      for (const cargo of ['PRINCIPAL', 'SUPLENTE'] as const) {
-        const areas = responsabilidad.categorias.filter((area) => responsabilidad.cargos[area] === cargo)
-        if (areas.length) resultado.push(`${cargo === 'PRINCIPAL' ? 'Principal' : 'Suplente'} de ${areas.map((area) => AREAS[area]).join(', ')}`)
-      }
-    }
-    if (!puedeAdministrar) return resultado.length ? resultado : ['Usuario']
-    if (responsables === null) return resultado.length ? resultado : [errorResponsables ? 'Áreas no disponibles' : 'Cargando áreas…']
-    return resultado.length ? resultado : ['Usuario']
+    if (usuario.rolAcceso === 'ADMINISTRADOR') return ['Administrador']
+    return [etiquetaPerfil(usuario.perfil)]
   }
 
   const consulta = busqueda.trim().toLocaleLowerCase('es')
   const filtradas = usuarios.filter((usuario) =>
-    (filtro === 'TODAS' || (filtro === 'RESPONSABLES' ? responsables?.some((r) => r.usuarioId === usuario.id && r.categorias.length > 0) : usuario.estado === filtro)) &&
+    (filtro === 'TODAS' || usuario.estado === filtro) &&
     `${usuario.nombreCompleto} ${usuario.email} ${usuario.codigoInstitucional ?? ''} ${etiquetaPerfil(usuario.perfil)} ${usuario.estado} ${funciones(usuario).join(' ')}`
       .toLocaleLowerCase('es').includes(consulta),
   )
@@ -91,7 +73,6 @@ export default function Personas({ usuarios, permisos, operadorId, crearUsuario,
   const filtros = [
     { id: 'TODAS', texto: 'Todas', cantidad: usuarios.length },
     { id: 'PROVISIONAL', texto: 'Por validar', cantidad: usuarios.filter((u) => u.estado === 'PROVISIONAL').length },
-    ...(puedeAdministrar ? [{ id: 'RESPONSABLES', texto: 'Responsables', cantidad: responsables === null ? '…' : responsables.filter((r) => r.categorias.length > 0).length }] : []),
     { id: 'VALIDADO', texto: 'Validadas', cantidad: usuarios.filter((u) => u.estado === 'VALIDADO').length },
     { id: 'SUSPENDIDO', texto: 'Suspendidas', cantidad: usuarios.filter((u) => u.estado === 'SUSPENDIDO').length },
   ]
@@ -146,8 +127,6 @@ export default function Personas({ usuarios, permisos, operadorId, crearUsuario,
       <div className="panel-titulo personas-titulo">
         <div><h2>Personas</h2><p>{usuarios.length} cuentas registradas</p></div>
         <div className="acciones-fila">
-          {puedeAdministrar && <button className="boton secundario" type="button" disabled={procesando}
-            onClick={() => gestionarResponsables()}>Gestionar responsables</button>}
           {puedeGestionar && <button className="boton primario" type="button" aria-expanded={mostrarRegistro}
             disabled={procesando} onClick={() => {
               if (mostrarRegistro) setNuevo({ email: '', nombreCompleto: '', perfil: 'ALUMNO', password: '', codigoInstitucional: '' })
@@ -171,10 +150,6 @@ export default function Personas({ usuarios, permisos, operadorId, crearUsuario,
         </label>
         <span>{filtradas.length} {filtradas.length === 1 ? 'resultado' : 'resultados'}</span>
       </div>
-      {errorResponsables && <div className="aviso error-aviso" role="alert">
-        No se pudieron actualizar las responsabilidades: {errorResponsables}
-        <button className="enlace" type="button" onClick={() => setRecarga((valor) => valor + 1)}>Reintentar</button>
-      </div>}
       {!seleccionada && error && <div className="aviso error-aviso" role="alert">{error}</div>}
       {!seleccionada && exito && <div className="aviso correcto-aviso" role="status">{exito}</div>}
       {puedeGestionar && mostrarRegistro && <form className="formulario persona-registro" aria-label="Registrar nueva cuenta" onSubmit={(e) => {
@@ -226,18 +201,20 @@ export default function Personas({ usuarios, permisos, operadorId, crearUsuario,
         <div><dt>Perfil</dt><dd>{etiquetaPerfil(seleccionada.perfil)}</dd></div>
         {seleccionada.estado !== 'PROVISIONAL' && <>
           <div><dt>Estado</dt><dd><EtiquetaEstado estado={seleccionada.estado} /></dd></div>
-          <div><dt>Responsabilidades</dt><dd className="persona-funciones">{funciones(seleccionada).map((funcion) => <span key={funcion}>{funcion}</span>)}</dd></div>
+           <div><dt>Tipo de acceso</dt><dd className="persona-funciones">{funciones(seleccionada).map((funcion) => <span key={funcion}>{funcion}</span>)}</dd></div>
         </>}
         {seleccionada.motivoSuspension && <div><dt>Motivo de suspensión</dt><dd>{seleccionada.motivoSuspension}</dd></div>}
       </dl>
-      {puedeAdministrar && seleccionada.estado !== 'PROVISIONAL' && <div className="persona-accesos">
-        <div><strong>{seleccionada.rolAcceso === 'ADMINISTRADOR' ? 'Administración general' : responsables?.some((r) => r.usuarioId === seleccionada.id && r.categorias.length) ? 'Responsable de área' : 'Cuenta de usuario'}</strong>
-          <p>{seleccionada.estado === 'SUSPENDIDO' ? 'Sus operaciones están bloqueadas mientras la cuenta esté suspendida.' : seleccionada.rolAcceso === 'ADMINISTRADOR' ? 'Gestiona el sistema y sus áreas.' : responsables?.some((r) => r.usuarioId === seleccionada.id && r.categorias.length)
-            ? 'Sus accesos se actualizan al asignar o retirar responsabilidades.' : 'Consulta el catálogo y gestiona sus propias solicitudes.'}</p>
-        </div>
-        {seleccionada.rolAcceso !== 'ADMINISTRADOR' && <button className="boton secundario" type="button" disabled={procesando}
-          onClick={() => gestionarResponsables(seleccionada.id)}>Gestionar áreas</button>}
-      </div>}
+      {puedeAdministrar && seleccionada.estado === 'VALIDADO' && <fieldset disabled={procesando || seleccionada.id === operadorId}>
+        <legend>Permisos de la cuenta</legend>
+        <p>Activa únicamente las funciones que esta persona necesita. Los cambios se aplican de inmediato.</p>
+        <div className="permisos-grid">{PERMISOS.map((permiso) => { const activo = seleccionada.permisos.includes(permiso.id); return <label key={permiso.id}>
+          <input type="checkbox" checked={activo} onChange={() => void ejecutar(() => activo
+            ? revocarPermiso(seleccionada.id, permiso.id) : otorgarPermiso(seleccionada.id, permiso.id),
+            activo ? 'Permiso revocado.' : 'Permiso otorgado.')} /> {permiso.texto}
+        </label> })}</div>
+        {seleccionada.id === operadorId && <small>Por seguridad no puedes cambiar tus propios permisos.</small>}
+      </fieldset>}
 
       {seleccionada.estado === 'PROVISIONAL' && puedeValidar && <fieldset disabled={procesando}>
         <legend>Cuenta</legend>

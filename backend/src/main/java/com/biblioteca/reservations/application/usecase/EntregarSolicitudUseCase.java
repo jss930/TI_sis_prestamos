@@ -35,10 +35,15 @@ public class EntregarSolicitudUseCase {
         reserva.exigirRetiroVigente(clock.instant());
         usuarios.buscarPorIdParaActualizar(reserva.prestatarioId()).orElseThrow(() -> new NotFoundException("Usuario", reserva.prestatarioId().value()));
         var ejemplar=ejemplares.buscarPorIdParaActualizar(reserva.ejemplarId()).orElseThrow(() -> new NotFoundException("Ejemplar", reserva.ejemplarId().value()));
-        ejemplar.liberarReserva();
-        ejemplares.guardar(ejemplar);
-        // La transaccion revierte la liberacion si alguna politica de entrega falla.
-        var prestamo=prestamos.ejecutar(new RegistrarPrestamoCommand(operadorId, reserva.prestatarioId(), ejemplar.id(), reserva.lugarUso()));
+        // Compatibilidad con apartados creados por la versión anterior a los horarios.
+        if (ejemplar.estadoFisico() == com.biblioteca.inventory.domain.model.EstadoFisico.RESERVADO) {
+            ejemplar.liberarReserva();
+            ejemplares.guardar(ejemplar);
+        }
+        var prestamo=prestamos.ejecutarProgramado(
+                new RegistrarPrestamoCommand(operadorId, reserva.prestatarioId(), ejemplar.id(), reserva.lugarUso()),
+                reserva.inicioReserva() == null ? clock.instant() : reserva.inicioReserva(),
+                reserva.finReserva() == null ? clock.instant().plus(java.time.Duration.ofDays(1)) : reserva.finReserva());
         reserva.entregar(operadorId, prestamo.id(), clock.instant());
         reservas.guardar(reserva);
         eventos.publicarTodos(reserva.extraerEventos());

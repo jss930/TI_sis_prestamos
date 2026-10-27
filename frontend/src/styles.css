@@ -49,7 +49,7 @@
 .formulario .acciones { gap: 10px; flex-wrap: wrap; }
 @media (max-width: 600px) { .detalle-solicitud { grid-template-columns: 1fr; } }
 
-.gestion-responsables fieldset, .formulario-inspeccion fieldset { border: 1px solid #d9dedb; border-radius: 8px; margin: 20px 0 0; padding: 18px; min-width: 0; }
+.formulario-inspeccion fieldset { border: 1px solid #d9dedb; border-radius: 8px; margin: 20px 0 0; padding: 18px; min-width: 0; }
 .formulario .opcion-permiso { display: flex; align-items: center; gap: 12px; font-weight: 400; }
 .opcion-permiso input { width: 18px; height: 18px; accent-color: #1d5b40; flex-shrink: 0; }
 .opcion-permiso:has(input:disabled) { opacity: .65; }
@@ -78,3 +78,17 @@ body{line-height:1.5}button,input,select,textarea{font:inherit}button{cursor:poi
 .personas-titulo .acciones-fila{display:flex;gap:10px;flex-wrap:wrap}.personas-busqueda{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin:20px 0}.personas-buscador{display:grid;gap:8px;font-size:12px;font-weight:600;flex:1;max-width:430px;color:#3c5344}.personas-buscador .buscador{width:100%}.personas-busqueda>span{font-size:12px;color:#68746e;padding-bottom:12px}.persona-registro{padding:20px;margin:20px 0;border:1px solid #dce3d9;border-radius:10px;background:#f8faf6}.persona-registro h3{margin-top:0}.persona-registro fieldset{border:0;padding:0;min-width:0}.persona-registro legend{font-size:12px;color:#637367}.persona-registro-campos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 18px}.persona-accesos{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:18px;background:#f1f6ed;border-radius:10px;margin:18px 0}.persona-accesos p{margin:6px 0 0;color:#637367;font-size:12px;line-height:1.5}.persona-historial{border-top:1px solid #e1e7dc;margin-top:20px;padding-top:16px}.persona-historial summary{cursor:pointer;color:#526959;font-size:13px;font-weight:600}.persona-suspension{margin-top:12px}@media(max-width:600px){.persona-registro-campos{grid-template-columns:minmax(0,1fr)}.persona-accesos{flex-direction:column;align-items:flex-start}.personas-busqueda{align-items:stretch;flex-direction:column;gap:8px}.personas-busqueda>span{padding:0}.personas-buscador{max-width:none}}
 
 .login .mostrar-clave{display:flex;align-items:center;gap:8px;margin:10px 0 16px;font-size:13px;font-weight:400;cursor:pointer}.login .mostrar-clave input[type=checkbox]{width:18px;height:18px;min-height:18px;flex:0 0 18px;margin:0;padding:0;accent-color:#1d5b40;cursor:pointer}
+/* Formularios de reserva: agrupación visible, lectura rápida y controles amplios. */
+.reserva-form { margin: 1rem 0 1.5rem; border-left: 4px solid var(--primario, #1d5b40); }
+.reserva-horario-grid, .permisos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+.permisos-grid label { display: flex; align-items: center; gap: .6rem; padding: .75rem; border: 1px solid #d8e0dc; border-radius: .5rem; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 3px solid #f0b429;
+  outline-offset: 2px;
+}
+button:disabled { cursor: not-allowed; opacity: .6; }

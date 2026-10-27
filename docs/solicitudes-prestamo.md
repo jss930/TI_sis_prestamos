@@ -1,69 +1,111 @@
-# Solicitudes de préstamo: aprobación y entrega
+# Reservas horarias y préstamos directos
 
-El alumno solicita un bien disponible desde Catálogo, elige uso en campus o a domicilio y consulta el resultado en **Mis solicitudes**. No se reservan fechas futuras: esta entrega implementa la recogida de bienes disponibles.
+## Modelo simple
 
-El responsable revisa **Solicitudes pendientes**, filtrando por área y estado. Puede aprobar y apartar un ejemplar concreto o rechazar con motivo. La aprobación no crea un préstamo: aparta la unidad durante **48 horas**. El alumno ve la fecha y hora límite de recogida.
+Una **reserva** es una solicitud para usar un título en una fecha y horario futuros. El usuario no elige una copia: al aprobar, el sistema asigna automáticamente un ejemplar libre que no tenga otro horario superpuesto.
 
-Cuando el alumno recibe físicamente el bien, el responsable pulsa **Confirmar entrega e iniciar préstamo**. Se vuelven a comprobar cuenta habilitada, sanciones, préstamos vencidos, límite de préstamos y permiso de uso a domicilio. El plazo de préstamo empieza ese día. La devolución conserva el flujo existente de inspección física.
+Un **préstamo directo** ocurre cuando la persona se presenta en ventanilla sin reserva. El administrador selecciona una copia y registra el préstamo. La operación se rechaza si esa copia está comprometida por una reserva aprobada dentro del periodo del préstamo.
+
+No existen áreas responsables, responsables principales/suplentes ni capacitación técnica. La administración valida cuentas y concede permisos directamente a cada usuario.
+
+## Acceso
+
+1. Cualquier persona con correo y código institucional puede registrar una cuenta.
+2. Una cuenta `PROVISIONAL` inicia sesión y solo consulta el catálogo y sus datos.
+3. El administrador revisa y valida la cuenta.
+4. Una cuenta `VALIDADO` puede crear, consultar, cancelar y reprogramar sus reservas.
+5. Solo una cuenta validada con `ADMINISTRAR_SISTEMA` puede aprobar, denegar y entregar reservas.
+
+Los perfiles de negocio son alumno, docente y administrativo. Administrador es un acceso derivado del permiso `ADMINISTRAR_SISTEMA`, no un perfil de préstamo distinto.
+
+## Reglas del horario
+
+- Inicio con al menos **2 horas de anticipación**.
+- Atención entre **07:00 y 20:00**, zona `America/Lima`.
+- La hora final debe ser posterior a la inicial.
+- Duración máxima de **24 horas**.
+- La reserva se realiza por título.
+- Libros: uso en campus o domicilio.
+- Equipos y otros bienes: solo dentro del campus.
+- No existe lista de espera.
+- Si no hay una copia libre para todo el intervalo, la operación se rechaza.
+- Horarios consecutivos no se consideran superpuestos; por ejemplo, 10:00–11:00 y 11:00–12:00.
+- Una reserva aprobada cuenta dentro del límite de préstamos/apartados.
 
 ## Estados
 
-`SOLICITADA → APROBADA → ATENDIDA`
+```text
+SOLICITADA ──aprobar──> APROBADA ──entregar──> ATENDIDA
+     │                      │
+     ├──denegar──> DENEGADA ├──no recoge +1 h──> EXPIRADA
+     └──cancelar────────────┴──cancelar──> CANCELADA
+```
 
-- `DENEGADA`: rechazada con motivo.
-- `CANCELADA`: el alumno cancela una solicitud pendiente o aprobada; se libera el apartado.
-- `EXPIRADA`: vence el plazo de recogida; se libera el apartado, sin préstamo ni sanción automática.
-- `ACEPTADA`: estado histórico anterior, ya asociado a un préstamo; no se modifica su historial.
+`ACEPTADA` se conserva únicamente para leer registros históricos de la versión anterior.
 
-El proceso de vencimiento se ejecuta cada 30 segundos mientras el backend está activo. Tras un reinicio también procesa los apartados vencidos. Una entrega fuera de plazo siempre se rechaza, aunque todavía no haya pasado el proceso de liberación.
+La aprobación no cambia el estado físico del ejemplar a `RESERVADO`: el compromiso es temporal y vive en la reserva. Así una misma copia puede tener reservas no superpuestas. Cuando se entrega, el ejemplar pasa a `PRESTADO` y se crea el préstamo.
 
-## Áreas y permisos
+## Reprogramación y vencimiento
 
-Cada bien tiene un área persistida: Biblioteca, Deportes, Tecnología o Computación y periféricos. La administración puede corregirla desde el catálogo. Los bienes existentes reciben un área mediante V10; los nuevos toman por defecto Biblioteca para libros, Tecnología para equipos y Deportes para otros recursos. La administración debe revisar ese valor al registrar bienes de otra área.
+- El titular puede reprogramar una reserva `SOLICITADA` hasta una hora antes del inicio original.
+- El nuevo horario vuelve a validar anticipación, jornada y duración.
+- Una reserva aprobada se puede recoger desde su hora inicial.
+- Si no se recoge dentro de la hora siguiente al inicio, expira automáticamente.
+- La expiración no genera sanción y no crea lista de espera.
 
-En Administración, las casillas de capacitación y categorías preparan una selección pendiente. **Confirmar cambios** guarda la selección completa en una sola transacción; **Descartar cambios** restaura los valores guardados. Cambiar de persona no aplica las selecciones pendientes.
+## Concurrencia
 
-Una asignación vigente habilita la bandeja y las operaciones de préstamo y devolución. Para aprobar, rechazar o entregar, el backend comprueba la cuenta validada y la responsabilidad correspondiente al área del bien. Tecnología y Computación requieren capacitación técnica vigente. La administración puede revisar todas las áreas; registrar entregas también exige permiso operativo de préstamo.
-
-Sharmely verá las solicitudes de las áreas que tenga asignadas. El alumno ve exclusivamente sus solicitudes; la consulta pública no devuelve solicitudes. Se conserva quién aprobó, cuándo aprobó, el ejemplar apartado, quién entregó, cuándo entregó y el préstamo resultante.
-
-## Principal y suplente por área
-
-Cada área admite **un principal y un suplente como máximo**. En Administración se selecciona la persona, el área y el cargo, y se pulsa **Confirmar cambios**. El resumen muestra ambos cargos por área y las plazas vacantes. El formulario queda limpio al guardar.
-
-Un cargo ocupado no se puede duplicar. Para reemplazar a alguien, primero retira o cambia su asignación y confirma; después asigna a la nueva persona. Ambos cargos tienen las mismas facultades para atender el área y requieren las mismas condiciones de validación y capacitación. Una persona puede ser principal de un área y suplente de otra. Retirar al principal no promueve automáticamente al suplente.
-
-V11 conserva a las personas ya asignadas y distribuye los cargos según la antigüedad de sus asignaciones. El historial registra el cargo de las nuevas asignaciones y sus cambios.
+La aprobación bloquea la reserva y la copia candidata con `PESSIMISTIC_WRITE`. Después del bloqueo se vuelve a consultar si existe solapamiento. Si dos administradores intentan asignar la última copia al mismo horario, solo la primera aprobación termina; la segunda recibe `EJEMPLAR_NO_DISPONIBLE`.
 
 ## API
 
 | Acción | Método y ruta |
 |---|---|
-| Consultar solicitudes visibles para la sesión | `GET /api/v1/reservas` |
-| Solicitar | `POST /api/v1/reservas` |
-| Aprobar y apartar | `POST /api/v1/reservas/{id}/aceptar` |
+| Ver reservas visibles | `GET /api/v1/reservas` |
+| Crear reserva | `POST /api/v1/reservas` |
+| Reprogramar | `PATCH /api/v1/reservas/{id}/horario` |
+| Aprobar y asignar copia | `POST /api/v1/reservas/{id}/aceptar` |
 | Confirmar entrega | `POST /api/v1/reservas/{id}/entregar` |
-| Rechazar con motivo | `POST /api/v1/reservas/{id}/denegar` |
-| Cancelar como solicitante | `POST /api/v1/reservas/{id}/cancelar` |
-| Confirmar áreas y cargos de un responsable | `PUT /api/v1/responsables/{usuarioId}/asignaciones` |
-| Cambiar área como administrador | `PATCH /api/v1/catalogo/{id}/area` |
+| Denegar | `POST /api/v1/reservas/{id}/denegar` |
+| Cancelar | `POST /api/v1/reservas/{id}/cancelar` |
 
-Se mantiene `/reservas` para compatibilidad con la API existente. Las operaciones usan la identidad del token, aunque los cuerpos antiguos incluyan identificadores de usuario.
+Ejemplo de creación:
 
-## Puesta en marcha y validación
+```json
+{
+  "prestatarioId": "UUID-IGNORADO-POR-COMPATIBILIDAD",
+  "catalogoItemId": "UUID-DEL-TITULO",
+  "lugarUso": "EN_CAMPUS",
+  "inicioReserva": "2026-10-28T15:00:00Z",
+  "finReserva": "2026-10-28T17:00:00Z"
+}
+```
 
-Reinicia el backend para que Flyway aplique V10. No borres los volúmenes ni reinicies los datos. Actualiza la página; la interfaz consulta cambios cada 30 segundos.
+La identidad real se obtiene del token. `prestatarioId` se conserva temporalmente en el DTO para compatibilidad, pero no decide el titular.
+
+## Persistencia
+
+`V13__reservas_con_horario.sql` agrega `inicio_reserva`, `fin_reserva` y un índice de consulta. Las migraciones anteriores no se modifican porque Flyway las considera historial inmutable. Las tablas históricas de responsables pueden seguir presentes en bases ya migradas, pero no tienen endpoint ni interfaz y ya no participan en las reglas.
+
+## Usabilidad aplicada
+
+- **Visibilidad:** reglas y estado se muestran antes de confirmar.
+- **Prevención de errores:** mínimos de fecha, controles deshabilitados y validación cliente/servidor.
+- **Correspondencia con el mundo real:** reservar, aprobar, recoger y devolver son acciones separadas.
+- **Consistencia:** se usa “reserva” en navegación y mensajes.
+- **Retroalimentación:** cada acción muestra progreso, éxito o error comprensible.
+- **Control del usuario:** cancelar y reprogramar tienen condiciones visibles.
+- **Accesibilidad:** etiquetas, foco visible, estados ARIA y botones con texto explícito.
+
+## Verificación
 
 ```bash
 cd backend
-mvn test
-mvn spring-boot:run
+./mvnw test
+
+cd ../frontend
+pnpm typecheck
+pnpm build
 ```
 
-```bash
-cd frontend
-npm run build
-npm run dev
-```
-
-Las pruebas incluyen persistencia, permisos por área, separación aprobación/entrega, cancelación, vencimiento, una entrega rechazada que revierte la liberación y dos aprobaciones simultáneas que compiten por la misma unidad. H2 adapta solo la sintaxis `ON CONFLICT (id)` de los seeds mediante configuración exclusiva de tests; las migraciones PostgreSQL ya publicadas no se reescriben.
+La línea base actual es **100 pruebas backend verdes** y compilación TypeScript/Vite correcta.

@@ -11,15 +11,14 @@
 ![Maven](https://img.shields.io/badge/Maven-3.9%2B-C71A36?style=for-the-badge&logo=apachemaven&logoColor=white)
 ![DDD](https://img.shields.io/badge/Arquitectura-DDD-1D5B40?style=for-the-badge)
 ![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-82_passing-brightgreen?style=for-the-badge)
+![Tests](https://img.shields.io/badge/Tests-100_passing-brightgreen?style=for-the-badge)
 
 </div>
 
 > [!NOTE]
 > **Estado actual del repositorio.** El núcleo DDD, la API REST, la persistencia
 > PostgreSQL/JPA/Flyway y el frontend React + TypeScript + Vite están implementados.
-> La suite suma **82 tests verdes**: los **57 tests originales**, `JpaPersistenciaTest` y `ReservaTest`. La autenticación JWT, los roles reales y las reservas quedan
-> fuera de esta entrega.
+> La suite suma **100 tests verdes**. La autenticación por token, la revisión de cuentas y las reservas horarias están integradas.
 
 Este repositorio reescribe el proyecto `TI_sis_prestamos` con **Domain-Driven Design (DDD)**
 y cinco contextos delimitados. El objetivo no es acumular pantallas o endpoints, sino
@@ -87,7 +86,7 @@ internos de `penalties`.
 | API REST `/api/v1` | ✅ Completado | Controladores, validación y `ProblemDetail` |
 | Persistencia PostgreSQL/JPA | ✅ Completado | Adaptadores JPA, Flyway y esquema `V1__schema.sql` |
 | Frontend React + TypeScript | ✅ Completado | Catálogo público, login demo y operaciones |
-| Tests automatizados | ✅ 82 verdes | Dominio, aplicación, flujo, JPA, reservas y ArchUnit |
+| Tests automatizados | ✅ 100 verdes | Dominio, aplicación, concurrencia, JPA, reservas y ArchUnit |
 | Autenticación JWT y roles | ⏳ Pendiente | Fase de seguridad |
 | Reservas | ✅ Implementadas | Contexto `reservations`, API `/api/v1/reservas`, ADR-010 |
 
@@ -491,7 +490,7 @@ TI_sis_prestamos/
 │       ├── main/resources/
 │       │   ├── application.yml             # PostgreSQL/JPA/Flyway
 │       │   └── db/migration/V1__schema.sql
-│       └── test/java/com/biblioteca/       # 82 tests + ArchUnit
+│       └── test/java/com/biblioteca/       # 100 tests, incluidos concurrencia y ArchUnit
 ├── docs/
 │   ├── arquitectura.md
 │   ├── demo.md
@@ -535,7 +534,7 @@ Resultado esperado:
 
 ```text
 BUILD SUCCESS
-Tests run: 82, Failures: 0, Errors: 0, Skipped: 0
+Tests run: 100, Failures: 0, Errors: 0, Skipped: 0
 ```
 
 ### Composición de la suite
@@ -626,14 +625,14 @@ Este proyecto prioriza tres cosas que suelen perderse en trabajos de curso:
 > sustentación, por encima de acumular endpoints o pantallas sin coherencia.
 
 
-## Flujo de solicitudes con aprobación y entrega
+## Reservas horarias y préstamos directos
 
-El flujo actual separa solicitud, aprobación con apartado de 48 horas y entrega física que inicia el préstamo. La bandeja verifica las responsabilidades por área. Consulta [el flujo y la guía de prueba](docs/solicitudes-prestamo.md) y el ADR-011 para los estados, permisos y endpoints actualizados.
+El usuario validado reserva un título para una fecha y horario. El administrador aprueba manualmente y el sistema asigna una copia sin solapamientos. La recogida inicia el préstamo; si no ocurre hasta una hora después del inicio, la reserva expira. Consulta [la guía completa](docs/solicitudes-prestamo.md) y [ADR-014](docs/adr/ADR-014-reservas-horarias-sin-areas.md).
 
 
-### Principal y suplente
+### Administración simplificada
 
-Cada área admite un principal y un suplente. Administración permite elegir el cargo y consultar los ocupantes actuales; la confirmación rechaza cargos ocupados, incluso con solicitudes simultáneas. Véase [ADR-012](docs/adr/ADR-012-principal-y-suplente-por-area.md) y [la guía de responsables](docs/solicitudes-prestamo.md#principal-y-suplente-por-área).
+No hay responsables por área ni capacitación técnica. El administrador valida cuentas y concede permisos directamente a cada usuario desde Personas. Las migraciones históricas se conservan para no romper bases que ya las ejecutaron, pero esos conceptos no participan en la API ni en la interfaz actual.
 
 
 ### Revisión de cuentas

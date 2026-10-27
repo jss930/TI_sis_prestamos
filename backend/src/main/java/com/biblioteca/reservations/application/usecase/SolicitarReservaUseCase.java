@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Objects;
 
 @Service
@@ -35,6 +36,7 @@ public class SolicitarReservaUseCase {
     private final DomainEventPublisher eventos;
     private final Clock clock;
     private final EjemplarRepository ejemplares;
+    private final ZoneId zona;
 
     @Autowired
     public SolicitarReservaUseCase(UsuarioRepository usuarios,
@@ -43,7 +45,7 @@ public class SolicitarReservaUseCase {
                                    ReservaRepository reservas,
                                    PoliticaReserva politica,
                                    DomainEventPublisher eventos,
-                                   Clock clock, EjemplarRepository ejemplares) {
+                                   Clock clock, EjemplarRepository ejemplares, ZoneId zona) {
         this.usuarios = usuarios;
         this.catalogo = catalogo;
         this.sanciones = sanciones;
@@ -52,6 +54,7 @@ public class SolicitarReservaUseCase {
         this.eventos = eventos;
         this.clock = clock;
         this.ejemplares = ejemplares;
+        this.zona = zona;
     }
 
     public Reserva ejecutar(SolicitarReservaCommand command) {
@@ -71,16 +74,30 @@ public class SolicitarReservaUseCase {
             throw new BusinessRuleException("ITEM_INACTIVO", "El item esta fuera de circulacion");
         }
 
+        if (command.inicioReserva() == null || command.finReserva() == null) {
+            throw new BusinessRuleException("HORARIO_REQUERIDO",
+                    "Selecciona la fecha y hora inicial y final de la reserva");
+        }
+        if (command.lugarUso() == com.biblioteca.circulation.domain.model.LugarUso.DOMICILIO
+                && item.tipo() != com.biblioteca.catalog.domain.model.TipoItem.LIBRO) {
+            throw new BusinessRuleException("DOMICILIO_NO_PERMITIDO",
+                    "Solo los libros pueden reservarse para uso a domicilio");
+        }
+
         if (sanciones.existeActivaPara(prestatario.id(), hoy)) {
             throw new BusinessRuleException("SANCION_ACTIVA",
                     "El prestatario tiene una sancion activa");
         }
 
-        if (ejemplares.listarPorItem(item.id()).stream().noneMatch(e -> e.estaDisponible()))
-            throw new BusinessRuleException("EJEMPLAR_NO_DISPONIBLE", "No hay ejemplares disponibles para solicitar este bien");
+        if (ejemplares.listarPorItem(item.id()).stream().noneMatch(e -> e.estaDisponible()
+                && !reservas.existeSolapamiento(e.id(), command.inicioReserva(), command.finReserva(), null)))
+            throw new BusinessRuleException("EJEMPLAR_NO_DISPONIBLE",
+                    "No hay ejemplares libres durante el horario seleccionado");
         if (reservas.listarPorPrestatario(prestatario.id()).stream().anyMatch(r -> r.catalogoItemId().equals(item.id())
-                && (r.estado() == EstadoReserva.SOLICITADA
-                || r.estado() == EstadoReserva.APROBADA)))
+                && (r.estado() == EstadoReserva.SOLICITADA || r.estado() == EstadoReserva.APROBADA)
+                && r.inicioReserva() != null && r.finReserva() != null
+                && com.biblioteca.reservations.domain.policy.PoliticaHorarioReserva.seSolapan(
+                        command.inicioReserva(), command.finReserva(), r.inicioReserva(), r.finReserva())))
             throw new BusinessRuleException("SOLICITUD_DUPLICADA", "Ya tienes una solicitud activa para este bien");
         long activas = reservas.contarActivasPor(prestatario.id());
         if (activas >= politica.maxReservasActivas(prestatario.perfil())) {
@@ -88,7 +105,8 @@ public class SolicitarReservaUseCase {
                     "El prestatario alcanzo el maximo de reservas activas");
         }
 
-        Reserva reserva = Reserva.solicitar(prestatario.id(), item.id(), command.lugarUso(), clock.instant());
+        Reserva reserva = Reserva.solicitarProgramada(prestatario.id(), item.id(), command.lugarUso(),
+                command.inicioReserva(), command.finReserva(), clock.instant(), zona);
         reservas.guardar(reserva);
         eventos.publicarTodos(reserva.extraerEventos());
         return reserva;

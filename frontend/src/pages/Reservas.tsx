@@ -13,7 +13,7 @@ interface Props {
   prestamos: Prestamo[]
   operadorId: string | null
   entregarSolicitud: (id: string) => Promise<void>
-  aceptarReserva: (id: string, ejemplarId: string) => Promise<void>
+  aceptarReserva: (id: string) => Promise<void>
   denegarReserva: (id: string, motivo: string) => Promise<void>
 }
 
@@ -31,12 +31,10 @@ const FILTROS: Array<{ id: EstadoReserva | 'TODAS'; titulo: string }> = [
 export default function Reservas({ reservas, usuarios, catalogo, ejemplares, prestamos,
   operadorId, aceptarReserva, denegarReserva, entregarSolicitud }: Props) {
   const [filtro, setFiltro] = useState<EstadoReserva | 'TODAS'>('SOLICITADA')
-  const [area, setArea] = useState('TODAS')
   const [busqueda, setBusqueda] = useState('')
   const detalleRef = useRef<HTMLHeadingElement>(null)
   const [revisionDetalle, setRevisionDetalle] = useState(0)
   const [seleccionadaId, setSeleccionadaId] = useState<string | null>(null)
-  const [ejemplarElegido, setEjemplarElegido] = useState('')
   const [motivo, setMotivo] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [exito, setExito] = useState<string | null>(null)
@@ -54,7 +52,6 @@ export default function Reservas({ reservas, usuarios, catalogo, ejemplares, pre
   const consulta = busqueda.trim().toLocaleLowerCase('es')
   const visibles = reservas.filter((reserva) =>
     (filtro === 'TODAS' || reserva.estado === filtro) &&
-    (area === 'TODAS' || catalogo.find((i) => i.id === reserva.catalogoItemId)?.area === area) &&
     `${nombreUsuario(usuarios, reserva.prestatarioId)} ${tituloDeCatalogo(catalogo, reserva.catalogoItemId)}`
       .toLocaleLowerCase('es').includes(consulta),
   ).sort((a, b) => b.fechaAlta.localeCompare(a.fechaAlta))
@@ -72,15 +69,11 @@ export default function Reservas({ reservas, usuarios, catalogo, ejemplares, pre
       setError('El motivo de denegación es obligatorio.')
       return
     }
-    if (accion === 'aceptar' && !disponibles.some((e) => e.id === ejemplarElegido)) {
-      setError('Selecciona un ejemplar disponible para la entrega.')
-      return
-    }
     setProcesando(true)
     try {
       if (accion === 'aceptar') {
-        await aceptarReserva(seleccionada.id, ejemplarElegido)
-        setExito('Solicitud aprobada. El ejemplar queda apartado durante 48 horas, pendiente de entrega.')
+        await aceptarReserva(seleccionada.id)
+        setExito('Reserva aprobada. El sistema asignó una copia libre para ese horario.')
       } else if (accion === 'entregar') {
         await entregarSolicitud(seleccionada.id)
         setExito('Entrega confirmada. El préstamo comienza hoy.')
@@ -99,14 +92,14 @@ export default function Reservas({ reservas, usuarios, catalogo, ejemplares, pre
   const columnas: Columna<Reserva>[] = [
     { clave: 'persona', titulo: 'PERSONA', render: (r) => nombreUsuario(usuarios, r.prestatarioId) },
     { clave: 'bien', titulo: 'BIEN', render: (r) => tituloDeCatalogo(catalogo, r.catalogoItemId) },
-    { clave: 'area', titulo: 'ÁREA', render: (r) => catalogo.find((i) => i.id === r.catalogoItemId)?.area ?? '—' },
+    { clave: 'horario', titulo: 'HORARIO', render: (r) => r.inicioReserva && r.finReserva
+      ? `${new Date(r.inicioReserva).toLocaleString('es-PE')} – ${new Date(r.finReserva).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}` : 'Histórico' },
     { clave: 'fecha', titulo: 'SOLICITADO', render: (r) => fechaCorta(r.fechaAlta) },
     { clave: 'estado', titulo: 'ESTADO', render: (r) => <EtiquetaEstado estado={r.estado} /> },
     { clave: 'accion', titulo: 'ACCIÓN', render: (r) => (
       <button className="boton secundario" type="button" disabled={procesando} onClick={() => {
         setSeleccionadaId(r.id)
         setRevisionDetalle((revision) => revision + 1)
-        setEjemplarElegido('')
         setMotivo('')
         setError(null)
         setExito(null)
@@ -117,17 +110,10 @@ export default function Reservas({ reservas, usuarios, catalogo, ejemplares, pre
   return <>
     <section className="panel">
       <div className="panel-titulo">
-        <div><h2>Solicitudes de mis áreas</h2><p>{visibles.length} solicitudes en esta vista</p></div>
+        <div><h2>Reservas pendientes</h2><p>{visibles.length} reservas en esta vista</p></div>
         <input className="buscador" type="search" aria-label="Buscar solicitudes por persona o bien"
           placeholder="Buscar por persona o bien" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
       </div>
-      <label>Área responsable
-        <select value={area} onChange={(e) => setArea(e.target.value)}>
-          <option value="TODAS">Todas mis áreas</option>
-          <option value="BIBLIOTECA">Biblioteca</option><option value="DEPORTES">Deportes</option>
-          <option value="TECNOLOGIA">Tecnología</option><option value="COMPUTACION">Computación y periféricos</option>
-        </select>
-      </label>
       <div className="filtros solicitudes-filtros" aria-label="Estado de la solicitud">
         {FILTROS.map((opcion) => <button type="button" key={opcion.id}
           className={filtro === opcion.id ? 'activo' : ''} aria-pressed={filtro === opcion.id}
@@ -149,6 +135,8 @@ export default function Reservas({ reservas, usuarios, catalogo, ejemplares, pre
         {seleccionada.motivo && <div><dt>Motivo</dt><dd>{seleccionada.motivo}</dd></div>}
         {(seleccionada.ejemplarId || seleccionada.prestamoId) && <div><dt>Ejemplar asignado</dt><dd>{ejemplarEntregado?.barcode ?? 'Consulta el préstamo asociado'}</dd></div>}
         <div><dt>Lugar de uso</dt><dd>{seleccionada.lugarUso === 'DOMICILIO' ? 'A domicilio' : 'Dentro del campus'}</dd></div>
+        {seleccionada.inicioReserva && <div><dt>Inicio reservado</dt><dd>{new Date(seleccionada.inicioReserva).toLocaleString('es-PE')}</dd></div>}
+        {seleccionada.finReserva && <div><dt>Fin reservado</dt><dd>{new Date(seleccionada.finReserva).toLocaleString('es-PE')}</dd></div>}
         {seleccionada.fechaLimiteRetiro && <div><dt>Plazo de recogida</dt><dd>{new Date(seleccionada.fechaLimiteRetiro).toLocaleString('es-PE')}</dd></div>}
         {seleccionada.entregadoPorId && <div><dt>Entregado por</dt><dd>{nombreUsuario(usuarios, seleccionada.entregadoPorId)}</dd></div>}
         {seleccionada.fechaEntrega && <div><dt>Fecha de entrega</dt><dd>{new Date(seleccionada.fechaEntrega).toLocaleString('es-PE')}</dd></div>}
@@ -160,20 +148,14 @@ export default function Reservas({ reservas, usuarios, catalogo, ejemplares, pre
           onClick={() => void decidir('entregar')}>{procesando ? 'Procesando…' : 'Confirmar entrega e iniciar préstamo'}</button>
       </>}
       {seleccionada.estado === 'SOLICITADA' && <>
-        <p>{disponibles.length} ejemplares disponibles: {disponibles.map((e) => e.barcode).join(', ') || 'ninguno'}.</p>
-        <label>Ejemplar que se apartará
-          <select value={ejemplarElegido} disabled={procesando || !operadorId} onChange={(e) => setEjemplarElegido(e.target.value)}>
-            <option value="">Seleccionar ejemplar…</option>
-            {disponibles.map((e) => <option key={e.id} value={e.id}>{e.barcode} — {e.sala}, {e.estante}</option>)}
-          </select>
-        </label>
-        <div className="aviso">Al aprobar se validan las condiciones y se aparta el ejemplar durante 48 horas. El préstamo comienza al confirmar la entrega.</div>
+        <p>{disponibles.length} ejemplares disponibles actualmente. El sistema elegirá una copia libre que no tenga otra reserva en ese horario.</p>
+        <div className="aviso">La aprobación es manual. El préstamo comienza cuando la persona recoge el bien dentro de su horario.</div>
         <label>Motivo de denegación
           <textarea value={motivo} onChange={(e) => setMotivo(e.target.value)} disabled={procesando} rows={3} />
         </label>
         <div className="acciones">
-          <button className="boton primario" type="button" disabled={procesando || !operadorId || !disponibles.some((e) => e.id === ejemplarElegido)}
-            onClick={() => void decidir('aceptar')}>{procesando ? 'Procesando…' : 'Aprobar y apartar ejemplar'}</button>
+          <button className="boton primario" type="button" disabled={procesando || !operadorId || disponibles.length === 0}
+            onClick={() => void decidir('aceptar')}>{procesando ? 'Procesando…' : 'Aprobar reserva'}</button>
           <button className="boton secundario" type="button" disabled={procesando || !operadorId}
             onClick={() => void decidir('denegar')}>Denegar solicitud</button>
         </div>

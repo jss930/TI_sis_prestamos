@@ -2,7 +2,6 @@ import { useState } from 'react'
 import type {
   CatalogoItem,
   LugarUso,
-  CategoriaResponsable,
   Ejemplar,
   NuevoEquipoCatalogo,
   NuevoEjemplar,
@@ -35,14 +34,13 @@ interface Props {
   permisos: PermisoOperativo[]
   puedeReservar?: boolean
   itemsReservados?: string[]
-  reservar?: (catalogoItemId: string, lugarUso: LugarUso) => Promise<void>
+  reservar?: (catalogoItemId: string, lugarUso: LugarUso, inicioReserva: string, finReserva: string) => Promise<void>
   crearLibro: (libro: NuevoLibroCatalogo) => Promise<void>
   crearEquipo: (equipo: NuevoEquipoCatalogo) => Promise<void>
   crearOtro: (otro: NuevoOtroCatalogo) => Promise<void>
   actualizarTitulo: (id: string, titulo: string) => Promise<void>
   activar: (id: string) => Promise<void>
   desactivar: (id: string) => Promise<void>
-  asignarArea: (id: string, area: CategoriaResponsable) => Promise<void>
   crearEjemplar?: (ejemplar: NuevoEjemplar) => Promise<void>
 }
 
@@ -62,10 +60,10 @@ export default function Catalogo({
   activar,
   desactivar,
   crearEjemplar,
-  asignarArea,
 }: Props) {
   const [categoria, setCategoria] = useState<'TODOS' | CatalogoItem['tipo']>('TODOS')
-  const [lugarUso, setLugarUso] = useState<LugarUso>('EN_CAMPUS')
+  const [itemReserva, setItemReserva] = useState<CatalogoItem | null>(null)
+  const [horario, setHorario] = useState({ inicio: '', fin: '', lugarUso: 'EN_CAMPUS' as LugarUso })
   const [mensaje, setMensaje] = useState<string | null>(null)
   const [busqueda, setBusqueda] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -90,6 +88,21 @@ export default function Catalogo({
   const [formOtro, setFormOtro] = useState<NuevoOtroCatalogo>({ titulo: '', descripcion: '' })
 
   const puedeGestionar = permisos.includes('GESTIONAR_CATALOGO')
+
+  function valorFechaLocal(fecha: Date) {
+    const local = new Date(fecha.getTime() - fecha.getTimezoneOffset() * 60000)
+    return local.toISOString().slice(0, 16)
+  }
+
+  function abrirReserva(item: CatalogoItem) {
+    const inicio = new Date(Date.now() + 2 * 60 * 60 * 1000)
+    inicio.setMinutes(Math.ceil(inicio.getMinutes() / 15) * 15, 0, 0)
+    const fin = new Date(inicio.getTime() + 60 * 60 * 1000)
+    setHorario({ inicio: valorFechaLocal(inicio), fin: valorFechaLocal(fin), lugarUso: 'EN_CAMPUS' })
+    setItemReserva(item)
+    setError(null)
+    setMensaje(null)
+  }
 
   const disponiblesPorItem = new Map<string, number>()
   for (const ejemplar of ejemplares) {
@@ -218,12 +231,35 @@ export default function Catalogo({
           </button>
         ))}
       </div>
-      {puedeReservar && <label>Lugar de uso de la solicitud
-        <select value={lugarUso} onChange={(e) => setLugarUso(e.target.value as LugarUso)}>
-          <option value="EN_CAMPUS">Dentro del campus</option><option value="DOMICILIO">A domicilio (sujeto a autorización)</option>
-        </select>
-      </label>}
       {mensaje && <div className="aviso correcto-aviso" role="status">{mensaje}</div>}
+      {itemReserva && <section className="panel formulario reserva-form" aria-labelledby="reserva-titulo">
+        <div className="panel-titulo"><div>
+          <h2 id="reserva-titulo">Reservar {itemReserva.titulo}</h2>
+          <p>Elige un horario futuro. La administración asignará una copia al aprobar.</p>
+        </div><button className="boton secundario" type="button" onClick={() => setItemReserva(null)}>Cerrar</button></div>
+        <div className="aviso" role="note"><strong>Antes de continuar:</strong> reserva con 2 horas de anticipación, entre 07:00 y 20:00 y por un máximo de 24 horas. Si no recoges el bien hasta una hora después del inicio, expirará.</div>
+        <form onSubmit={(e) => { e.preventDefault(); void ejecutar(async () => {
+          const inicio = new Date(horario.inicio); const fin = new Date(horario.fin)
+          if (inicio.getTime() < Date.now() + 2 * 60 * 60 * 1000) throw new Error('Selecciona una hora con al menos 2 horas de anticipación.')
+          if (fin <= inicio) throw new Error('La hora final debe ser posterior a la inicial.')
+          if (fin.getTime() - inicio.getTime() > 24 * 60 * 60 * 1000) throw new Error('La reserva no puede superar 24 horas.')
+          setReservando(itemReserva.id)
+          try {
+            await reservar?.(itemReserva.id, itemReserva.tipo === 'LIBRO' ? horario.lugarUso : 'EN_CAMPUS', inicio.toISOString(), fin.toISOString())
+            setMensaje('Reserva enviada. Puedes seguir su estado en Mis reservas.')
+            setItemReserva(null)
+          } finally { setReservando(null) }
+        }) }}>
+          <div className="reserva-horario-grid">
+            <label>Inicio<input type="datetime-local" required value={horario.inicio} min={valorFechaLocal(new Date(Date.now() + 2 * 60 * 60 * 1000))} onChange={(e) => setHorario({ ...horario, inicio: e.target.value })} /></label>
+            <label>Fin<input type="datetime-local" required value={horario.fin} onChange={(e) => setHorario({ ...horario, fin: e.target.value })} /></label>
+            {itemReserva.tipo === 'LIBRO' ? <label>Lugar de uso<select value={horario.lugarUso} onChange={(e) => setHorario({ ...horario, lugarUso: e.target.value as LugarUso })}>
+              <option value="EN_CAMPUS">Dentro del campus</option><option value="DOMICILIO">A domicilio</option>
+            </select></label> : <div><strong>Lugar de uso</strong><p>Dentro del campus</p><small>Los equipos y otros bienes no salen del campus.</small></div>}
+          </div>
+          <button className="boton primario" type="submit" disabled={reservando === itemReserva.id}>{reservando ? 'Enviando…' : 'Enviar reserva'}</button>
+        </form>
+      </section>}
       <section className="catalogo-grid">
         {visibles.map((item) => {
           const disponibles = disponiblesPorItem.get(item.id) ?? 0
@@ -232,7 +268,7 @@ export default function Catalogo({
             <article className="item" key={item.id}>
               <div className={`item-imagen ${item.tipo.toLowerCase()}`}><img src={imagenCatalogo(item)} alt={`Imagen de ${item.titulo}`} loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none' }} /><span aria-hidden="true">{ICONOS[item.tipo]}</span></div>
               <small>
-                {item.tipo} · {item.area === 'COMPUTACION' ? 'Computación y periféricos' : item.area} · {item.activo ? 'Activo' : 'Inactivo'}
+                {item.tipo} · {item.activo ? 'Activo' : 'Inactivo'}
               </small>
               {editando === item.id ? (
                 <form
@@ -258,15 +294,6 @@ export default function Catalogo({
               {item.tipo === 'LIBRO' && item.detalle.isbn && (
                 <p className="item-meta">ISBN {item.detalle.isbn}</p>
               )}
-              {permisos.includes('ADMINISTRAR_SISTEMA') && <label>Área responsable
-                <select aria-label={`Área de ${item.titulo}`} value={item.area} onChange={(e) => {
-                  const area = e.target.value as CategoriaResponsable
-                  void ejecutar(() => asignarArea(item.id, area))
-                }}>
-                  <option value="BIBLIOTECA">Biblioteca</option><option value="DEPORTES">Deportes</option>
-                  <option value="TECNOLOGIA">Tecnología</option><option value="COMPUTACION">Computación y periféricos</option>
-                </select>
-              </label>}
               <div className="disponibilidad">
                 <span className={habilitado ? 'punto' : 'punto no'} />
                 {habilitado ? `${disponibles} disponibles` : 'No disponible'}
@@ -330,36 +357,27 @@ export default function Catalogo({
                 </form>
               )}
               <div className="acciones-fila">
-                <button
+                {permisos.includes('REGISTRAR_PRESTAMO') && <button
                   className="boton secundario"
                   disabled={!habilitado || !puedeSolicitar}
                   onClick={() => irA('prestamos')}
                   type="button"
                 >
                   {puedeSolicitar ? 'Registrar entrega directa' : 'Consulta en ventanilla'}
-                </button>
+                </button>}
                 {puedeReservar && item.activo && (
                   <button
                     className="boton secundario"
                     disabled={!habilitado || reservando === item.id || itemsReservados.includes(item.id)}
                     aria-busy={reservando === item.id}
-                    onClick={() =>
-                      void ejecutar(async () => {
-                        setReservando(item.id)
-                        try {
-                          if (reservar) { await reservar(item.id, lugarUso); setMensaje('Solicitud enviada. Consulta su aprobación y plazo de recogida en Mis solicitudes.') }
-                        } finally {
-                          setReservando(null)
-                        }
-                      })
-                    }
+                    onClick={() => abrirReserva(item)}
                     type="button"
                   >
                     {reservando === item.id
                       ? 'Enviando…'
                       : itemsReservados.includes(item.id)
                         ? 'Solicitud activa'
-                        : 'Solicitar préstamo'}
+                        : 'Reservar horario'}
                   </button>
                 )}
                 {puedeGestionar && (

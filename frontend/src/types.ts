@@ -142,6 +142,8 @@ export interface Reserva {
   fechaEntrega: string | null
   entregadoPorId: string | null
   lugarUso: LugarUso
+  inicioReserva: string | null
+  finReserva: string | null
 }
 
 export interface NuevoEjemplar {
@@ -212,27 +214,7 @@ export interface DatosBiblioteca {
 }
 
 
-export type CargoResponsable = 'PRINCIPAL' | 'SUPLENTE'
 export type CategoriaResponsable = 'BIBLIOTECA' | 'DEPORTES' | 'TECNOLOGIA' | 'COMPUTACION'
-export interface Responsable {
-  usuarioId: string
-  capacitacionVerificada: boolean
-  categorias: CategoriaResponsable[]
-  cargos: Partial<Record<CategoriaResponsable, CargoResponsable>>
-}
-export interface CambioResponsable {
-  id: string
-  usuarioId: string
-  operadorId: string
-  categoria: CategoriaResponsable | null
-  cargo: CargoResponsable | null
-  accion: 'ASIGNADO' | 'RETIRADO' | 'CARGO_CAMBIADO' | 'CAPACITACION_VERIFICADA' | 'CAPACITACION_RETIRADA'
-  fecha: string
-}
-export interface ResumenResponsables {
-  responsables: Responsable[]
-  historial: CambioResponsable[]
-}
 export interface NuevaInspeccionDevolucion {
   estadoFisico: 'DISPONIBLE' | 'DANADO' | 'PERDIDO'
   accesoriosFaltantes: boolean

@@ -177,7 +177,7 @@ class RegistrarPrestamoUseCaseTest {
     }
 
     @Test
-    void unDocenteSiPuedeLlevarEquiposADomicilio() {
+    void unDocenteTampocoPuedeLlevarEquiposADomicilio() {
         Usuario docente = Fixtures.docenteValidado();
         usuarios.guardar(docente);
         CatalogoItem laptop = Fixtures.laptop();
@@ -185,10 +185,10 @@ class RegistrarPrestamoUseCaseTest {
         catalogo.guardar(laptop);
         ejemplares.guardar(ejemplarLaptop);
 
-        Prestamo prestamo = useCase.ejecutar(new RegistrarPrestamoCommand(
-                bibliotecario.id(), docente.id(), ejemplarLaptop.id(), LugarUso.DOMICILIO));
-
-        assertThat(prestamo.periodo().vencimiento()).isEqualTo(Fixtures.HOY.plusDays(7));
+        assertThatThrownBy(() -> useCase.ejecutar(new RegistrarPrestamoCommand(
+                bibliotecario.id(), docente.id(), ejemplarLaptop.id(), LugarUso.DOMICILIO)))
+                .isInstanceOfSatisfying(BusinessRuleException.class,
+                        ex -> assertThat(ex.codigo()).isEqualTo("DOMICILIO_NO_PERMITIDO"));
     }
 
     private RegistrarPrestamoCommand command(UsuarioId operador, UsuarioId prestatario, EjemplarId id) {

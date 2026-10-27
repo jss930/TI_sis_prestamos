@@ -149,8 +149,11 @@ class RevisionCuentasTest {
     }
     @Test void cuentaPendienteNoPuedeSolicitarAunqueTengaCredenciales() throws Exception {
         var item=catalogo.guardar(Fixtures.laptop()); ejemplares.guardar(Fixtures.ejemplarDisponible(item.id()));
+        var inicio=java.time.Instant.now().plus(java.time.Duration.ofHours(3));
+        var fin=inicio.plus(java.time.Duration.ofHours(1));
         mvc.perform(post("/api/v1/reservas").header("Authorization",tokenCuenta).contentType(MediaType.APPLICATION_JSON)
-            .content("{\"prestatarioId\":\""+cuenta.id().value()+"\",\"catalogoItemId\":\""+item.id().value()+"\"}"))
+            .content("{\"prestatarioId\":\""+cuenta.id().value()+"\",\"catalogoItemId\":\""+item.id().value()
+                    +"\",\"inicioReserva\":\""+inicio+"\",\"finReserva\":\""+fin+"\"}"))
             .andExpect(status().isConflict()).andExpect(jsonPath("$.codigo").value("USUARIO_NO_HABILITADO"));
     }
 }

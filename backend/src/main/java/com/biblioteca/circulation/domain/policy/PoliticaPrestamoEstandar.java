@@ -28,10 +28,7 @@ public final class PoliticaPrestamoEstandar implements PoliticaPrestamo {
 
     @Override
     public boolean permiteDomicilio(PerfilPrestatario perfil, TipoItem tipo) {
-        if (tipo != TipoItem.EQUIPO) {
-            return true;
-        }
-        return perfil != PerfilPrestatario.ALUMNO;
+        return tipo == TipoItem.LIBRO;
     }
 
     @Override

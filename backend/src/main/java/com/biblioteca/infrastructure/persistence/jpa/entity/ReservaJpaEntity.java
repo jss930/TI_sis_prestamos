@@ -62,6 +62,12 @@ public class ReservaJpaEntity {
     @Column(name = "lugar_uso", nullable = false, length = 20)
     public LugarUso lugarUso;
 
+    @Column(name = "inicio_reserva")
+    public Instant inicioReserva;
+
+    @Column(name = "fin_reserva")
+    public Instant finReserva;
+
     public ReservaJpaEntity() {
     }
 }

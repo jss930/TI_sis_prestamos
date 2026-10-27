@@ -16,6 +16,8 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.time.Instant;
+import com.biblioteca.inventory.domain.vo.EjemplarId;
 
 @Repository
 @ConditionalOnProperty(name = "biblioteca.persistence", havingValue = "jpa", matchIfMissing = true)
@@ -74,6 +76,14 @@ public class ReservaJpaAdapter implements ReservaRepository {
                 .filter(r -> r.estado() == EstadoReserva.SOLICITADA || r.estado() == EstadoReserva.APROBADA).count();
     }
 
+    @Override
+    public boolean existeSolapamiento(EjemplarId ejemplarId, Instant inicio, Instant fin, ReservaId excluir) {
+        if (excluir == null) {
+            return ReservaRepository.super.existeSolapamiento(ejemplarId, inicio, fin, null);
+        }
+        return repositorio.contarSolapamientos(ejemplarId.value(), inicio, fin, excluir.value()) > 0;
+    }
+
     private static ReservaJpaEntity aEntidad(Reserva reserva) {
         ReservaJpaEntity entidad = new ReservaJpaEntity();
         entidad.id = reserva.id().value();
@@ -87,6 +97,8 @@ public class ReservaJpaAdapter implements ReservaRepository {
         entidad.fechaEntrega = reserva.fechaEntrega();
         entidad.entregadoPorId = reserva.entregadoPorId() == null ? null : reserva.entregadoPorId().value();
         entidad.lugarUso = reserva.lugarUso();
+        entidad.inicioReserva = reserva.inicioReserva();
+        entidad.finReserva = reserva.finReserva();
         entidad.motivo = reserva.motivo();
         entidad.fechaAlta = reserva.fechaAlta();
         entidad.fechaDecision = reserva.fechaDecision();
@@ -106,6 +118,7 @@ public class ReservaJpaAdapter implements ReservaRepository {
                 entidad.fechaDecision,
                 entidad.ejemplarId == null ? null : new EjemplarId(entidad.ejemplarId),
                 entidad.fechaLimiteRetiro, entidad.fechaEntrega,
-                entidad.entregadoPorId == null ? null : new UsuarioId(entidad.entregadoPorId), entidad.lugarUso);
+                entidad.entregadoPorId == null ? null : new UsuarioId(entidad.entregadoPorId), entidad.lugarUso,
+                entidad.inicioReserva, entidad.finReserva);
     }
 }

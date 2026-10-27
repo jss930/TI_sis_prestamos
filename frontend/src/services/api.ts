@@ -1,8 +1,5 @@
 import type {
-  CategoriaResponsable,
   DatosCuentaPendiente,
-  CargoResponsable,
-  ResumenResponsables,
   NuevaInspeccionDevolucion,
   InspeccionDevolucion,
   CatalogoItem,
@@ -28,6 +25,15 @@ const API_BASE_URL = (
 ).replace(/\/+$/, '')
 
 const MENSAJES_POR_CODIGO: Record<string, string> = {
+  HORARIO_REQUERIDO: 'Selecciona la fecha y hora inicial y final.',
+  ANTICIPACION_INSUFICIENTE: 'La reserva debe hacerse con al menos 2 horas de anticipación.',
+  HORARIO_INVALIDO: 'La hora final debe ser posterior a la inicial.',
+  DURACION_RESERVA_EXCEDIDA: 'La reserva no puede durar más de 24 horas.',
+  FUERA_DE_HORARIO: 'El horario de atención es de 07:00 a 20:00.',
+  REPROGRAMACION_FUERA_DE_PLAZO: 'Solo puedes reprogramar hasta una hora antes del inicio.',
+  RECOJO_ANTICIPADO: 'El bien se entrega desde la hora inicial reservada.',
+  ADMINISTRADOR_REQUERIDO: 'Solo un administrador puede atender reservas.',
+  EJEMPLAR_RESERVADO_EN_HORARIO: 'La copia disponible está comprometida por una reserva aprobada. Elige otra.',
   CODIGO_INSTITUCIONAL_REQUERIDO: 'Completa el código universitario o de personal antes de validar la cuenta.',
   CODIGO_INSTITUCIONAL_DUPLICADO: 'Ya existe una cuenta con ese código institucional.',
   CORRECCION_PENDIENTE: 'La persona debe corregir sus datos y enviarlos a revisión antes de validar su cuenta.',
@@ -122,19 +128,6 @@ async function solicitar<T>(ruta: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  confirmarResponsables: (usuarioId: string, capacitacionVerificada: boolean, categorias: CategoriaResponsable[], cargos: Partial<Record<CategoriaResponsable, CargoResponsable>>) =>
-    solicitar<ResumenResponsables>(`/responsables/${usuarioId}/asignaciones`, {
-      method: 'PUT', body: JSON.stringify({ capacitacionVerificada, categorias, cargos }),
-    }),
-  getResponsables: () => solicitar<ResumenResponsables>('/responsables'),
-  cambiarCapacitacion: (usuarioId: string, verificada: boolean) =>
-    solicitar<ResumenResponsables>(`/responsables/${usuarioId}/capacitacion`, {
-      method: 'PUT', body: JSON.stringify({ verificada }),
-    }),
-  asignarResponsable: (usuarioId: string, categoria: CategoriaResponsable, asignada: boolean) =>
-    solicitar<ResumenResponsables>(`/responsables/${usuarioId}/categorias/${categoria}`, {
-      method: 'PUT', body: JSON.stringify({ asignada }),
-    }),
   getInspeccionesDevolucion: () => solicitar<InspeccionDevolucion[]>('/inspecciones-devolucion'),
   inspeccionarDevolucion: (id: string, inspeccion: NuevaInspeccionDevolucion) =>
     solicitar<InspeccionDevolucion>(`/prestamos/${id}/inspeccion-devolucion`, {
@@ -245,10 +238,10 @@ export const api = {
     const qs = params.toString()
     return solicitar<Reserva[]>(`/reservas${qs ? `?${qs}` : ''}`)
   },
-  solicitarReserva: (prestatarioId: string, catalogoItemId: string, lugarUso: 'EN_CAMPUS' | 'DOMICILIO' = 'EN_CAMPUS') =>
+  solicitarReserva: (prestatarioId: string, catalogoItemId: string, lugarUso: 'EN_CAMPUS' | 'DOMICILIO', inicioReserva: string, finReserva: string) =>
     solicitar<Reserva>('/reservas', {
       method: 'POST',
-      body: JSON.stringify({ prestatarioId, catalogoItemId, lugarUso }),
+      body: JSON.stringify({ prestatarioId, catalogoItemId, lugarUso, inicioReserva, finReserva }),
     }),
   aceptarReserva: (id: string, operadorId: string, ejemplarId?: string) =>
     solicitar<Reserva>(`/reservas/${id}/aceptar`, {
@@ -256,9 +249,6 @@ export const api = {
       body: JSON.stringify({ operadorId, ejemplarId }),
     }),
   entregarSolicitud: (id: string) => solicitar<Reserva>(`/reservas/${id}/entregar`, { method: 'POST' }),
-  asignarAreaCatalogo: (id: string, area: string) => solicitar<void>(`/catalogo/${id}/area`, {
-    method: 'PATCH', body: JSON.stringify({ area }),
-  }),
   denegarReserva: (id: string, operadorId: string, motivo: string) =>
     solicitar<Reserva>(`/reservas/${id}/denegar`, {
       method: 'POST',
@@ -268,6 +258,10 @@ export const api = {
     solicitar<Reserva>(`/reservas/${id}/cancelar`, {
       method: 'POST',
       body: JSON.stringify({ prestatarioId }),
+    }),
+  reprogramarReserva: (id: string, inicioReserva: string, finReserva: string) =>
+    solicitar<Reserva>(`/reservas/${id}/horario`, {
+      method: 'PATCH', body: JSON.stringify({ inicioReserva, finReserva }),
     }),
 }
 

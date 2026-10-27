@@ -45,10 +45,13 @@ public class CancelarReservaUseCase {
                     "Solo el prestatario puede cancelar su reserva");
         }
 
-        if (reserva.estado() == EstadoReserva.APROBADA) {
-            var ejemplar = ejemplares.buscarPorIdParaActualizar(reserva.ejemplarId()).orElseThrow(() -> new NotFoundException("Ejemplar", reserva.ejemplarId().value()));
-            ejemplar.liberarReserva();
-            ejemplares.guardar(ejemplar);
+        if (reserva.estado() == EstadoReserva.APROBADA && reserva.inicioReserva() == null) {
+            var ejemplar = ejemplares.buscarPorIdParaActualizar(reserva.ejemplarId())
+                    .orElseThrow(() -> new NotFoundException("Ejemplar", reserva.ejemplarId().value()));
+            if (ejemplar.estadoFisico() == com.biblioteca.inventory.domain.model.EstadoFisico.RESERVADO) {
+                ejemplar.liberarReserva();
+                ejemplares.guardar(ejemplar);
+            }
         }
         reserva.cancelar(command.prestatarioId(), clock.instant());
         reservas.guardar(reserva);
