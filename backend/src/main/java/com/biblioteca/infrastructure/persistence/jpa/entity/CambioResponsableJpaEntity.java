@@ -12,4 +12,5 @@ public class CambioResponsableJpaEntity {
     @Enumerated(EnumType.STRING) @Column(length = 30) public com.biblioteca.identity.domain.model.CategoriaResponsable categoria;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 40) public com.biblioteca.identity.domain.model.CambioResponsable.Accion accion;
     @Column(nullable = false) public java.time.Instant fecha;
+    @Enumerated(EnumType.STRING) @Column(length = 20) public com.biblioteca.identity.domain.model.CargoResponsable cargo;
 }

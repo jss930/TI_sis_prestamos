@@ -1,5 +1,6 @@
 export type Pagina =
   | 'resumen'
+  | 'mi-cuenta'
   | 'personas'
   | 'catalogo'
   | 'mis-prestamos'
@@ -37,7 +38,7 @@ export type PermisoOperativo =
   | 'GESTIONAR_USUARIOS'
   | 'GESTIONAR_RESERVAS'
 
-export type EstadoFisico = 'DISPONIBLE' | 'PRESTADO' | 'DANADO' | 'PERDIDO' | 'BAJA' | 'EN_REVISION'
+export type EstadoFisico = 'DISPONIBLE' | 'RESERVADO' | 'PRESTADO' | 'DANADO' | 'PERDIDO' | 'BAJA' | 'EN_REVISION'
 
 export type EstadoPrestamo = 'ACTIVO' | 'DEVUELTO' | 'PERDIDO'
 
@@ -47,7 +48,7 @@ export type MotivoSancion = 'RETRASO' | 'DANO' | 'PERDIDA'
 
 export type EstadoSancion = 'ACTIVA' | 'CUMPLIDA' | 'ANULADA'
 
-export type EstadoReserva = 'SOLICITADA' | 'ACEPTADA' | 'DENEGADA' | 'CANCELADA'
+export type EstadoReserva = 'SOLICITADA' | 'APROBADA' | 'ATENDIDA' | 'EXPIRADA' | 'ACEPTADA' | 'DENEGADA' | 'CANCELADA'
 
 export interface CatalogoDetalle {
   isbn: string | null
@@ -64,6 +65,7 @@ export interface CatalogoItem {
   titulo: string
   tipo: TipoItem
   activo: boolean
+  area: CategoriaResponsable
   detalle: CatalogoDetalle
 }
 
@@ -78,6 +80,12 @@ export interface Usuario {
   fechaValidacion: string | null
   motivoSuspension: string | null
   rolAcceso: RolAcceso
+  codigoInstitucional: string | null
+  validadoPorId: string | null
+  observacionesRevision: string | null
+  revisadoPorId: string | null
+  fechaRevision: string | null
+  correccionPendiente: boolean
 }
 
 export interface Ejemplar {
@@ -129,6 +137,11 @@ export interface Reserva {
   motivo: string | null
   fechaAlta: string
   fechaDecision: string | null
+  ejemplarId: string | null
+  fechaLimiteRetiro: string | null
+  fechaEntrega: string | null
+  entregadoPorId: string | null
+  lugarUso: LugarUso
 }
 
 export interface NuevoEjemplar {
@@ -175,7 +188,14 @@ export interface NuevoOtroCatalogo {
   descripcion: string
 }
 
-export interface NuevoUsuarioCuenta {
+export interface DatosCuentaPendiente {
+  email: string
+  nombreCompleto: string
+  perfil: PerfilPrestatario
+  codigoInstitucional: string
+}
+
+export interface NuevoUsuarioCuenta extends DatosCuentaPendiente {
   email: string
   nombreCompleto: string
   perfil: PerfilPrestatario
@@ -192,18 +212,21 @@ export interface DatosBiblioteca {
 }
 
 
+export type CargoResponsable = 'PRINCIPAL' | 'SUPLENTE'
 export type CategoriaResponsable = 'BIBLIOTECA' | 'DEPORTES' | 'TECNOLOGIA' | 'COMPUTACION'
 export interface Responsable {
   usuarioId: string
   capacitacionVerificada: boolean
   categorias: CategoriaResponsable[]
+  cargos: Partial<Record<CategoriaResponsable, CargoResponsable>>
 }
 export interface CambioResponsable {
   id: string
   usuarioId: string
   operadorId: string
   categoria: CategoriaResponsable | null
-  accion: 'ASIGNADO' | 'RETIRADO' | 'CAPACITACION_VERIFICADA' | 'CAPACITACION_RETIRADA'
+  cargo: CargoResponsable | null
+  accion: 'ASIGNADO' | 'RETIRADO' | 'CARGO_CAMBIADO' | 'CAPACITACION_VERIFICADA' | 'CAPACITACION_RETIRADA'
   fecha: string
 }
 export interface ResumenResponsables {

@@ -79,16 +79,19 @@ public class UsuarioController {
     }
 
     @GetMapping
-    public List<UsuarioResponse> listar(@RequestParam(required = false) String q,
+    public List<UsuarioResponse> listar(@RequestHeader(value = "Authorization", required = false) String token, @RequestParam(required = false) String q,
                                         @RequestParam(required = false) EstadoCuentaUsuario estado,
                                         @RequestParam(required = false) PerfilPrestatario perfil) {
+        Usuario actor = token == null ? null : obtener.ejecutar(autenticado.exigir(token));
         return listar.ejecutar(q, estado, perfil).stream()
-                .map(UsuarioController::aResponse).toList();
+                .map(usuario -> aResponse(usuario, puedeVerRevision(actor, usuario))).toList();
     }
 
     @GetMapping("/{id}")
-    public UsuarioResponse obtener(@PathVariable UUID id) {
-        return aResponse(obtener.ejecutar(new UsuarioId(id)));
+    public UsuarioResponse obtener(@PathVariable UUID id, @RequestHeader(value = "Authorization", required = false) String token) {
+        Usuario actor = token == null ? null : obtener.ejecutar(autenticado.exigir(token));
+        Usuario usuario = obtener.ejecutar(new UsuarioId(id));
+        return aResponse(usuario, puedeVerRevision(actor, usuario));
     }
 
     @PostMapping
@@ -97,14 +100,14 @@ public class UsuarioController {
         Usuario usuario = registrar.ejecutar(new RegistrarUsuarioCommand(
                 new EmailAddress(request.email()),
                 new NombreCompleto(request.nombreCompleto()),
-                request.perfil(), request.password()));
+                request.perfil(), request.password(), new com.biblioteca.identity.domain.vo.CodigoInstitucional(request.codigoInstitucional())));
         return aResponse(usuario);
     }
 
     @PostMapping("/{id}/validar")
-    public UsuarioResponse validar(@PathVariable UUID id, @RequestHeader(value = "Authorization", required = false) String token, @Valid @RequestBody OperadorRequest request) {
+    public UsuarioResponse validar(@PathVariable UUID id, @RequestHeader(value = "Authorization", required = false) String token, @Valid @RequestBody ValidacionRequest request) {
         return aResponse(validar.ejecutar(new ValidarUsuarioCommand(
-                autenticado.exigir(token), new UsuarioId(id))));
+                autenticado.exigir(token), new UsuarioId(id), request.datosRevisados())));
     }
 
     @PostMapping("/{id}/suspender")
@@ -136,19 +139,31 @@ public class UsuarioController {
                 autenticado.exigir(token), new UsuarioId(id), permiso)));
     }
 
-    private static UsuarioResponse aResponse(Usuario usuario) {
+    private static boolean puedeVerRevision(Usuario actor, Usuario usuario) {
+        return actor != null && (actor.id().equals(usuario.id()) || actor.puedeAdministrarSistema() || actor.puedeValidarProvisionales());
+    }
+
+    static UsuarioResponse aResponse(Usuario usuario) { return aResponse(usuario, true); }
+
+    private static UsuarioResponse aResponse(Usuario usuario, boolean revisionVisible) {
         return new UsuarioResponse(usuario.id().value(), usuario.email().value(),
                 usuario.nombreCompleto().value(), usuario.estado(), usuario.perfil(),
                 usuario.permisos(), usuario.fechaAlta(), usuario.fechaValidacion(),
-                usuario.motivoSuspension(), usuario.rolAcceso());
+                usuario.motivoSuspension(), usuario.rolAcceso(),
+                !revisionVisible || usuario.codigoInstitucional() == null ? null : usuario.codigoInstitucional().value(),
+                !revisionVisible || usuario.validadoPorId() == null ? null : usuario.validadoPorId().value(), revisionVisible ? usuario.observacionesRevision() : null,
+                !revisionVisible || usuario.revisadoPorId() == null ? null : usuario.revisadoPorId().value(), revisionVisible ? usuario.fechaRevision() : null, revisionVisible && usuario.correccionPendiente());
     }
 
     public record RegistrarUsuarioRequest(
             @NotBlank @Email String email,
             @NotBlank String nombreCompleto,
             @NotNull PerfilPrestatario perfil,
-            @jakarta.validation.constraints.Size(min = 8, max = 128) @NotBlank String password) {
+            @jakarta.validation.constraints.Size(min = 8, max = 128) @NotBlank String password,
+            @NotBlank @jakarta.validation.constraints.Size(max = 30) String codigoInstitucional) {
     }
+
+    public record ValidacionRequest(@jakarta.validation.constraints.AssertTrue(message = "Confirma la revision de los datos") boolean datosRevisados) { }
 
     public record OperadorRequest(@NotNull UUID operadorId) {
     }
@@ -173,6 +188,12 @@ public class UsuarioController {
             Instant fechaAlta,
             Instant fechaValidacion,
             String motivoSuspension,
-            RolAcceso rolAcceso) {
+            RolAcceso rolAcceso,
+            String codigoInstitucional,
+            UUID validadoPorId,
+            String observacionesRevision,
+            UUID revisadoPorId,
+            Instant fechaRevision,
+            boolean correccionPendiente) {
     }
 }

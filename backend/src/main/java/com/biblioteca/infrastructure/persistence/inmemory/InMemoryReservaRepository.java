@@ -61,7 +61,7 @@ public class InMemoryReservaRepository implements ReservaRepository {
     public long contarActivasPor(UsuarioId prestatarioId) {
         return datos.values().stream()
                 .filter(r -> r.prestatarioId().equals(prestatarioId)
-                        && r.estado() == EstadoReserva.SOLICITADA)
+                        && (r.estado() == EstadoReserva.SOLICITADA || r.estado() == EstadoReserva.APROBADA))
                 .count();
     }
 }

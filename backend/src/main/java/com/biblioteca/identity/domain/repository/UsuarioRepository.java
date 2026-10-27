@@ -23,4 +23,8 @@ public interface UsuarioRepository {
     List<Usuario> listarTodos();
 
     boolean existePorEmail(EmailAddress email);
+
+    default boolean existePorCodigoInstitucional(com.biblioteca.identity.domain.vo.CodigoInstitucional codigo) {
+        return listarTodos().stream().anyMatch(u -> codigo.equals(u.codigoInstitucional()));
+    }
 }

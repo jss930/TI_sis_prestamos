@@ -25,12 +25,18 @@ public final class CatalogoItem extends AggregateRoot<CatalogoItemId> {
     private final Instant fechaAlta;
     private Titulo titulo;
     private boolean activo;
+    private AreaCatalogo area;
 
     private CatalogoItem(CatalogoItemId id, Titulo titulo, TipoItem tipo,
                          DetalleItem detalle, Instant fechaAlta, boolean activo) {
         this.id = Objects.requireNonNull(id);
         this.titulo = Objects.requireNonNull(titulo);
         this.tipo = Objects.requireNonNull(tipo);
+        this.area = switch (tipo) {
+            case LIBRO -> AreaCatalogo.BIBLIOTECA;
+            case EQUIPO -> AreaCatalogo.TECNOLOGIA;
+            case OTRO -> AreaCatalogo.DEPORTES;
+        };
         this.detalle = Objects.requireNonNull(detalle);
         this.fechaAlta = Objects.requireNonNull(fechaAlta);
         this.activo = activo;
@@ -69,6 +75,10 @@ public final class CatalogoItem extends AggregateRoot<CatalogoItemId> {
                                            DetalleItem detalle, boolean activo, Instant fechaAlta) {
         return new CatalogoItem(id, titulo, tipo, detalle, fechaAlta, activo);
     }
+
+    public AreaCatalogo area() { return area; }
+
+    public void asignarArea(AreaCatalogo area) { this.area = Objects.requireNonNull(area); }
 
     public void actualizarTitulo(Titulo nuevoTitulo) {
         this.titulo = Objects.requireNonNull(nuevoTitulo);

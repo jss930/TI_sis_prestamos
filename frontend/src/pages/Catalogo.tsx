@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import type {
   CatalogoItem,
+  LugarUso,
+  CategoriaResponsable,
   Ejemplar,
   NuevoEquipoCatalogo,
   NuevoEjemplar,
@@ -33,13 +35,14 @@ interface Props {
   permisos: PermisoOperativo[]
   puedeReservar?: boolean
   itemsReservados?: string[]
-  reservar?: (catalogoItemId: string) => Promise<void>
+  reservar?: (catalogoItemId: string, lugarUso: LugarUso) => Promise<void>
   crearLibro: (libro: NuevoLibroCatalogo) => Promise<void>
   crearEquipo: (equipo: NuevoEquipoCatalogo) => Promise<void>
   crearOtro: (otro: NuevoOtroCatalogo) => Promise<void>
   actualizarTitulo: (id: string, titulo: string) => Promise<void>
   activar: (id: string) => Promise<void>
   desactivar: (id: string) => Promise<void>
+  asignarArea: (id: string, area: CategoriaResponsable) => Promise<void>
   crearEjemplar?: (ejemplar: NuevoEjemplar) => Promise<void>
 }
 
@@ -59,15 +62,18 @@ export default function Catalogo({
   activar,
   desactivar,
   crearEjemplar,
+  asignarArea,
 }: Props) {
   const [categoria, setCategoria] = useState<'TODOS' | CatalogoItem['tipo']>('TODOS')
+  const [lugarUso, setLugarUso] = useState<LugarUso>('EN_CAMPUS')
+  const [mensaje, setMensaje] = useState<string | null>(null)
   const [busqueda, setBusqueda] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [reservando, setReservando] = useState<string | null>(null)
   const [editando, setEditando] = useState<string | null>(null)
   const [nuevoTitulo, setNuevoTitulo] = useState('')
   const [gestionandoEjemplar, setGestionandoEjemplar] = useState<string | null>(null)
-  const [formEjemplar, setFormEjemplar] = useState({ barcode: '', sala: 'Sala general', estante: 'Estante A-1', notas: '' })
+  const [formEjemplar, setFormEjemplar] = useState({ barcode: '', sala: '', estante: '', notas: '' })
   const [tipoAlta, setTipoAlta] = useState<'LIBRO' | 'EQUIPO' | 'OTRO'>('LIBRO')
   const [formLibro, setFormLibro] = useState<NuevoLibroCatalogo>({
     titulo: '',
@@ -145,7 +151,7 @@ export default function Catalogo({
           </div>
           {tipoAlta === 'LIBRO' && (
             <form
-              className="form-inline"
+              className="form-inline formulario form-ejemplar"
               onSubmit={(e) => {
                 e.preventDefault()
                 void ejecutar(async () => {
@@ -164,7 +170,7 @@ export default function Catalogo({
           )}
           {tipoAlta === 'EQUIPO' && (
             <form
-              className="form-inline"
+              className="form-inline formulario form-ejemplar"
               onSubmit={(e) => {
                 e.preventDefault()
                 void ejecutar(async () => {
@@ -181,7 +187,7 @@ export default function Catalogo({
           )}
           {tipoAlta === 'OTRO' && (
             <form
-              className="form-inline"
+              className="form-inline formulario form-ejemplar"
               onSubmit={(e) => {
                 e.preventDefault()
                 void ejecutar(async () => {
@@ -212,6 +218,12 @@ export default function Catalogo({
           </button>
         ))}
       </div>
+      {puedeReservar && <label>Lugar de uso de la solicitud
+        <select value={lugarUso} onChange={(e) => setLugarUso(e.target.value as LugarUso)}>
+          <option value="EN_CAMPUS">Dentro del campus</option><option value="DOMICILIO">A domicilio (sujeto a autorización)</option>
+        </select>
+      </label>}
+      {mensaje && <div className="aviso correcto-aviso" role="status">{mensaje}</div>}
       <section className="catalogo-grid">
         {visibles.map((item) => {
           const disponibles = disponiblesPorItem.get(item.id) ?? 0
@@ -220,7 +232,7 @@ export default function Catalogo({
             <article className="item" key={item.id}>
               <div className={`item-imagen ${item.tipo.toLowerCase()}`}><img src={imagenCatalogo(item)} alt={`Imagen de ${item.titulo}`} loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none' }} /><span aria-hidden="true">{ICONOS[item.tipo]}</span></div>
               <small>
-                {item.tipo} · {item.activo ? 'Activo' : 'Inactivo'}
+                {item.tipo} · {item.area === 'COMPUTACION' ? 'Computación y periféricos' : item.area} · {item.activo ? 'Activo' : 'Inactivo'}
               </small>
               {editando === item.id ? (
                 <form
@@ -246,13 +258,22 @@ export default function Catalogo({
               {item.tipo === 'LIBRO' && item.detalle.isbn && (
                 <p className="item-meta">ISBN {item.detalle.isbn}</p>
               )}
+              {permisos.includes('ADMINISTRAR_SISTEMA') && <label>Área responsable
+                <select aria-label={`Área de ${item.titulo}`} value={item.area} onChange={(e) => {
+                  const area = e.target.value as CategoriaResponsable
+                  void ejecutar(() => asignarArea(item.id, area))
+                }}>
+                  <option value="BIBLIOTECA">Biblioteca</option><option value="DEPORTES">Deportes</option>
+                  <option value="TECNOLOGIA">Tecnología</option><option value="COMPUTACION">Computación y periféricos</option>
+                </select>
+              </label>}
               <div className="disponibilidad">
                 <span className={habilitado ? 'punto' : 'punto no'} />
                 {habilitado ? `${disponibles} disponibles` : 'No disponible'}
               </div>
               {puedeGestionar && gestionandoEjemplar === item.id && (
                 <form
-                  className="form-inline"
+                  className="form-inline formulario form-ejemplar"
                   onSubmit={(e) => {
                     e.preventDefault()
                     void ejecutar(async () => {
@@ -269,29 +290,42 @@ export default function Catalogo({
                     })
                   }}
                 >
-                  <input
-                    placeholder="Barcode"
-                    value={formEjemplar.barcode}
-                    onChange={(e) => setFormEjemplar((f) => ({ ...f, barcode: e.target.value }))}
-                    required
-                  />
-                  <input
-                    placeholder="Sala"
-                    value={formEjemplar.sala}
-                    onChange={(e) => setFormEjemplar((f) => ({ ...f, sala: e.target.value }))}
-                    required
-                  />
-                  <input
-                    placeholder="Estante"
-                    value={formEjemplar.estante}
-                    onChange={(e) => setFormEjemplar((f) => ({ ...f, estante: e.target.value }))}
-                    required
-                  />
-                  <input
-                    placeholder="Notas"
-                    value={formEjemplar.notas}
-                    onChange={(e) => setFormEjemplar((f) => ({ ...f, notas: e.target.value }))}
-                  />
+                  <p>Registra cada copia física con un código único y el lugar donde se guarda.</p>
+                  <label>Código de inventario
+                    <input
+                      placeholder="Ej.: LIB-004 o LAP-003"
+                      value={formEjemplar.barcode}
+                      onChange={(e) => setFormEjemplar((f) => ({ ...f, barcode: e.target.value }))}
+                      required
+                    />
+                    <small>Identifica esta unidad. No se debe repetir ni requiere un lector de códigos.</small>
+                  </label>
+                  <label>Sala o ambiente
+                    <input
+                      placeholder="Ej.: Biblioteca central"
+                      value={formEjemplar.sala}
+                      onChange={(e) => setFormEjemplar((f) => ({ ...f, sala: e.target.value }))}
+                      required
+                    />
+                    <small>Ambiente donde se guarda el ejemplar.</small>
+                  </label>
+                  <label>Estante o ubicación específica
+                    <input
+                      placeholder="Ej.: Estante B, nivel 2 o Gabinete 2"
+                      value={formEjemplar.estante}
+                      onChange={(e) => setFormEjemplar((f) => ({ ...f, estante: e.target.value }))}
+                      required
+                    />
+                    <small>Lugar exacto dentro de la sala o ambiente.</small>
+                  </label>
+                  <label>Notas (opcional)
+                    <textarea
+                      placeholder="Ej.: Incluye cargador o tiene una marca en la portada"
+                      value={formEjemplar.notas}
+                      onChange={(e) => setFormEjemplar((f) => ({ ...f, notas: e.target.value }))}
+                      rows={3}
+                    />
+                  </label>
                   <button className="boton primario" type="submit">Guardar ejemplar</button>
                 </form>
               )}
@@ -302,18 +336,18 @@ export default function Catalogo({
                   onClick={() => irA('prestamos')}
                   type="button"
                 >
-                  {puedeSolicitar ? 'Solicitar préstamo' : 'Consulta en ventanilla'}
+                  {puedeSolicitar ? 'Registrar entrega directa' : 'Consulta en ventanilla'}
                 </button>
                 {puedeReservar && item.activo && (
                   <button
                     className="boton secundario"
-                    disabled={reservando === item.id || itemsReservados.includes(item.id)}
+                    disabled={!habilitado || reservando === item.id || itemsReservados.includes(item.id)}
                     aria-busy={reservando === item.id}
                     onClick={() =>
                       void ejecutar(async () => {
                         setReservando(item.id)
                         try {
-                          if (reservar) await reservar(item.id)
+                          if (reservar) { await reservar(item.id, lugarUso); setMensaje('Solicitud enviada. Consulta su aprobación y plazo de recogida en Mis solicitudes.') }
                         } finally {
                           setReservando(null)
                         }
@@ -322,10 +356,10 @@ export default function Catalogo({
                     type="button"
                   >
                     {reservando === item.id
-                      ? 'Reservando…'
+                      ? 'Enviando…'
                       : itemsReservados.includes(item.id)
-                        ? 'Reserva solicitada'
-                        : 'Reservar'}
+                        ? 'Solicitud activa'
+                        : 'Solicitar préstamo'}
                   </button>
                 )}
                 {puedeGestionar && (
@@ -353,7 +387,7 @@ export default function Catalogo({
                       className="boton secundario"
                       onClick={() => {
                         setGestionandoEjemplar(gestionandoEjemplar === item.id ? null : item.id)
-                        setFormEjemplar({ barcode: '', sala: 'Sala general', estante: 'Estante A-1', notas: '' })
+                        setFormEjemplar({ barcode: '', sala: '', estante: '', notas: '' })
                       }}
                       type="button"
                     >

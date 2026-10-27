@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ResponsabilidadRepository {
+    default void bloquearAsignaciones() { }
     Optional<ResponsabilidadUsuario> buscar(UsuarioId id);
     List<ResponsabilidadUsuario> listar();
     void guardar(ResponsabilidadUsuario responsabilidad);

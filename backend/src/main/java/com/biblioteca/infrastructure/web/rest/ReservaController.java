@@ -1,5 +1,10 @@
 package com.biblioteca.infrastructure.web.rest;
 
+import com.biblioteca.circulation.domain.model.LugarUso;
+import com.biblioteca.inventory.domain.vo.EjemplarId;
+import com.biblioteca.reservations.application.usecase.AccesoSolicitudes;
+import com.biblioteca.reservations.application.usecase.EntregarSolicitudUseCase;
+
 import com.biblioteca.identity.domain.vo.UsuarioId;
 import com.biblioteca.infrastructure.security.UsuarioAutenticado;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -44,6 +49,8 @@ public class ReservaController {
     private final ListarReservasUseCase listar;
     private final ObtenerReservaUseCase obtener;
     private final UsuarioAutenticado autenticado;
+    private final AccesoSolicitudes acceso;
+    private final EntregarSolicitudUseCase entregar;
 
     public ReservaController(SolicitarReservaUseCase solicitar,
                              AceptarReservaUseCase aceptar,
@@ -51,7 +58,9 @@ public class ReservaController {
                              CancelarReservaUseCase cancelar,
                              ListarReservasUseCase listar,
                              ObtenerReservaUseCase obtener,
-                             UsuarioAutenticado autenticado) {
+                             UsuarioAutenticado autenticado,
+                             AccesoSolicitudes acceso,
+                             EntregarSolicitudUseCase entregar) {
         this.solicitar = solicitar;
         this.aceptar = aceptar;
         this.denegar = denegar;
@@ -59,19 +68,26 @@ public class ReservaController {
         this.listar = listar;
         this.obtener = obtener;
         this.autenticado = autenticado;
+        this.acceso = acceso;
+        this.entregar = entregar;
     }
 
     @GetMapping
-    public List<ReservaResponse> listar(@RequestParam(required = false) UUID prestatarioId,
+    public List<ReservaResponse> listar(@RequestHeader(value = "Authorization", required = false) String token, @RequestParam(required = false) UUID prestatarioId,
                                        @RequestParam(required = false) EstadoReserva estado) {
+        if (token == null) return List.of();
+        UsuarioId actual = autenticado.exigir(token);
         UsuarioId usuarioId = prestatarioId == null ? null : new UsuarioId(prestatarioId);
         return listar.ejecutar(usuarioId, estado).stream()
+                .filter(r -> r.prestatarioId().equals(actual) || acceso.puedeAtender(actual, r))
                 .map(ReservaController::aResponse).toList();
     }
 
     @GetMapping("/{id}")
-    public ReservaResponse obtener(@PathVariable UUID id) {
-        return aResponse(obtener.ejecutar(new ReservaId(id)));
+    public ReservaResponse obtener(@PathVariable UUID id, @RequestHeader(value = "Authorization", required = false) String token) {
+        var reserva = obtener.ejecutar(new ReservaId(id));
+        acceso.exigirLectura(autenticado.exigir(token), reserva);
+        return aResponse(reserva);
     }
 
     @PostMapping
@@ -79,7 +95,7 @@ public class ReservaController {
     public ReservaResponse solicitar(@RequestHeader(value = "Authorization", required = false) String token, @Valid @RequestBody SolicitarReservaRequest request) {
         Reserva reserva = solicitar.ejecutar(new SolicitarReservaCommand(
                 autenticado.exigir(token),
-                new CatalogoItemId(request.catalogoItemId())));
+                new CatalogoItemId(request.catalogoItemId()), request.lugarUso() == null ? LugarUso.EN_CAMPUS : request.lugarUso()));
         return aResponse(reserva);
     }
 
@@ -89,7 +105,13 @@ public class ReservaController {
                                   @Valid @RequestBody OperadorRequest request) {
         return aResponse(aceptar.ejecutar(new AceptarReservaCommand(
                 autenticado.exigir(token), new ReservaId(id), request.ejemplarId() == null
-                        ? null : new com.biblioteca.inventory.domain.vo.EjemplarId(request.ejemplarId()))));
+                        ? null : new EjemplarId(request.ejemplarId()))));
+    }
+
+    @PostMapping("/{id}/entregar")
+    public ReservaResponse entregar(@PathVariable UUID id,
+            @RequestHeader(value = "Authorization", required = false) String token) {
+        return aResponse(entregar.ejecutar(autenticado.exigir(token), new ReservaId(id)));
     }
 
     @PostMapping("/{id}/denegar")
@@ -113,12 +135,14 @@ public class ReservaController {
                 reserva.catalogoItemId().value(), reserva.estado(), reserva.operadorId() == null
                 ? null : reserva.operadorId().value(),
                 reserva.prestamoId() == null ? null : reserva.prestamoId().value(),
-                reserva.motivo(), reserva.fechaAlta(), reserva.fechaDecision());
+                reserva.motivo(), reserva.fechaAlta(), reserva.fechaDecision(),
+                reserva.ejemplarId() == null ? null : reserva.ejemplarId().value(), reserva.fechaLimiteRetiro(),
+                reserva.fechaEntrega(), reserva.entregadoPorId() == null ? null : reserva.entregadoPorId().value(), reserva.lugarUso());
     }
 
     public record SolicitarReservaRequest(
             @NotNull UUID prestatarioId,
-            @NotNull UUID catalogoItemId) {
+            @NotNull UUID catalogoItemId, LugarUso lugarUso) {
     }
 
     public record OperadorRequest(@NotNull UUID operadorId, UUID ejemplarId) {
@@ -141,6 +165,11 @@ public class ReservaController {
             UUID prestamoId,
             String motivo,
             Instant fechaAlta,
-            Instant fechaDecision) {
+            Instant fechaDecision,
+            UUID ejemplarId,
+            Instant fechaLimiteRetiro,
+            Instant fechaEntrega,
+            UUID entregadoPorId,
+            LugarUso lugarUso) {
     }
 }

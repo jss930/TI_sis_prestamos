@@ -86,6 +86,118 @@ class ResponsablesInspeccionesTest {
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.codigo").value("OPERADOR_NO_HABILITADO"));
     }
 
+
+    @Test
+    void confirmarGuardaLaSeleccionCompletaSinDuplicarHistorial() throws Exception {
+        String seleccion = "{\"capacitacionVerificada\":true,\"categorias\":[\"BIBLIOTECA\",\"TECNOLOGIA\",\"COMPUTACION\"]}";
+        for (int intento = 0; intento < 2; intento++) {
+            mvc.perform(put(rutaResponsable() + "/asignaciones").header("Authorization", token)
+                    .contentType(MediaType.APPLICATION_JSON).content(seleccion))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.responsables[0].capacitacionVerificada").value(true))
+                    .andExpect(jsonPath("$.responsables[0].categorias.length()").value(3))
+                    .andExpect(jsonPath("$.historial.length()").value(4));
+        }
+        em.flush(); em.clear();
+        mvc.perform(get("/api/v1/responsables").header("Authorization", token))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.responsables[0].categorias.length()").value(3));
+        mvc.perform(put(rutaResponsable() + "/asignaciones").header("Authorization", token)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"capacitacionVerificada\":false,\"categorias\":[\"DEPORTES\"]}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.responsables[0].capacitacionVerificada").value(false))
+                .andExpect(jsonPath("$.responsables[0].categorias.length()").value(1))
+                .andExpect(jsonPath("$.responsables[0].categorias[0]").value("DEPORTES"));
+    }
+
+    @Test
+    void seleccionInvalidaNoGuardaNingunaAsignacion() throws Exception {
+        mvc.perform(put(rutaResponsable() + "/asignaciones").header("Authorization", token)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"capacitacionVerificada\":false,\"categorias\":[\"BIBLIOTECA\",\"TECNOLOGIA\"]}"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.codigo").value("CAPACITACION_REQUERIDA"));
+        em.clear();
+        assertThat(em.createQuery("select count(e) from CambioResponsableJpaEntity e", Long.class).getSingleResult()).isZero();
+        assertThat(em.createQuery("select count(e) from ResponsabilidadUsuarioJpaEntity e", Long.class).getSingleResult()).isZero();
+    }
+
+    @Test
+    void confirmarResponsablesExigeAdministradorYCamposValidos() throws Exception {
+        String seleccion = "{\"capacitacionVerificada\":false,\"categorias\":[\"BIBLIOTECA\"]}";
+        mvc.perform(put(rutaResponsable() + "/asignaciones").contentType(MediaType.APPLICATION_JSON).content(seleccion))
+                .andExpect(status().isUnauthorized());
+        String tokenAlumno = "Bearer " + tokens.generar(alumno.id().value(), alumno.email().value());
+        mvc.perform(put(rutaResponsable() + "/asignaciones").header("Authorization", tokenAlumno)
+                .contentType(MediaType.APPLICATION_JSON).content(seleccion))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.codigo").value("OPERADOR_NO_HABILITADO"));
+        mvc.perform(put(rutaResponsable() + "/asignaciones").header("Authorization", token)
+                .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest());
+    }
+
+
+    private void confirmarCargo(Usuario persona, String cargo) throws Exception {
+        mvc.perform(put("/api/v1/responsables/" + persona.id().value() + "/asignaciones").header("Authorization", token)
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                {"capacitacionVerificada":false,"categorias":["BIBLIOTECA"],"cargos":{"BIBLIOTECA":"%s"}}
+                """.formatted(cargo)))
+                .andExpect(status().isOk());
+        em.flush(); em.clear();
+    }
+
+    @Test
+    void soloPermiteUnPrincipalYUnSuplentePorArea() throws Exception {
+        var suplente = usuarios.guardar(Fixtures.alumnoValidado());
+        var tercera = usuarios.guardar(Fixtures.alumnoValidado());
+        confirmarCargo(alumno, "PRINCIPAL");
+        confirmarCargo(suplente, "SUPLENTE");
+        mvc.perform(get("/api/v1/responsables").header("Authorization", token))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.responsables.length()").value(2));
+        for (String cargo : new String[]{"PRINCIPAL", "SUPLENTE"}) {
+            mvc.perform(put("/api/v1/responsables/" + tercera.id().value() + "/asignaciones").header("Authorization", token)
+                    .contentType(MediaType.APPLICATION_JSON).content("""
+                    {"capacitacionVerificada":false,"categorias":["BIBLIOTECA"],"cargos":{"BIBLIOTECA":"%s"}}
+                    """.formatted(cargo)))
+                    .andExpect(status().isConflict()).andExpect(jsonPath("$.codigo").value("CARGO_OCUPADO"));
+        }
+        assertThat(em.createQuery("select count(e) from CambioResponsableJpaEntity e", Long.class).getSingleResult()).isEqualTo(2);
+    }
+
+    @Test
+    void noPermiteOtroPrincipalAunqueElSuplenteEsteLibre() throws Exception {
+        confirmarCargo(alumno, "PRINCIPAL");
+        var otra = usuarios.guardar(Fixtures.alumnoValidado());
+        mvc.perform(put("/api/v1/responsables/" + otra.id().value() + "/categorias/BIBLIOTECA").header("Authorization", token)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"asignada\":true,\"cargo\":\"PRINCIPAL\"}"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.codigo").value("CARGO_OCUPADO"));
+    }
+
+    @Test
+    void cambiarCargoSeConservaYQuedaEnElHistorial() throws Exception {
+        confirmarCargo(alumno, "PRINCIPAL");
+        confirmarCargo(alumno, "SUPLENTE");
+        mvc.perform(get("/api/v1/responsables").header("Authorization", token))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.responsables[0].cargos.BIBLIOTECA").value("SUPLENTE"))
+                .andExpect(jsonPath("$.historial[0].accion").value("CARGO_CAMBIADO"))
+                .andExpect(jsonPath("$.historial[0].cargo").value("SUPLENTE"));
+    }
+
+    @Test
+    void retirarPrincipalLiberaElCargoParaOtraPersona() throws Exception {
+        confirmarCargo(alumno, "PRINCIPAL");
+        mvc.perform(put(rutaResponsable() + "/asignaciones").header("Authorization", token)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"capacitacionVerificada\":false,\"categorias\":[],\"cargos\":{}}"))
+                .andExpect(status().isOk());
+        em.flush(); em.clear();
+        var nueva = usuarios.guardar(Fixtures.alumnoValidado());
+        confirmarCargo(nueva, "PRINCIPAL");
+        assertThat(usuarios.buscarPorId(alumno.id()).orElseThrow().puedeGestionarReservas()).isFalse();
+    }
+
+    @Test
+    void cargosDebenCoincidirConLasAreasSeleccionadas() throws Exception {
+        mvc.perform(put(rutaResponsable() + "/asignaciones").header("Authorization", token)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"capacitacionVerificada\":false,\"categorias\":[\"BIBLIOTECA\"],\"cargos\":{}}"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.codigo").value("CARGOS_INCONSISTENTES"));
+    }
+
     @Test
     void categoriaTecnicaRequiereCapacitacion() throws Exception {
         mvc.perform(put(rutaResponsable() + "/categorias/TECNOLOGIA").header("Authorization", token)
@@ -222,10 +334,12 @@ class ResponsablesInspeccionesTest {
                 .contentType(MediaType.APPLICATION_JSON).content("""
                 {"operadorId":"%s","ejemplarId":"%s"}
                 """.formatted(admin.id().value(), elegida.id().value())))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.estado").value("ACEPTADA"));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.estado").value("APROBADA"));
         em.flush(); em.clear();
         var aceptada = reservas.buscarPorId(reserva.id()).orElseThrow();
-        assertThat(prestamos.buscarPorId(aceptada.prestamoId()).orElseThrow().ejemplarId()).isEqualTo(elegida.id());
+        assertThat(aceptada.prestamoId()).isNull();
+        assertThat(aceptada.ejemplarId()).isEqualTo(elegida.id());
+        assertThat(ejemplares.buscarPorId(elegida.id()).orElseThrow().estadoFisico()).isEqualTo(EstadoFisico.RESERVADO);
         assertThat(ejemplares.buscarPorId(copia1.id()).orElseThrow().estaDisponible()).isTrue();
     }
 
@@ -251,7 +365,7 @@ class ResponsablesInspeccionesTest {
         var reserva = reservas.guardar(com.biblioteca.reservations.domain.model.Reserva.solicitar(alumno.id(), ejemplar.catalogoItemId()));
         mvc.perform(post("/api/v1/reservas/" + reserva.id().value() + "/aceptar").header("Authorization", token)
                 .contentType(MediaType.APPLICATION_JSON).content("{\"operadorId\":\"" + admin.id().value() + "\"}"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.estado").value("ACEPTADA"));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.estado").value("APROBADA"));
     }
 
 }

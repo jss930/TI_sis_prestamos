@@ -15,6 +15,8 @@ public interface EjemplarRepository {
 
     Optional<Ejemplar> buscarPorId(EjemplarId id);
 
+    default Optional<Ejemplar> buscarPorIdParaActualizar(EjemplarId id) { return buscarPorId(id); }
+
     Optional<Ejemplar> buscarPorBarcode(Barcode barcode);
 
     List<Ejemplar> listarTodos();

@@ -15,12 +15,16 @@ import java.util.stream.Collectors;
 public class ResponsabilidadJpaAdapter implements ResponsabilidadRepository {
     private final ResponsabilidadUsuarioJpaRepository responsabilidades;
     private final CambioResponsableJpaRepository cambios;
+    private final ControlResponsablesJpaRepository control;
 
     public ResponsabilidadJpaAdapter(ResponsabilidadUsuarioJpaRepository responsabilidades,
-                                     CambioResponsableJpaRepository cambios) {
+                                     CambioResponsableJpaRepository cambios, ControlResponsablesJpaRepository control) {
         this.responsabilidades = responsabilidades;
         this.cambios = cambios;
+        this.control = control;
     }
+
+    public void bloquearAsignaciones() { control.bloquear(); }
 
     public Optional<ResponsabilidadUsuario> buscar(UsuarioId id) {
         return responsabilidades.findById(id.value()).map(this::aDominio);
@@ -33,6 +37,7 @@ public class ResponsabilidadJpaAdapter implements ResponsabilidadRepository {
         entidad.usuarioId = responsabilidad.usuarioId().value();
         entidad.capacitacionVerificada = responsabilidad.capacitacionVerificada();
         entidad.categorias = responsabilidad.categorias().stream().map(Enum::name).sorted().collect(Collectors.joining(","));
+        entidad.cargos.putAll(responsabilidad.cargos());
         responsabilidades.save(entidad);
     }
     public void registrarCambio(CambioResponsable cambio) {
@@ -42,16 +47,15 @@ public class ResponsabilidadJpaAdapter implements ResponsabilidadRepository {
         entidad.operadorId = cambio.operadorId();
         entidad.categoria = cambio.categoria();
         entidad.accion = cambio.accion();
+        entidad.cargo = cambio.cargo();
         entidad.fecha = cambio.fecha();
         cambios.save(entidad);
     }
     public List<CambioResponsable> historial() {
         return cambios.findAllByOrderByFechaDesc().stream().map(e -> new CambioResponsable(
-                e.id, e.usuarioId, e.operadorId, e.categoria, e.accion, e.fecha)).toList();
+                e.id, e.usuarioId, e.operadorId, e.categoria, e.accion, e.fecha, e.cargo)).toList();
     }
     private ResponsabilidadUsuario aDominio(ResponsabilidadUsuarioJpaEntity e) {
-        Set<CategoriaResponsable> categorias = e.categorias.isBlank() ? Set.of()
-                : Arrays.stream(e.categorias.split(",")).map(CategoriaResponsable::valueOf).collect(Collectors.toSet());
-        return new ResponsabilidadUsuario(new UsuarioId(e.usuarioId), e.capacitacionVerificada, categorias);
+        return ResponsabilidadUsuario.reconstruir(new UsuarioId(e.usuarioId), e.capacitacionVerificada, e.cargos);
     }
 }

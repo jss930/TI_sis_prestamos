@@ -50,4 +50,32 @@ class ReservaTest {
         assertThat(reserva.estado()).isEqualTo(EstadoReserva.DENEGADA);
         assertThat(reserva.motivo()).isEqualTo("sin stock");
     }
+    @Test
+    void alLlegarAlLimiteDeRetiroYaNoSePuedeEntregar() {
+        var alumno = new UsuarioId(UUID.randomUUID());
+        var operador = new UsuarioId(UUID.randomUUID());
+        var ahora = java.time.Instant.parse("2026-10-26T12:00:00Z");
+        var limite = ahora.plusSeconds(172800);
+        var reserva = Reserva.solicitar(alumno, new CatalogoItemId(UUID.randomUUID()));
+        reserva.aprobar(operador, new com.biblioteca.inventory.domain.vo.EjemplarId(UUID.randomUUID()), ahora, limite);
+        assertThat(reserva.expirar(limite.minusNanos(1))).isFalse();
+        assertThatThrownBy(() -> reserva.exigirRetiroVigente(limite)).isInstanceOf(BusinessRuleException.class);
+        assertThat(reserva.expirar(limite)).isTrue();
+        assertThat(reserva.estado()).isEqualTo(EstadoReserva.EXPIRADA);
+        assertThat(reserva.prestamoId()).isNull();
+    }
+
+    @Test
+    void cancelarAprobadaConservaQuienYCuandoAprobo() {
+        var alumno = new UsuarioId(UUID.randomUUID());
+        var operador = new UsuarioId(UUID.randomUUID());
+        var ahora = java.time.Instant.parse("2026-10-26T12:00:00Z");
+        var reserva = Reserva.solicitar(alumno, new CatalogoItemId(UUID.randomUUID()));
+        reserva.aprobar(operador, new com.biblioteca.inventory.domain.vo.EjemplarId(UUID.randomUUID()), ahora, ahora.plusSeconds(172800));
+        reserva.cancelar(alumno, ahora.plusSeconds(300));
+        assertThat(reserva.operadorId()).isEqualTo(operador);
+        assertThat(reserva.fechaDecision()).isEqualTo(ahora);
+        assertThat(reserva.estado()).isEqualTo(EstadoReserva.CANCELADA);
+    }
+
 }

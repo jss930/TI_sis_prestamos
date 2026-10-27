@@ -1,5 +1,7 @@
 package com.biblioteca.infrastructure.persistence.jpa.entity;
 
+import com.biblioteca.catalog.domain.model.AreaCatalogo;
+
 import com.biblioteca.catalog.domain.model.TipoItem;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -28,6 +30,10 @@ public class CatalogoItemJpaEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     public TipoItem tipo;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    public AreaCatalogo area;
 
     @Column(nullable = false)
     public boolean activo;

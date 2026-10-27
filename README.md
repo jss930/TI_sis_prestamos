@@ -624,3 +624,18 @@ Este proyecto prioriza tres cosas que suelen perderse en trabajos de curso:
 > Proyecto de Ingeniería de Software — Universidad Nacional de San Agustín. La reescritura
 > busca que las reglas del negocio sean explícitas, testeables y defendibles en una
 > sustentación, por encima de acumular endpoints o pantallas sin coherencia.
+
+
+## Flujo de solicitudes con aprobación y entrega
+
+El flujo actual separa solicitud, aprobación con apartado de 48 horas y entrega física que inicia el préstamo. La bandeja verifica las responsabilidades por área. Consulta [el flujo y la guía de prueba](docs/solicitudes-prestamo.md) y el ADR-011 para los estados, permisos y endpoints actualizados.
+
+
+### Principal y suplente
+
+Cada área admite un principal y un suplente. Administración permite elegir el cargo y consultar los ocupantes actuales; la confirmación rechaza cargos ocupados, incluso con solicitudes simultáneas. Véase [ADR-012](docs/adr/ADR-012-principal-y-suplente-por-area.md) y [la guía de responsables](docs/solicitudes-prestamo.md#principal-y-suplente-por-área).
+
+
+### Revisión de cuentas
+
+Personas permite revisar pendientes, solicitar correcciones y confirmar la validación con identificación del revisor y fecha. El titular puede corregir sus datos desde Mi cuenta. Véase [el flujo de revisión](docs/revision-cuentas.md) y [ADR-013](docs/adr/ADR-013-revision-administrativa-de-cuentas.md).

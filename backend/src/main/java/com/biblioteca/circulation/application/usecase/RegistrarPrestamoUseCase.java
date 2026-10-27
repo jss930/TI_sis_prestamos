@@ -58,7 +58,7 @@ public class RegistrarPrestamoUseCase {
         Objects.requireNonNull(command.lugarUso(), "El lugar de uso es obligatorio");
         LocalDate hoy = LocalDate.now(clock);
 
-        Usuario prestatario = usuarios.buscarPorId(command.prestatarioId())
+        Usuario prestatario = usuarios.buscarPorIdParaActualizar(command.prestatarioId())
                 .orElseThrow(() -> new NotFoundException("Prestatario", command.prestatarioId().value()));
         if (!prestatario.puedeSolicitarPrestamo()) {
             throw new BusinessRuleException("USUARIO_NO_HABILITADO",
@@ -76,7 +76,7 @@ public class RegistrarPrestamoUseCase {
                     "El operador no puede registrar un prestamo a su propia cuenta");
         }
 
-        Ejemplar ejemplar = ejemplares.buscarPorId(command.ejemplarId())
+        Ejemplar ejemplar = ejemplares.buscarPorIdParaActualizar(command.ejemplarId())
                 .orElseThrow(() -> new NotFoundException("Ejemplar", command.ejemplarId().value()));
 
         CatalogoItem item = catalogo.buscarPorId(ejemplar.catalogoItemId())

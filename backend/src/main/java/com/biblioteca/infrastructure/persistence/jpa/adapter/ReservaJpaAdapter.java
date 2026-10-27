@@ -1,5 +1,7 @@
 package com.biblioteca.infrastructure.persistence.jpa.adapter;
 
+import com.biblioteca.inventory.domain.vo.EjemplarId;
+
 import com.biblioteca.catalog.domain.vo.CatalogoItemId;
 import com.biblioteca.circulation.domain.vo.PrestamoId;
 import com.biblioteca.identity.domain.vo.UsuarioId;
@@ -37,6 +39,11 @@ public class ReservaJpaAdapter implements ReservaRepository {
     }
 
     @Override
+    public Optional<Reserva> buscarPorIdParaActualizar(ReservaId id) {
+        return repositorio.bloquearPorId(id.value()).map(ReservaJpaAdapter::aDominio);
+    }
+
+    @Override
     public List<Reserva> listarTodos() {
         return repositorio.findAll().stream().map(ReservaJpaAdapter::aDominio).toList();
     }
@@ -63,8 +70,8 @@ public class ReservaJpaAdapter implements ReservaRepository {
 
     @Override
     public long contarActivasPor(UsuarioId prestatarioId) {
-        return repositorio.countByPrestatarioIdAndEstado(
-                prestatarioId.value(), EstadoReserva.SOLICITADA);
+        return listarPorPrestatario(prestatarioId).stream()
+                .filter(r -> r.estado() == EstadoReserva.SOLICITADA || r.estado() == EstadoReserva.APROBADA).count();
     }
 
     private static ReservaJpaEntity aEntidad(Reserva reserva) {
@@ -75,6 +82,11 @@ public class ReservaJpaAdapter implements ReservaRepository {
         entidad.operadorId = reserva.operadorId() == null ? null : reserva.operadorId().value();
         entidad.prestamoId = reserva.prestamoId() == null ? null : reserva.prestamoId().value();
         entidad.estado = reserva.estado();
+        entidad.ejemplarId = reserva.ejemplarId() == null ? null : reserva.ejemplarId().value();
+        entidad.fechaLimiteRetiro = reserva.fechaLimiteRetiro();
+        entidad.fechaEntrega = reserva.fechaEntrega();
+        entidad.entregadoPorId = reserva.entregadoPorId() == null ? null : reserva.entregadoPorId().value();
+        entidad.lugarUso = reserva.lugarUso();
         entidad.motivo = reserva.motivo();
         entidad.fechaAlta = reserva.fechaAlta();
         entidad.fechaDecision = reserva.fechaDecision();
@@ -82,7 +94,7 @@ public class ReservaJpaAdapter implements ReservaRepository {
     }
 
     private static Reserva aDominio(ReservaJpaEntity entidad) {
-        return Reserva.reconstruir(
+        return Reserva.reconstruirSolicitud(
                 new ReservaId(entidad.id),
                 new UsuarioId(entidad.prestatarioId),
                 new CatalogoItemId(entidad.catalogoItemId),
@@ -91,6 +103,9 @@ public class ReservaJpaAdapter implements ReservaRepository {
                 entidad.prestamoId == null ? null : new PrestamoId(entidad.prestamoId),
                 entidad.motivo,
                 entidad.fechaAlta,
-                entidad.fechaDecision);
+                entidad.fechaDecision,
+                entidad.ejemplarId == null ? null : new EjemplarId(entidad.ejemplarId),
+                entidad.fechaLimiteRetiro, entidad.fechaEntrega,
+                entidad.entregadoPorId == null ? null : new UsuarioId(entidad.entregadoPorId), entidad.lugarUso);
     }
 }

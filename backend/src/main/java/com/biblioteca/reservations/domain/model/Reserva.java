@@ -1,5 +1,10 @@
 package com.biblioteca.reservations.domain.model;
 
+import com.biblioteca.circulation.domain.model.LugarUso;
+import com.biblioteca.inventory.domain.vo.EjemplarId;
+import com.biblioteca.reservations.domain.event.ReservaAprobadaEvent;
+import com.biblioteca.reservations.domain.event.ReservaExpiradaEvent;
+
 import com.biblioteca.catalog.domain.vo.CatalogoItemId;
 import com.biblioteca.circulation.domain.vo.PrestamoId;
 import com.biblioteca.identity.domain.vo.UsuarioId;
@@ -27,6 +32,11 @@ public final class Reserva extends AggregateRoot<ReservaId> {
     private PrestamoId prestamoId;
     private String motivo;
     private Instant fechaDecision;
+    private EjemplarId ejemplarId;
+    private Instant fechaLimiteRetiro;
+    private Instant fechaEntrega;
+    private UsuarioId entregadoPorId;
+    private LugarUso lugarUso = LugarUso.EN_CAMPUS;
 
     private Reserva(ReservaId id, UsuarioId prestatarioId, CatalogoItemId catalogoItemId,
                     EstadoReserva estado, UsuarioId operadorId, PrestamoId prestamoId,
@@ -58,6 +68,68 @@ public final class Reserva extends AggregateRoot<ReservaId> {
                 motivo, fechaAlta, fechaDecision);
     }
 
+    public static Reserva reconstruirSolicitud(ReservaId id, UsuarioId prestatarioId, CatalogoItemId catalogoItemId,
+            EstadoReserva estado, UsuarioId operadorId, PrestamoId prestamoId, String motivo,
+            Instant fechaAlta, Instant fechaDecision, EjemplarId ejemplarId,
+            Instant fechaLimiteRetiro, Instant fechaEntrega, UsuarioId entregadoPorId,
+            LugarUso lugarUso) {
+        Reserva reserva = reconstruir(id, prestatarioId, catalogoItemId, estado, operadorId, prestamoId, motivo, fechaAlta, fechaDecision);
+        reserva.ejemplarId = ejemplarId; reserva.fechaLimiteRetiro = fechaLimiteRetiro;
+        reserva.fechaEntrega = fechaEntrega; reserva.entregadoPorId = entregadoPorId;
+        reserva.lugarUso = Objects.requireNonNull(lugarUso);
+        if ((estado == EstadoReserva.APROBADA || estado == EstadoReserva.ATENDIDA || estado == EstadoReserva.EXPIRADA)
+                && (ejemplarId == null || fechaLimiteRetiro == null || operadorId == null))
+            throw new DomainException("RESERVA_INCONSISTENTE", "La aprobacion requiere ejemplar, responsable y plazo");
+        if (estado == EstadoReserva.ATENDIDA && (prestamoId == null || fechaEntrega == null || entregadoPorId == null))
+            throw new DomainException("RESERVA_INCONSISTENTE", "La entrega requiere prestamo y responsable");
+        return reserva;
+    }
+
+    public static Reserva solicitar(UsuarioId prestatarioId, CatalogoItemId itemId,
+            LugarUso lugarUso, Instant ahora) {
+        Reserva reserva = new Reserva(ReservaId.nuevo(), prestatarioId, itemId,
+                EstadoReserva.SOLICITADA, null, null, null, ahora, null);
+        reserva.lugarUso = Objects.requireNonNull(lugarUso);
+        reserva.registrarEvento(new ReservaSolicitadaEvent(reserva.id, prestatarioId, itemId, ahora));
+        return reserva;
+    }
+
+    public void aprobar(UsuarioId operadorId, EjemplarId ejemplarId,
+                        Instant ahora, Instant limite) {
+        exigirEstado(EstadoReserva.SOLICITADA, "APROBAR");
+        if (!limite.isAfter(ahora)) throw new DomainException("PLAZO_INVALIDO", "El plazo de retiro debe ser futuro");
+        this.operadorId = Objects.requireNonNull(operadorId);
+        this.ejemplarId = Objects.requireNonNull(ejemplarId);
+        this.fechaDecision = ahora; this.fechaLimiteRetiro = limite; this.estado = EstadoReserva.APROBADA;
+        registrarEvento(new ReservaAprobadaEvent(id, operadorId, ejemplarId, limite, ahora));
+    }
+
+    public void exigirRetiroVigente(Instant ahora) {
+        exigirEstado(EstadoReserva.APROBADA, "ENTREGAR");
+        if (!ahora.isBefore(fechaLimiteRetiro)) throw new BusinessRuleException("SOLICITUD_EXPIRADA", "El plazo para recoger el bien ha vencido");
+    }
+
+    public void entregar(UsuarioId entregadoPorId, PrestamoId prestamoId, Instant ahora) {
+        exigirRetiroVigente(ahora);
+        this.entregadoPorId = Objects.requireNonNull(entregadoPorId);
+        this.prestamoId = Objects.requireNonNull(prestamoId);
+        this.fechaEntrega = ahora; this.estado = EstadoReserva.ATENDIDA;
+        registrarEvento(new ReservaAceptadaEvent(id, entregadoPorId, prestamoId, ahora));
+    }
+
+    public boolean expirar(Instant ahora) {
+        if (estado != EstadoReserva.APROBADA || ahora.isBefore(fechaLimiteRetiro)) return false;
+        estado = EstadoReserva.EXPIRADA;
+        registrarEvento(new ReservaExpiradaEvent(id, ejemplarId, ahora));
+        return true;
+    }
+
+    public EjemplarId ejemplarId() { return ejemplarId; }
+    public Instant fechaLimiteRetiro() { return fechaLimiteRetiro; }
+    public Instant fechaEntrega() { return fechaEntrega; }
+    public UsuarioId entregadoPorId() { return entregadoPorId; }
+    public LugarUso lugarUso() { return lugarUso; }
+
     public void aceptar(UsuarioId operadorId, PrestamoId prestamoId) {
         exigirEstado(EstadoReserva.SOLICITADA, "ACEPTAR");
         Objects.requireNonNull(operadorId, "El operador es obligatorio");
@@ -83,15 +155,18 @@ public final class Reserva extends AggregateRoot<ReservaId> {
         registrarEvento(new ReservaDenegadaEvent(id, operadorId, motivoNormalizado, fechaDecision));
     }
 
-    public void cancelar(UsuarioId prestatarioId) {
-        exigirEstado(EstadoReserva.SOLICITADA, "CANCELAR");
+    public void cancelar(UsuarioId prestatarioId) { cancelar(prestatarioId, Instant.now()); }
+
+    public void cancelar(UsuarioId prestatarioId, Instant ahora) {
+        if (estado != EstadoReserva.SOLICITADA && estado != EstadoReserva.APROBADA)
+            throw new BusinessRuleException("TRANSICION_INVALIDA", "Solo se cancelan solicitudes pendientes o aprobadas");
         if (!this.prestatarioId.equals(prestatarioId)) {
             throw new BusinessRuleException("CANCELACION_NO_PERMITIDA",
                     "Solo el prestatario puede cancelar su reserva");
         }
+        if (this.estado == EstadoReserva.SOLICITADA) this.fechaDecision = ahora;
         this.estado = EstadoReserva.CANCELADA;
-        this.fechaDecision = Instant.now();
-        registrarEvento(new ReservaCanceladaEvent(id, prestatarioId, fechaDecision));
+        registrarEvento(new ReservaCanceladaEvent(id, prestatarioId, ahora));
     }
 
     private void exigirEstado(EstadoReserva esperado, String accion) {
@@ -109,7 +184,11 @@ public final class Reserva extends AggregateRoot<ReservaId> {
                             "Una reserva solicitada no puede tener decision");
                 }
             }
-            case ACEPTADA -> {
+            case APROBADA, EXPIRADA -> {
+                if (operadorId == null || fechaDecision == null || prestamoId != null || motivo != null)
+                    throw new DomainException("RESERVA_INCONSISTENTE", "El apartado requiere aprobacion y no debe tener prestamo");
+            }
+            case ATENDIDA, ACEPTADA -> {
                 if (operadorId == null || prestamoId == null || fechaDecision == null) {
                     throw new DomainException("RESERVA_INCONSISTENTE",
                             "Una reserva aceptada requiere operador, prestamo y fecha de decision");
@@ -134,7 +213,7 @@ public final class Reserva extends AggregateRoot<ReservaId> {
                     throw new DomainException("RESERVA_INCONSISTENTE",
                             "Una reserva cancelada requiere fecha de decision");
                 }
-                if (operadorId != null || prestamoId != null || motivo != null) {
+                if (prestamoId != null || motivo != null) {
                     throw new DomainException("RESERVA_INCONSISTENTE",
                             "Una reserva cancelada no tiene decision de operador");
                 }

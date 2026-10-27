@@ -70,6 +70,16 @@ public class GlobalExceptionHandler {
         return problema;
     }
 
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ProblemDetail conflictoDatos(org.springframework.dao.DataIntegrityViolationException ex) {
+        String detalle = ex.getMostSpecificCause().getMessage();
+        boolean codigo = detalle != null && detalle.toLowerCase(java.util.Locale.ROOT).contains("codigo_institucional");
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                codigo ? "Ese codigo institucional ya esta registrado" : "La operacion entra en conflicto con los datos actuales. Revisa los datos e intenta nuevamente");
+        problema.setProperty("codigo", codigo ? "CODIGO_INSTITUCIONAL_DUPLICADO" : "CONFLICTO_DATOS");
+        return problema;
+    }
+
     @ExceptionHandler(Exception.class)
     public ProblemDetail inesperado(Exception ex) {
         log.error("Error no controlado", ex);

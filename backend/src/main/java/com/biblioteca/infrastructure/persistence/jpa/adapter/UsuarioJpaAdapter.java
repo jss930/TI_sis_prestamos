@@ -70,16 +70,26 @@ public class UsuarioJpaAdapter implements UsuarioRepository {
         entidad.permisos = usuario.permisos().stream().map(Enum::name).sorted()
                 .collect(Collectors.joining(","));
         entidad.fechaAlta = usuario.fechaAlta();
+        entidad.codigoInstitucional = usuario.codigoInstitucional() == null ? null : usuario.codigoInstitucional().value();
+        entidad.validadoPorId = usuario.validadoPorId() == null ? null : usuario.validadoPorId().value();
+        entidad.observacionesRevision = usuario.observacionesRevision();
+        entidad.revisadoPorId = usuario.revisadoPorId() == null ? null : usuario.revisadoPorId().value();
+        entidad.fechaRevision = usuario.fechaRevision();
+        entidad.correccionPendiente = usuario.correccionPendiente();
         entidad.fechaValidacion = usuario.fechaValidacion();
         entidad.motivoSuspension = usuario.motivoSuspension();
         return entidad;
     }
 
     private static Usuario aDominio(UsuarioJpaEntity entidad) {
-        return Usuario.reconstruir(new UsuarioId(entidad.id), new EmailAddress(entidad.email),
+        return Usuario.reconstruirConRevision(new UsuarioId(entidad.id), new EmailAddress(entidad.email),
                 new NombreCompleto(entidad.nombreCompleto), entidad.perfil, entidad.estado,
                 permisosDe(entidad.permisos), entidad.fechaAlta, entidad.fechaValidacion,
-                entidad.motivoSuspension);
+                entidad.motivoSuspension,
+                entidad.codigoInstitucional == null ? null : new com.biblioteca.identity.domain.vo.CodigoInstitucional(entidad.codigoInstitucional),
+                entidad.validadoPorId == null ? null : new UsuarioId(entidad.validadoPorId),
+                entidad.observacionesRevision, entidad.revisadoPorId == null ? null : new UsuarioId(entidad.revisadoPorId),
+                entidad.fechaRevision, entidad.correccionPendiente);
     }
 
     private static Set<PermisoOperativo> permisosDe(String valor) {

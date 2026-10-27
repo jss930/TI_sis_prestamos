@@ -38,6 +38,9 @@ public class RegistrarUsuarioProvisionalUseCase {
         }
         Usuario usuario = Usuario.registrarProvisional(
                 command.email(), command.nombreCompleto(), command.perfil());
+        usuario.actualizarDatosPendientes(command.email(), command.nombreCompleto(), command.perfil(), command.codigoInstitucional());
+        if (usuarios.existePorCodigoInstitucional(command.codigoInstitucional()))
+            throw new BusinessRuleException("CODIGO_INSTITUCIONAL_DUPLICADO", "Ya existe una cuenta con ese codigo institucional");
         Usuario guardado = usuarios.guardar(usuario);
         credenciales.guardar(usuario.id(), passwordHasher.hash(command.password()));
         eventos.publicarTodos(usuario.extraerEventos());

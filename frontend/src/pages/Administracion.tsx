@@ -1,8 +1,8 @@
 import GestionResponsables from '../components/GestionResponsables'
 import type { DatosBiblioteca, PermisoOperativo } from '../types'
 
-export default function Administracion({ datos, permisos }: {
-  datos: DatosBiblioteca; permisos: PermisoOperativo[]
+export default function Administracion({ datos, permisos, personaInicialId }: {
+  datos: DatosBiblioteca; permisos: PermisoOperativo[]; personaInicialId?: string | null
 }) {
   const resumen = [
     ['Catálogo', datos.catalogo.length], ['Ejemplares', datos.ejemplares.length],
@@ -11,7 +11,7 @@ export default function Administracion({ datos, permisos }: {
   ]
   return <>
     {permisos.includes('ADMINISTRAR_SISTEMA')
-      ? <GestionResponsables usuarios={datos.usuarios} />
+      ? <GestionResponsables usuarios={datos.usuarios} personaInicialId={personaInicialId} />
       : <div className="aviso">La gestión de responsables requiere permiso para gestionar usuarios.</div>}
     <section className="admin-grid">
       <article className="panel"><h2>Datos del sistema</h2><dl className="resumen-datos">

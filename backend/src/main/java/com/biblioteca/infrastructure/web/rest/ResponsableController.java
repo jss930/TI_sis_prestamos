@@ -3,6 +3,7 @@ package com.biblioteca.infrastructure.web.rest;
 import com.biblioteca.identity.application.usecase.GestionarResponsablesUseCase;
 import com.biblioteca.identity.domain.model.CategoriaResponsable;
 import com.biblioteca.identity.domain.model.CambioResponsable;
+import com.biblioteca.identity.domain.model.CargoResponsable;
 import com.biblioteca.identity.domain.vo.UsuarioId;
 import com.biblioteca.infrastructure.security.UsuarioAutenticado;
 import jakarta.validation.Valid;
@@ -24,6 +25,14 @@ public class ResponsableController {
     public ResumenResponse listar(@RequestHeader(value = "Authorization", required = false) String token) {
         return resumen(autenticado.exigir(token));
     }
+    @PutMapping("/{usuarioId}/asignaciones")
+    public ResumenResponse confirmar(@PathVariable UUID usuarioId,
+            @RequestHeader(value = "Authorization", required = false) String token,
+            @Valid @RequestBody ConfirmacionRequest request) {
+        UsuarioId operador = autenticado.exigir(token);
+        gestionar.confirmar(operador, new UsuarioId(usuarioId), request.capacitacionVerificada(), request.categorias(), request.cargos());
+        return resumen(operador);
+    }
     @PutMapping("/{usuarioId}/capacitacion")
     public ResumenResponse capacitar(@PathVariable UUID usuarioId,
             @RequestHeader(value = "Authorization", required = false) String token,
@@ -37,17 +46,20 @@ public class ResponsableController {
             @RequestHeader(value = "Authorization", required = false) String token,
             @Valid @RequestBody AsignacionRequest request) {
         UsuarioId operador = autenticado.exigir(token);
-        gestionar.asignar(operador, new UsuarioId(usuarioId), categoria, request.asignada());
+        gestionar.asignar(operador, new UsuarioId(usuarioId), categoria, request.asignada(), request.cargo());
         return resumen(operador);
     }
     private ResumenResponse resumen(UsuarioId operador) {
         var datos = gestionar.consultar(operador);
         return new ResumenResponse(datos.responsables().stream().map(r -> new ResponsableResponse(
-                r.usuarioId().value(), r.capacitacionVerificada(), r.categorias().stream().sorted().toList())).toList(),
+                r.usuarioId().value(), r.capacitacionVerificada(), r.categorias().stream().sorted().toList(), r.cargos())).toList(),
                 datos.historial());
     }
+    public record ConfirmacionRequest(@NotNull Boolean capacitacionVerificada,
+                                      @NotNull java.util.Set<@NotNull CategoriaResponsable> categorias,
+                                      java.util.Map<@NotNull CategoriaResponsable, @NotNull CargoResponsable> cargos) { }
     public record CapacitacionRequest(@NotNull Boolean verificada) { }
-    public record AsignacionRequest(@NotNull Boolean asignada) { }
-    public record ResponsableResponse(UUID usuarioId, boolean capacitacionVerificada, List<CategoriaResponsable> categorias) { }
+    public record AsignacionRequest(@NotNull Boolean asignada, CargoResponsable cargo) { }
+    public record ResponsableResponse(UUID usuarioId, boolean capacitacionVerificada, List<CategoriaResponsable> categorias, java.util.Map<CategoriaResponsable, CargoResponsable> cargos) { }
     public record ResumenResponse(List<ResponsableResponse> responsables, List<CambioResponsable> historial) { }
 }
