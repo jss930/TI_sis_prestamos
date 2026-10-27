@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type {
   CatalogoItem,
+  LugarUso,
   Ejemplar,
   NuevoEquipoCatalogo,
   NuevoEjemplar,
@@ -10,6 +11,7 @@ import type {
   PermisoOperativo,
 } from '../types'
 import { descripcionItem } from '../utils/format'
+import { imagenCatalogo } from '../utils/imagenesCatalogo'
 
 const CATEGORIAS: Array<{ id: 'TODOS' | CatalogoItem['tipo']; texto: string }> = [
   { id: 'TODOS', texto: 'Todos' },
@@ -32,7 +34,7 @@ interface Props {
   permisos: PermisoOperativo[]
   puedeReservar?: boolean
   itemsReservados?: string[]
-  reservar?: (catalogoItemId: string) => Promise<void>
+  reservar?: (catalogoItemId: string, lugarUso: LugarUso, inicioReserva: string, finReserva: string) => Promise<void>
   crearLibro: (libro: NuevoLibroCatalogo) => Promise<void>
   crearEquipo: (equipo: NuevoEquipoCatalogo) => Promise<void>
   crearOtro: (otro: NuevoOtroCatalogo) => Promise<void>
@@ -60,12 +62,16 @@ export default function Catalogo({
   crearEjemplar,
 }: Props) {
   const [categoria, setCategoria] = useState<'TODOS' | CatalogoItem['tipo']>('TODOS')
+  const [itemReserva, setItemReserva] = useState<CatalogoItem | null>(null)
+  const [horario, setHorario] = useState({ inicio: '', fin: '', lugarUso: 'EN_CAMPUS' as LugarUso })
+  const [mensaje, setMensaje] = useState<string | null>(null)
+  const [busqueda, setBusqueda] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [reservando, setReservando] = useState<string | null>(null)
   const [editando, setEditando] = useState<string | null>(null)
   const [nuevoTitulo, setNuevoTitulo] = useState('')
   const [gestionandoEjemplar, setGestionandoEjemplar] = useState<string | null>(null)
-  const [formEjemplar, setFormEjemplar] = useState({ barcode: '', sala: 'Sala general', estante: 'Estante A-1', notas: '' })
+  const [formEjemplar, setFormEjemplar] = useState({ barcode: '', sala: '', estante: '', notas: '' })
   const [tipoAlta, setTipoAlta] = useState<'LIBRO' | 'EQUIPO' | 'OTRO'>('LIBRO')
   const [formLibro, setFormLibro] = useState<NuevoLibroCatalogo>({
     titulo: '',
@@ -83,6 +89,21 @@ export default function Catalogo({
 
   const puedeGestionar = permisos.includes('GESTIONAR_CATALOGO')
 
+  function valorFechaLocal(fecha: Date) {
+    const local = new Date(fecha.getTime() - fecha.getTimezoneOffset() * 60000)
+    return local.toISOString().slice(0, 16)
+  }
+
+  function abrirReserva(item: CatalogoItem) {
+    const inicio = new Date(Date.now() + 2 * 60 * 60 * 1000)
+    inicio.setMinutes(Math.ceil(inicio.getMinutes() / 15) * 15, 0, 0)
+    const fin = new Date(inicio.getTime() + 60 * 60 * 1000)
+    setHorario({ inicio: valorFechaLocal(inicio), fin: valorFechaLocal(fin), lugarUso: 'EN_CAMPUS' })
+    setItemReserva(item)
+    setError(null)
+    setMensaje(null)
+  }
+
   const disponiblesPorItem = new Map<string, number>()
   for (const ejemplar of ejemplares) {
     if (ejemplar.estadoFisico === 'DISPONIBLE') {
@@ -93,8 +114,16 @@ export default function Catalogo({
     }
   }
 
-  const visibles =
-    categoria === 'TODOS' ? catalogo : catalogo.filter((item) => item.tipo === categoria)
+  const consulta = busqueda.trim().toLocaleLowerCase('es')
+  const visibles = catalogo.filter((item) => {
+    const coincideCategoria = categoria === 'TODOS' || item.tipo === categoria
+    const codigos = ejemplares
+      .filter((ejemplar) => ejemplar.catalogoItemId === item.id)
+      .map((ejemplar) => ejemplar.barcode)
+    const texto = [item.titulo, item.id, item.detalle.isbn, ...codigos]
+      .filter(Boolean).join(' ').toLocaleLowerCase('es')
+    return coincideCategoria && texto.includes(consulta)
+  })
 
   async function ejecutar(accion: () => Promise<void>) {
     setError(null)
@@ -107,6 +136,17 @@ export default function Catalogo({
 
   return (
     <>
+      <label className="busqueda-catalogo">
+        Buscar en el catálogo
+        <input
+          className="buscador"
+          type="search"
+          placeholder="Nombre, ISBN o código de inventario"
+          value={busqueda}
+          onChange={(evento) => setBusqueda(evento.target.value)}
+        />
+      </label>
+      <p role="status">{visibles.length} bienes encontrados</p>
       {puedeGestionar && (
         <section className="panel">
           <h2>Gestion del catalogo</h2>
@@ -124,7 +164,7 @@ export default function Catalogo({
           </div>
           {tipoAlta === 'LIBRO' && (
             <form
-              className="form-inline"
+              className="form-inline formulario form-ejemplar"
               onSubmit={(e) => {
                 e.preventDefault()
                 void ejecutar(async () => {
@@ -143,7 +183,7 @@ export default function Catalogo({
           )}
           {tipoAlta === 'EQUIPO' && (
             <form
-              className="form-inline"
+              className="form-inline formulario form-ejemplar"
               onSubmit={(e) => {
                 e.preventDefault()
                 void ejecutar(async () => {
@@ -160,7 +200,7 @@ export default function Catalogo({
           )}
           {tipoAlta === 'OTRO' && (
             <form
-              className="form-inline"
+              className="form-inline formulario form-ejemplar"
               onSubmit={(e) => {
                 e.preventDefault()
                 void ejecutar(async () => {
@@ -191,13 +231,42 @@ export default function Catalogo({
           </button>
         ))}
       </div>
+      {mensaje && <div className="aviso correcto-aviso" role="status">{mensaje}</div>}
+      {itemReserva && <section className="panel formulario reserva-form" aria-labelledby="reserva-titulo">
+        <div className="panel-titulo"><div>
+          <h2 id="reserva-titulo">Reservar {itemReserva.titulo}</h2>
+          <p>Elige un horario futuro. La administración asignará una copia al aprobar.</p>
+        </div><button className="boton secundario" type="button" onClick={() => setItemReserva(null)}>Cerrar</button></div>
+        <div className="aviso" role="note"><strong>Antes de continuar:</strong> reserva con 2 horas de anticipación, entre 07:00 y 20:00 y por un máximo de 24 horas. Si no recoges el bien hasta una hora después del inicio, expirará.</div>
+        <form onSubmit={(e) => { e.preventDefault(); void ejecutar(async () => {
+          const inicio = new Date(horario.inicio); const fin = new Date(horario.fin)
+          if (inicio.getTime() < Date.now() + 2 * 60 * 60 * 1000) throw new Error('Selecciona una hora con al menos 2 horas de anticipación.')
+          if (fin <= inicio) throw new Error('La hora final debe ser posterior a la inicial.')
+          if (fin.getTime() - inicio.getTime() > 24 * 60 * 60 * 1000) throw new Error('La reserva no puede superar 24 horas.')
+          setReservando(itemReserva.id)
+          try {
+            await reservar?.(itemReserva.id, itemReserva.tipo === 'LIBRO' ? horario.lugarUso : 'EN_CAMPUS', inicio.toISOString(), fin.toISOString())
+            setMensaje('Reserva enviada. Puedes seguir su estado en Mis reservas.')
+            setItemReserva(null)
+          } finally { setReservando(null) }
+        }) }}>
+          <div className="reserva-horario-grid">
+            <label>Inicio<input type="datetime-local" required value={horario.inicio} min={valorFechaLocal(new Date(Date.now() + 2 * 60 * 60 * 1000))} onChange={(e) => setHorario({ ...horario, inicio: e.target.value })} /></label>
+            <label>Fin<input type="datetime-local" required value={horario.fin} onChange={(e) => setHorario({ ...horario, fin: e.target.value })} /></label>
+            {itemReserva.tipo === 'LIBRO' ? <label>Lugar de uso<select value={horario.lugarUso} onChange={(e) => setHorario({ ...horario, lugarUso: e.target.value as LugarUso })}>
+              <option value="EN_CAMPUS">Dentro del campus</option><option value="DOMICILIO">A domicilio</option>
+            </select></label> : <div><strong>Lugar de uso</strong><p>Dentro del campus</p><small>Los equipos y otros bienes no salen del campus.</small></div>}
+          </div>
+          <button className="boton primario" type="submit" disabled={reservando === itemReserva.id}>{reservando ? 'Enviando…' : 'Enviar reserva'}</button>
+        </form>
+      </section>}
       <section className="catalogo-grid">
         {visibles.map((item) => {
           const disponibles = disponiblesPorItem.get(item.id) ?? 0
           const habilitado = item.activo && disponibles > 0
           return (
             <article className="item" key={item.id}>
-              <div className={`item-imagen ${item.tipo.toLowerCase()}`}>{ICONOS[item.tipo]}</div>
+              <div className={`item-imagen ${item.tipo.toLowerCase()}`}><img src={imagenCatalogo(item)} alt={`Imagen de ${item.titulo}`} loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none' }} /><span aria-hidden="true">{ICONOS[item.tipo]}</span></div>
               <small>
                 {item.tipo} · {item.activo ? 'Activo' : 'Inactivo'}
               </small>
@@ -231,7 +300,7 @@ export default function Catalogo({
               </div>
               {puedeGestionar && gestionandoEjemplar === item.id && (
                 <form
-                  className="form-inline"
+                  className="form-inline formulario form-ejemplar"
                   onSubmit={(e) => {
                     e.preventDefault()
                     void ejecutar(async () => {
@@ -248,63 +317,67 @@ export default function Catalogo({
                     })
                   }}
                 >
-                  <input
-                    placeholder="Barcode"
-                    value={formEjemplar.barcode}
-                    onChange={(e) => setFormEjemplar((f) => ({ ...f, barcode: e.target.value }))}
-                    required
-                  />
-                  <input
-                    placeholder="Sala"
-                    value={formEjemplar.sala}
-                    onChange={(e) => setFormEjemplar((f) => ({ ...f, sala: e.target.value }))}
-                    required
-                  />
-                  <input
-                    placeholder="Estante"
-                    value={formEjemplar.estante}
-                    onChange={(e) => setFormEjemplar((f) => ({ ...f, estante: e.target.value }))}
-                    required
-                  />
-                  <input
-                    placeholder="Notas"
-                    value={formEjemplar.notas}
-                    onChange={(e) => setFormEjemplar((f) => ({ ...f, notas: e.target.value }))}
-                  />
+                  <p>Registra cada copia física con un código único y el lugar donde se guarda.</p>
+                  <label>Código de inventario
+                    <input
+                      placeholder="Ej.: LIB-004 o LAP-003"
+                      value={formEjemplar.barcode}
+                      onChange={(e) => setFormEjemplar((f) => ({ ...f, barcode: e.target.value }))}
+                      required
+                    />
+                    <small>Identifica esta unidad. No se debe repetir ni requiere un lector de códigos.</small>
+                  </label>
+                  <label>Sala o ambiente
+                    <input
+                      placeholder="Ej.: Biblioteca central"
+                      value={formEjemplar.sala}
+                      onChange={(e) => setFormEjemplar((f) => ({ ...f, sala: e.target.value }))}
+                      required
+                    />
+                    <small>Ambiente donde se guarda el ejemplar.</small>
+                  </label>
+                  <label>Estante o ubicación específica
+                    <input
+                      placeholder="Ej.: Estante B, nivel 2 o Gabinete 2"
+                      value={formEjemplar.estante}
+                      onChange={(e) => setFormEjemplar((f) => ({ ...f, estante: e.target.value }))}
+                      required
+                    />
+                    <small>Lugar exacto dentro de la sala o ambiente.</small>
+                  </label>
+                  <label>Notas (opcional)
+                    <textarea
+                      placeholder="Ej.: Incluye cargador o tiene una marca en la portada"
+                      value={formEjemplar.notas}
+                      onChange={(e) => setFormEjemplar((f) => ({ ...f, notas: e.target.value }))}
+                      rows={3}
+                    />
+                  </label>
                   <button className="boton primario" type="submit">Guardar ejemplar</button>
                 </form>
               )}
               <div className="acciones-fila">
-                <button
+                {permisos.includes('REGISTRAR_PRESTAMO') && <button
                   className="boton secundario"
                   disabled={!habilitado || !puedeSolicitar}
                   onClick={() => irA('prestamos')}
                   type="button"
                 >
-                  {puedeSolicitar ? 'Solicitar préstamo' : 'Consulta en ventanilla'}
-                </button>
+                  {puedeSolicitar ? 'Registrar entrega directa' : 'Consulta en ventanilla'}
+                </button>}
                 {puedeReservar && item.activo && (
                   <button
                     className="boton secundario"
-                    disabled={reservando === item.id || itemsReservados.includes(item.id)}
+                    disabled={!habilitado || reservando === item.id || itemsReservados.includes(item.id)}
                     aria-busy={reservando === item.id}
-                    onClick={() =>
-                      void ejecutar(async () => {
-                        setReservando(item.id)
-                        try {
-                          if (reservar) await reservar(item.id)
-                        } finally {
-                          setReservando(null)
-                        }
-                      })
-                    }
+                    onClick={() => abrirReserva(item)}
                     type="button"
                   >
                     {reservando === item.id
-                      ? 'Reservando…'
+                      ? 'Enviando…'
                       : itemsReservados.includes(item.id)
-                        ? 'Reserva solicitada'
-                        : 'Reservar'}
+                        ? 'Solicitud activa'
+                        : 'Reservar horario'}
                   </button>
                 )}
                 {puedeGestionar && (
@@ -332,7 +405,7 @@ export default function Catalogo({
                       className="boton secundario"
                       onClick={() => {
                         setGestionandoEjemplar(gestionandoEjemplar === item.id ? null : item.id)
-                        setFormEjemplar({ barcode: '', sala: 'Sala general', estante: 'Estante A-1', notas: '' })
+                        setFormEjemplar({ barcode: '', sala: '', estante: '', notas: '' })
                       }}
                       type="button"
                     >

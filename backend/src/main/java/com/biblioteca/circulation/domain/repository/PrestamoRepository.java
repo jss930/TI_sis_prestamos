@@ -16,6 +16,10 @@ public interface PrestamoRepository {
 
     Optional<Prestamo> buscarPorId(PrestamoId id);
 
+    default Optional<Prestamo> buscarPorIdParaActualizar(PrestamoId id) {
+        return buscarPorId(id);
+    }
+
     List<Prestamo> listarTodos();
 
     List<Prestamo> listarPorPrestatario(UsuarioId prestatarioId);

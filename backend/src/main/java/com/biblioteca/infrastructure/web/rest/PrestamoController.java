@@ -13,6 +13,8 @@ import com.biblioteca.circulation.domain.model.LugarUso;
 import com.biblioteca.circulation.domain.model.Prestamo;
 import com.biblioteca.circulation.domain.vo.PrestamoId;
 import com.biblioteca.identity.domain.vo.UsuarioId;
+import com.biblioteca.infrastructure.security.UsuarioAutenticado;
+import org.springframework.web.bind.annotation.RequestHeader;
 import com.biblioteca.inventory.domain.model.EstadoFisico;
 import com.biblioteca.inventory.domain.vo.EjemplarId;
 import jakarta.validation.Valid;
@@ -40,17 +42,22 @@ public class PrestamoController {
     private final RenovarPrestamoUseCase renovar;
     private final ListarPrestamosUseCase listar;
     private final ObtenerPrestamoUseCase obtener;
+    private final UsuarioAutenticado autenticado;
+    private final com.biblioteca.identity.domain.repository.UsuarioRepository usuarios;
 
     public PrestamoController(RegistrarPrestamoUseCase registrar,
                               RegistrarDevolucionUseCase devolver,
                               RenovarPrestamoUseCase renovar,
                               ListarPrestamosUseCase listar,
-                              ObtenerPrestamoUseCase obtener) {
+                              ObtenerPrestamoUseCase obtener, UsuarioAutenticado autenticado,
+                              com.biblioteca.identity.domain.repository.UsuarioRepository usuarios) {
         this.registrar = registrar;
         this.devolver = devolver;
         this.renovar = renovar;
         this.listar = listar;
         this.obtener = obtener;
+        this.autenticado = autenticado;
+        this.usuarios = usuarios;
     }
 
     @GetMapping
@@ -68,9 +75,9 @@ public class PrestamoController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public PrestamoResponse registrar(@Valid @RequestBody RegistrarPrestamoRequest request) {
+    public PrestamoResponse registrar(@RequestHeader(value = "Authorization", required = false) String token, @Valid @RequestBody RegistrarPrestamoRequest request) {
         Prestamo prestamo = registrar.ejecutar(new RegistrarPrestamoCommand(
-                new UsuarioId(request.operadorId()),
+                autenticado.exigir(token),
                 new UsuarioId(request.prestatarioId()),
                 new EjemplarId(request.ejemplarId()),
                 request.lugarUso()));
@@ -79,7 +86,10 @@ public class PrestamoController {
 
     @PostMapping("/{id}/devolucion")
     public PrestamoResponse devolver(@PathVariable UUID id,
+                                     @RequestHeader(value = "Authorization", required = false) String token,
                                      @Valid @RequestBody DevolucionRequest request) {
+        var actor = usuarios.buscarPorId(autenticado.exigir(token)).orElseThrow();
+        if (!actor.puedeRegistrarDevolucion()) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN, "No tienes permiso para registrar devoluciones");
         return aResponse(devolver.ejecutar(new RegistrarDevolucionCommand(
                 new PrestamoId(id), request.estadoFisico())));
     }

@@ -21,11 +21,13 @@ public class DenegarReservaUseCase {
     private final UsuarioRepository usuarios;
     private final ReservaRepository reservas;
     private final DomainEventPublisher eventos;
+    private final AccesoSolicitudes acceso;
 
     public DenegarReservaUseCase(UsuarioRepository usuarios,
                                  ReservaRepository reservas,
-                                 DomainEventPublisher eventos) {
+                                 DomainEventPublisher eventos, AccesoSolicitudes acceso) {
         this.usuarios = usuarios;
+        this.acceso = acceso;
         this.reservas = reservas;
         this.eventos = eventos;
     }
@@ -35,12 +37,7 @@ public class DenegarReservaUseCase {
 
         Usuario operador = usuarios.buscarPorId(command.operadorId())
                 .orElseThrow(() -> new NotFoundException("Operador", command.operadorId().value()));
-        if (!operador.puedeGestionarReservas() && !operador.puedeGestionarCatalogo()) {
-            throw new BusinessRuleException("OPERADOR_NO_HABILITADO",
-                    "El operador no esta validado o no tiene el permiso GESTIONAR_RESERVAS");
-        }
-
-        Reserva reserva = reservas.buscarPorId(command.reservaId())
+        Reserva reserva = reservas.buscarPorIdParaActualizar(command.reservaId())
                 .orElseThrow(() -> new NotFoundException("Reserva", command.reservaId().value()));
 
         if (reserva.estado() != EstadoReserva.SOLICITADA) {
@@ -48,6 +45,7 @@ public class DenegarReservaUseCase {
                     "Solo se deniegan reservas solicitadas");
         }
 
+        acceso.exigirResponsable(command.operadorId(), reserva);
         reserva.denegar(operador.id(), command.motivo());
         reservas.guardar(reserva);
         eventos.publicarTodos(reserva.extraerEventos());

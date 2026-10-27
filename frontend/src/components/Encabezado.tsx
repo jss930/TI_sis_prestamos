@@ -2,14 +2,15 @@ import type { Pagina } from '../types'
 
 const TITULOS: Record<Pagina, [string, string]> = {
   resumen: ['Resumen general', 'Consulta la actividad de préstamos de hoy.'],
-  personas: ['Personas', 'Alumnos, docentes y administrativos registrados en la API.'],
+  'mi-cuenta': ['Mi cuenta', 'Consulta el estado y los datos de tu cuenta institucional.'],
+  personas: ['Personas', 'Gestiona las cuentas de nuestra comunidad universitaria.'],
   catalogo: ['Catálogo de bienes', 'Libros, equipos y otros recursos disponibles.'],
   'mis-prestamos': ['Mis préstamos', 'Historial de préstamos de tu cuenta.'],
-  'mis-reservas': ['Mis reservas', 'Estado de tus reservas.'],
-  'reservas': ['Reservas', 'Solicitudes pendientes por revisar.'],
+  'mis-reservas': ['Mis solicitudes', 'Aprobación, recogida y estado de tus solicitudes.'],
+  'reservas': ['Solicitudes pendientes', 'Aprueba solicitudes de tus áreas y confirma la entrega física.'],
   prestamos: ['Préstamos', 'Registra entregas y devoluciones.'],
   sanciones: ['Sanciones', 'Restricciones informadas por el sistema.'],
-  administracion: ['Panel administrador', 'Configuración y estado de la integración.'],
+  administracion: ['Panel administrador', 'Administra los recursos y la configuración de la biblioteca.'],
 }
 
 interface Props {
@@ -19,21 +20,15 @@ interface Props {
 
 export default function Encabezado({ pagina, publica = false }: Props) {
   const [titulo, subtitulo] = TITULOS[pagina]
-  const fecha = new Intl.DateTimeFormat('es-PE', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  })
-    .format(new Date())
-    .toUpperCase()
+
 
   return (
     <header className="encabezado">
       <div>
+        <p className="sobrelinea">BIBLIOTECA · UNSA</p>
         <h1>{publica ? 'Catálogo público' : titulo}</h1>
-        <p>{publica ? 'Consulta los bienes registrados. Inicia sesión como personal para operar.' : subtitulo}</p>
+        <p>{publica ? 'Explora libros, equipos y recursos para seguir aprendiendo.' : subtitulo}</p>
       </div>
-      <div className="fecha">{fecha}</div>
     </header>
   )
 }

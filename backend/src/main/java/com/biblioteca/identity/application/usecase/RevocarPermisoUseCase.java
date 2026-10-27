@@ -25,7 +25,7 @@ public class RevocarPermisoUseCase {
         }
         Usuario operador = usuarios.buscarPorId(command.operadorId())
                 .orElseThrow(() -> new NotFoundException("Operador", command.operadorId().value()));
-        if (!operador.puedeValidarProvisionales()) {
+        if (!operador.puedeAdministrarSistema()) {
             throw new BusinessRuleException("OPERADOR_NO_HABILITADO",
                     "El operador no puede administrar permisos");
         }

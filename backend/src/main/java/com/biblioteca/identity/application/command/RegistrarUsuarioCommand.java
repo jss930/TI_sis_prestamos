@@ -7,6 +7,15 @@ import com.biblioteca.identity.domain.vo.NombreCompleto;
 public record RegistrarUsuarioCommand(
         EmailAddress email,
         NombreCompleto nombreCompleto,
-        PerfilPrestatario perfil
+        PerfilPrestatario perfil,
+        String password,
+        com.biblioteca.identity.domain.vo.CodigoInstitucional codigoInstitucional
 ) {
+    public RegistrarUsuarioCommand(EmailAddress email, NombreCompleto nombreCompleto, PerfilPrestatario perfil, String password) {
+        this(email, nombreCompleto, perfil, password, null);
+    }
+    public RegistrarUsuarioCommand(EmailAddress email, NombreCompleto nombreCompleto,
+                                   PerfilPrestatario perfil) {
+        this(email, nombreCompleto, perfil, null, null);
+    }
 }

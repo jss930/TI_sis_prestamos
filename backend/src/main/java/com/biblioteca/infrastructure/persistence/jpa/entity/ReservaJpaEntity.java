@@ -1,5 +1,7 @@
 package com.biblioteca.infrastructure.persistence.jpa.entity;
 
+import com.biblioteca.circulation.domain.model.LugarUso;
+
 import com.biblioteca.reservations.domain.model.EstadoReserva;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -43,6 +45,28 @@ public class ReservaJpaEntity {
 
     @Column(name = "fecha_decision")
     public Instant fechaDecision;
+
+    @Column(name = "ejemplar_id")
+    public UUID ejemplarId;
+
+    @Column(name = "fecha_limite_retiro")
+    public Instant fechaLimiteRetiro;
+
+    @Column(name = "fecha_entrega")
+    public Instant fechaEntrega;
+
+    @Column(name = "entregado_por_id")
+    public UUID entregadoPorId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "lugar_uso", nullable = false, length = 20)
+    public LugarUso lugarUso;
+
+    @Column(name = "inicio_reserva")
+    public Instant inicioReserva;
+
+    @Column(name = "fin_reserva")
+    public Instant finReserva;
 
     public ReservaJpaEntity() {
     }

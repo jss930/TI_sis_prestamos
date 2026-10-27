@@ -6,6 +6,7 @@ import com.biblioteca.identity.domain.event.UsuarioReactivadoEvent;
 import com.biblioteca.identity.domain.event.UsuarioSuspendidoEvent;
 import com.biblioteca.identity.domain.event.UsuarioValidadoEvent;
 import com.biblioteca.identity.domain.vo.EmailAddress;
+import com.biblioteca.identity.domain.vo.CodigoInstitucional;
 import com.biblioteca.identity.domain.vo.NombreCompleto;
 import com.biblioteca.identity.domain.vo.UsuarioId;
 import com.biblioteca.shared.domain.AggregateRoot;
@@ -26,15 +27,22 @@ import java.util.Set;
 public final class Usuario extends AggregateRoot<UsuarioId> {
 
     private final UsuarioId id;
-    private final EmailAddress email;
-    private final NombreCompleto nombreCompleto;
-    private final PerfilPrestatario perfil;
+    private EmailAddress email;
+    private NombreCompleto nombreCompleto;
+    private PerfilPrestatario perfil;
     private final Instant fechaAlta;
     private final Set<PermisoOperativo> permisos;
 
     private EstadoCuentaUsuario estado;
     private Instant fechaValidacion;
     private String motivoSuspension;
+    private CodigoInstitucional codigoInstitucional;
+    private UsuarioId validadoPorId;
+    private String observacionesRevision;
+    private UsuarioId revisadoPorId;
+    private Instant fechaRevision;
+    private boolean correccionPendiente;
+
 
     private Usuario(UsuarioId id, EmailAddress email, NombreCompleto nombreCompleto,
                     PerfilPrestatario perfil, EstadoCuentaUsuario estado,
@@ -72,13 +80,73 @@ public final class Usuario extends AggregateRoot<UsuarioId> {
                 fechaAlta, fechaValidacion, motivoSuspension);
     }
 
-    public void validar() {
+    public static Usuario reconstruirConRevision(UsuarioId id, EmailAddress email, NombreCompleto nombre,
+            PerfilPrestatario perfil, EstadoCuentaUsuario estado, Set<PermisoOperativo> permisos, Instant fechaAlta,
+            Instant fechaValidacion, String motivoSuspension, CodigoInstitucional codigo, UsuarioId validadoPorId,
+            String observaciones, UsuarioId revisadoPorId, Instant fechaRevision, boolean correccionPendiente) {
+        var usuario = reconstruir(id, email, nombre, perfil, estado, permisos, fechaAlta, fechaValidacion, motivoSuspension);
+        usuario.codigoInstitucional = codigo; usuario.validadoPorId = validadoPorId;
+        usuario.observacionesRevision = observaciones; usuario.revisadoPorId = revisadoPorId;
+        usuario.fechaRevision = fechaRevision; usuario.correccionPendiente = correccionPendiente;
+        return usuario;
+    }
+
+    /** Compatibilidad para reconstrucciones y fixtures anteriores a la revision administrativa. */
+    public void validar() { completarValidacion(null, Instant.now()); }
+
+    public void validar(UsuarioId operadorId, Instant ahora, boolean datosRevisados) {
+        exigirEstado(EstadoCuentaUsuario.PROVISIONAL, "VALIDAR");
+        exigirRevisorAjeno(operadorId);
+        if (!datosRevisados) throw new BusinessRuleException("REVISION_REQUERIDA", "Confirma que revisaste los datos de la cuenta");
+        if (codigoInstitucional == null) throw new BusinessRuleException("CODIGO_INSTITUCIONAL_REQUERIDO", "Completa el codigo institucional antes de validar");
+        if (correccionPendiente) throw new BusinessRuleException("CORRECCION_PENDIENTE", "El usuario debe enviar sus datos corregidos antes de la validacion");
+        completarValidacion(operadorId, ahora);
+    }
+
+    private void completarValidacion(UsuarioId operadorId, Instant ahora) {
         exigirEstado(EstadoCuentaUsuario.PROVISIONAL, "VALIDAR");
         estado = EstadoCuentaUsuario.VALIDADO;
-        fechaValidacion = Instant.now();
+        fechaValidacion = Objects.requireNonNull(ahora);
+        validadoPorId = operadorId;
         motivoSuspension = null;
         registrarEvento(new UsuarioValidadoEvent(id, fechaValidacion));
     }
+
+    public void actualizarDatosPendientes(EmailAddress email, NombreCompleto nombre, PerfilPrestatario perfil,
+                                          CodigoInstitucional codigo) {
+        exigirEstado(EstadoCuentaUsuario.PROVISIONAL, "ACTUALIZAR_DATOS");
+        Objects.requireNonNull(email);
+        Objects.requireNonNull(nombre);
+        Objects.requireNonNull(perfil);
+        if (codigo == null) throw new DomainException("CODIGO_INSTITUCIONAL_REQUERIDO", "Indica el codigo universitario o de personal");
+        this.email = email;
+        this.nombreCompleto = nombre;
+        this.perfil = perfil;
+        this.codigoInstitucional = codigo;
+        this.correccionPendiente = false;
+    }
+
+    public void solicitarCorreccion(UsuarioId operadorId, String observaciones, Instant ahora) {
+        exigirEstado(EstadoCuentaUsuario.PROVISIONAL, "SOLICITAR_CORRECCION");
+        exigirRevisorAjeno(operadorId);
+        String texto = normalizarMotivo(observaciones);
+        if (texto == null || texto.length() > 1000)
+            throw new DomainException("OBSERVACIONES_REQUERIDAS", "Indica que datos debe corregir la persona (maximo 1000 caracteres)");
+        this.observacionesRevision = texto; this.revisadoPorId = operadorId;
+        this.fechaRevision = Objects.requireNonNull(ahora); this.correccionPendiente = true;
+    }
+
+    private void exigirRevisorAjeno(UsuarioId operadorId) {
+        if (id.equals(Objects.requireNonNull(operadorId)))
+            throw new BusinessRuleException("AUTOVALIDACION_NO_PERMITIDA", "No puedes revisar tu propia cuenta");
+    }
+
+    public CodigoInstitucional codigoInstitucional() { return codigoInstitucional; }
+    public UsuarioId validadoPorId() { return validadoPorId; }
+    public String observacionesRevision() { return observacionesRevision; }
+    public UsuarioId revisadoPorId() { return revisadoPorId; }
+    public Instant fechaRevision() { return fechaRevision; }
+    public boolean correccionPendiente() { return correccionPendiente; }
 
     public void suspender(String motivo) {
         exigirEstado(EstadoCuentaUsuario.VALIDADO, "SUSPENDER");
@@ -127,6 +195,16 @@ public final class Usuario extends AggregateRoot<UsuarioId> {
                 && permisos.contains(PermisoOperativo.REGISTRAR_PRESTAMO);
     }
 
+    public boolean puedeRegistrarDevolucion() {
+        return estado == EstadoCuentaUsuario.VALIDADO
+                && permisos.contains(PermisoOperativo.REGISTRAR_DEVOLUCION);
+    }
+
+    public boolean puedeAdministrarSistema() {
+        return estado == EstadoCuentaUsuario.VALIDADO
+                && permisos.contains(PermisoOperativo.ADMINISTRAR_SISTEMA);
+    }
+
     public boolean puedeValidarProvisionales() {
         return estado == EstadoCuentaUsuario.VALIDADO
                 && permisos.contains(PermisoOperativo.VALIDAR_USUARIO_PROVISIONAL);
@@ -157,12 +235,8 @@ public final class Usuario extends AggregateRoot<UsuarioId> {
      * de verdad; el perfil solo define la politica de prestamo.
      */
     public RolAcceso rolAcceso() {
-        if (estado == EstadoCuentaUsuario.VALIDADO) {
-            for (PermisoOperativo permiso : PermisoOperativo.PERMISOS_DE_GESTION) {
-                if (permisos.contains(permiso)) {
-                    return RolAcceso.ADMINISTRADOR;
-                }
-            }
+        if (puedeAdministrarSistema()) {
+            return RolAcceso.ADMINISTRADOR;
         }
         return switch (perfil) {
             case ALUMNO -> RolAcceso.ESTUDIANTE;

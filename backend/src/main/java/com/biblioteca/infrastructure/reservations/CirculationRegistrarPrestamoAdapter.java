@@ -30,16 +30,17 @@ public class CirculationRegistrarPrestamoAdapter implements RegistrarPrestamoPor
 
     @Override
     public PrestamoId registrarPrestamo(UsuarioId operadorId, UsuarioId prestatarioId,
-                                       CatalogoItemId catalogoItemId) {
+                                       CatalogoItemId catalogoItemId, com.biblioteca.inventory.domain.vo.EjemplarId ejemplarId) {
         Objects.requireNonNull(operadorId);
         Objects.requireNonNull(prestatarioId);
         Objects.requireNonNull(catalogoItemId);
 
         Ejemplar disponible = ejemplares.listarPorItem(catalogoItemId).stream()
+                .filter(ejemplar -> ejemplarId == null || ejemplar.id().equals(ejemplarId))
                 .filter(Ejemplar::estaDisponible)
                 .findFirst()
                 .orElseThrow(() -> new BusinessRuleException("EJEMPLAR_NO_DISPONIBLE",
-                        "No hay ejemplar disponible del item " + catalogoItemId.value()));
+                        "El ejemplar elegido no pertenece al bien o no esta disponible. Item " + catalogoItemId.value()));
 
         Prestamo prestamo = registrarPrestamo.ejecutar(new RegistrarPrestamoCommand(
                 operadorId, prestatarioId, disponible.id(), LugarUso.EN_CAMPUS));

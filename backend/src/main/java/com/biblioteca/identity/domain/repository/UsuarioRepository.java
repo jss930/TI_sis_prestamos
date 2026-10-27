@@ -14,9 +14,17 @@ public interface UsuarioRepository {
 
     Optional<Usuario> buscarPorId(UsuarioId id);
 
+    default Optional<Usuario> buscarPorIdParaActualizar(UsuarioId id) {
+        return buscarPorId(id);
+    }
+
     Optional<Usuario> buscarPorEmail(EmailAddress email);
 
     List<Usuario> listarTodos();
 
     boolean existePorEmail(EmailAddress email);
+
+    default boolean existePorCodigoInstitucional(com.biblioteca.identity.domain.vo.CodigoInstitucional codigo) {
+        return listarTodos().stream().anyMatch(u -> codigo.equals(u.codigoInstitucional()));
+    }
 }

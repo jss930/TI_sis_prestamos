@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.time.Clock;
+import java.time.ZoneId;
 
 /**
  * Las politicas y el reloj viven en el dominio, sin anotaciones de Spring.
@@ -20,7 +21,12 @@ public class BeansConfig {
 
     @Bean
     public Clock clock() {
-        return Clock.systemDefaultZone();
+        return Clock.system(ZoneId.of("America/Lima"));
+    }
+
+    @Bean
+    public ZoneId zonaHorariaBiblioteca() {
+        return ZoneId.of("America/Lima");
     }
 
     @Bean

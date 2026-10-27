@@ -59,6 +59,16 @@ public final class Ejemplar extends AggregateRoot<EjemplarId> {
         return new Ejemplar(id, catalogoItemId, barcode, ubicacion, estadoFisico, notas, fechaAlta);
     }
 
+    public void reservar() {
+        if (!estaDisponible()) throw new BusinessRuleException("EJEMPLAR_NO_DISPONIBLE", "El ejemplar no esta disponible");
+        estadoFisico = EstadoFisico.RESERVADO;
+    }
+
+    public void liberarReserva() {
+        if (estadoFisico != EstadoFisico.RESERVADO) throw new BusinessRuleException("EJEMPLAR_NO_RESERVADO", "El ejemplar ya no esta apartado");
+        estadoFisico = EstadoFisico.DISPONIBLE;
+    }
+
     public void prestar() {
         if (estadoFisico != EstadoFisico.DISPONIBLE) {
             throw new BusinessRuleException("EJEMPLAR_NO_DISPONIBLE",
@@ -75,16 +85,17 @@ public final class Ejemplar extends AggregateRoot<EjemplarId> {
         }
         if (estadoDevolucion != EstadoFisico.DISPONIBLE
                 && estadoDevolucion != EstadoFisico.DANADO
-                && estadoDevolucion != EstadoFisico.PERDIDO) {
+                && estadoDevolucion != EstadoFisico.PERDIDO
+                && estadoDevolucion != EstadoFisico.EN_REVISION) {
             throw new DomainException("ESTADO_DEVOLUCION_INVALIDO",
-                    "La devolucion solo admite DISPONIBLE, DANADO o PERDIDO");
+                    "La devolucion solo admite DISPONIBLE, DANADO, PERDIDO o EN_REVISION");
         }
         estadoFisico = estadoDevolucion;
         registrarEvento(new EjemplarDevueltoEvent(id, estadoDevolucion, Instant.now()));
     }
 
     public void darDeBaja(String motivo) {
-        if (estadoFisico == EstadoFisico.PRESTADO) {
+        if (estadoFisico == EstadoFisico.PRESTADO || estadoFisico == EstadoFisico.RESERVADO) {
             throw new BusinessRuleException("EJEMPLAR_PRESTADO",
                     "No se puede dar de baja un ejemplar prestado");
         }

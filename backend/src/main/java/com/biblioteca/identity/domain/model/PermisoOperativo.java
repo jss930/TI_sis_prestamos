@@ -4,7 +4,9 @@ import java.util.Set;
 
 /** Permisos operativos de ventanilla. No son roles: se otorgan explicitamente. */
 public enum PermisoOperativo {
+    ADMINISTRAR_SISTEMA,
     REGISTRAR_PRESTAMO,
+    REGISTRAR_DEVOLUCION,
     VALIDAR_USUARIO_PROVISIONAL,
     GESTIONAR_CATALOGO,
     GESTIONAR_SANCIONES,
@@ -17,6 +19,5 @@ public enum PermisoOperativo {
      * redefinir que permisos otorgan el rol derivado {@code ADMINISTRADOR}.
      */
     public static final Set<PermisoOperativo> PERMISOS_DE_GESTION =
-            Set.of(VALIDAR_USUARIO_PROVISIONAL, GESTIONAR_CATALOGO,
-                    GESTIONAR_SANCIONES, GESTIONAR_USUARIOS, GESTIONAR_RESERVAS);
+            Set.of(ADMINISTRAR_SISTEMA);
 }

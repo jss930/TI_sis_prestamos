@@ -16,11 +16,14 @@ import com.biblioteca.penalties.domain.repository.SancionRepository;
 import com.biblioteca.shared.application.port.DomainEventPublisher;
 import com.biblioteca.shared.domain.BusinessRuleException;
 import com.biblioteca.shared.domain.NotFoundException;
+import com.biblioteca.circulation.application.port.DisponibilidadReservasPort;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Objects;
 
 @Service
@@ -35,7 +38,9 @@ public class RegistrarPrestamoUseCase {
     private final PoliticaPrestamo politica;
     private final DomainEventPublisher eventos;
     private final Clock clock;
+    private final DisponibilidadReservasPort disponibilidadReservas;
 
+    @Autowired
     public RegistrarPrestamoUseCase(UsuarioRepository usuarios,
                                     CatalogoItemRepository catalogo,
                                     EjemplarRepository ejemplares,
@@ -43,7 +48,8 @@ public class RegistrarPrestamoUseCase {
                                     SancionRepository sanciones,
                                     PoliticaPrestamo politica,
                                     DomainEventPublisher eventos,
-                                    Clock clock) {
+                                    Clock clock,
+                                    DisponibilidadReservasPort disponibilidadReservas) {
         this.usuarios = usuarios;
         this.catalogo = catalogo;
         this.ejemplares = ejemplares;
@@ -52,13 +58,40 @@ public class RegistrarPrestamoUseCase {
         this.politica = politica;
         this.eventos = eventos;
         this.clock = clock;
+        this.disponibilidadReservas = disponibilidadReservas;
+    }
+
+    /** Constructor conservado para tests unitarios sin el contexto de reservas. */
+    public RegistrarPrestamoUseCase(UsuarioRepository usuarios,
+                                    CatalogoItemRepository catalogo,
+                                    EjemplarRepository ejemplares,
+                                    PrestamoRepository prestamos,
+                                    SancionRepository sanciones,
+                                    PoliticaPrestamo politica,
+                                    DomainEventPublisher eventos,
+                                    Clock clock) {
+        this(usuarios, catalogo, ejemplares, prestamos, sanciones, politica, eventos, clock,
+                (ejemplarId, prestatarioId, inicio, fin) -> false);
     }
 
     public Prestamo ejecutar(RegistrarPrestamoCommand command) {
+        return ejecutar(command, null, null);
+    }
+
+    /** Registra la entrega asociada a una reserva respetando su fecha final. */
+    public Prestamo ejecutarProgramado(RegistrarPrestamoCommand command,
+                                       java.time.Instant inicio, java.time.Instant fin) {
+        return ejecutar(command, new PeriodoPrestamo(
+                java.time.LocalDate.ofInstant(inicio, clock.getZone()),
+                java.time.LocalDate.ofInstant(fin, clock.getZone())), fin);
+    }
+
+    private Prestamo ejecutar(RegistrarPrestamoCommand command, PeriodoPrestamo periodoProgramado,
+                              java.time.Instant finProgramado) {
         Objects.requireNonNull(command.lugarUso(), "El lugar de uso es obligatorio");
         LocalDate hoy = LocalDate.now(clock);
 
-        Usuario prestatario = usuarios.buscarPorId(command.prestatarioId())
+        Usuario prestatario = usuarios.buscarPorIdParaActualizar(command.prestatarioId())
                 .orElseThrow(() -> new NotFoundException("Prestatario", command.prestatarioId().value()));
         if (!prestatario.puedeSolicitarPrestamo()) {
             throw new BusinessRuleException("USUARIO_NO_HABILITADO",
@@ -76,7 +109,7 @@ public class RegistrarPrestamoUseCase {
                     "El operador no puede registrar un prestamo a su propia cuenta");
         }
 
-        Ejemplar ejemplar = ejemplares.buscarPorId(command.ejemplarId())
+        Ejemplar ejemplar = ejemplares.buscarPorIdParaActualizar(command.ejemplarId())
                 .orElseThrow(() -> new NotFoundException("Ejemplar", command.ejemplarId().value()));
 
         CatalogoItem item = catalogo.buscarPorId(ejemplar.catalogoItemId())
@@ -115,7 +148,17 @@ public class RegistrarPrestamoUseCase {
         }
 
         int dias = politica.diasPrestamo(prestatario.perfil(), item.tipo());
-        PeriodoPrestamo periodo = PeriodoPrestamo.desde(hoy, dias);
+        PeriodoPrestamo periodo = periodoProgramado == null
+                ? PeriodoPrestamo.desde(hoy, dias)
+                : periodoProgramado;
+        var ahora = clock.instant();
+        var finPrevisto = finProgramado == null
+                ? periodo.vencimiento().atTime(LocalTime.of(20, 0)).atZone(clock.getZone()).toInstant()
+                : finProgramado;
+        if (disponibilidadReservas.existeConflicto(ejemplar.id(), prestatario.id(), ahora, finPrevisto)) {
+            throw new BusinessRuleException("EJEMPLAR_RESERVADO_EN_HORARIO",
+                    "El ejemplar tiene una reserva aprobada dentro del periodo del prestamo");
+        }
 
         Prestamo prestamo = Prestamo.registrar(
                 operador.id(), prestatario.id(), ejemplar.id(), periodo, command.lugarUso());
