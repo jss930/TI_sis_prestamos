@@ -52,14 +52,16 @@ export default function MisReservas({ reservas, catalogo, usuarioId, cancelarRes
     },
     {
       clave: 'motivo',
-      titulo: 'MOTIVO',
-      render: (r) => r.motivo ?? '—',
+      titulo: 'RECOGIDA / MOTIVO',
+      render: (r) => r.estado === 'APROBADA' && r.fechaLimiteRetiro
+        ? `Recoge antes del ${new Date(r.fechaLimiteRetiro).toLocaleString('es-PE')}`
+        : r.motivo ?? (r.estado === 'ATENDIDA' ? 'Entrega registrada; consulta Mis préstamos' : '—'),
     },
     {
       clave: 'accion',
       titulo: 'ACCIÓN',
       render: (r) =>
-        r.estado === 'SOLICITADA' ? (
+        (r.estado === 'SOLICITADA' || r.estado === 'APROBADA') ? (
           <button
             className="boton secundario"
             disabled={procesando === r.id}
@@ -76,8 +78,8 @@ export default function MisReservas({ reservas, catalogo, usuarioId, cancelarRes
     <section className="panel">
       <div className="panel-titulo">
         <div>
-          <h2>Mis reservas</h2>
-          <p>{mias.length} reservas de tu cuenta</p>
+          <h2>Mis solicitudes</h2>
+          <p>{mias.length} solicitudes de tu cuenta</p>
         </div>
       </div>
       {error && <div className="aviso error-aviso">{error}</div>}

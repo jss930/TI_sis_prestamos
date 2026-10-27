@@ -42,6 +42,11 @@ public class EjemplarJpaAdapter implements EjemplarRepository {
     }
 
     @Override
+    public Optional<Ejemplar> buscarPorIdParaActualizar(EjemplarId id) {
+        return repositorio.bloquearPorId(id.value()).map(EjemplarJpaAdapter::aDominio);
+    }
+
+    @Override
     public List<Ejemplar> listarTodos() {
         return repositorio.findAll().stream().map(EjemplarJpaAdapter::aDominio).toList();
     }

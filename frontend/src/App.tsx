@@ -4,6 +4,7 @@ import Encabezado from './components/Encabezado'
 import Login from './pages/Login'
 import Resumen from './pages/Resumen'
 import Personas from './pages/Personas'
+import MiCuenta from './pages/MiCuenta'
 import Catalogo from './pages/Catalogo'
 import MisPrestamos from './pages/MisPrestamos'
 import MisReservas from './pages/MisReservas'
@@ -14,14 +15,15 @@ import Administracion from './pages/Administracion'
 import { api, mensajeDeError } from './services/api'
 import type {
   DatosBiblioteca,
-  EstadoFisico,
+  DatosCuentaPendiente,
+  LugarUso,
+  NuevaInspeccionDevolucion,
   NuevoEquipoCatalogo,
   NuevoLibroCatalogo,
   NuevoOtroCatalogo,
   NuevoPrestamo,
   NuevoUsuarioCuenta,
   Pagina,
-  PermisoOperativo,
   Sesion,
 } from './types'
 
@@ -43,6 +45,7 @@ export default function App() {
       return null
     }
   })
+  const [personaResponsableId, setPersonaResponsableId] = useState<string | null>(null)
   const [pagina, setPagina] = useState<Pagina>('resumen')
   const [datos, setDatos] = useState<DatosBiblioteca>(DATOS_VACIOS)
   const [cargando, setCargando] = useState(true)
@@ -72,8 +75,14 @@ export default function App() {
     void cargarDatos()
   }, [cargarDatos])
 
+  useEffect(() => {
+    if (!sesion || sesion.publica) return
+    const intervalo = window.setInterval(() => { void cargarDatos(true) }, 30000)
+    return () => window.clearInterval(intervalo)
+  }, [sesion, cargarDatos])
+
   const usuarioActual = sesion && !sesion.publica
-    ? datos.usuarios.find((usuario) => usuario.email === sesion.email) ?? null
+    ? datos.usuarios.find((usuario) => usuario.id === sesion.id || usuario.email === sesion.email) ?? null
     : null
   const permisosActuales = usuarioActual?.permisos ?? sesion?.permisos ?? []
   const rolActual = usuarioActual?.rolAcceso ?? sesion?.rolAcceso
@@ -82,6 +91,24 @@ export default function App() {
   const misPrestamos = usuarioActual
     ? datos.prestamos.filter((prestamo) => prestamo.prestatarioId === usuarioActual.id)
     : []
+
+  const actualizarDatosCuenta = useCallback(async (id: string, datosCuenta: DatosCuentaPendiente) => {
+    const actualizado = await api.actualizarDatosCuenta(id, datosCuenta)
+    if (usuarioActual?.id === id) {
+      setSesion((anterior) => {
+        if (!anterior) return anterior
+        const nueva = { ...anterior, nombre: actualizado.nombreCompleto, email: actualizado.email }
+        localStorage.setItem('biblioteca_sesion', JSON.stringify(nueva))
+        return nueva
+      })
+    }
+    await cargarDatos(true)
+  }, [cargarDatos, usuarioActual?.id])
+
+  const solicitarCorreccionCuenta = useCallback(async (id: string, observaciones: string) => {
+    await api.solicitarCorreccionCuenta(id, observaciones)
+    await cargarDatos(true)
+  }, [cargarDatos])
 
   const crearPrestamo = useCallback(
     async (nuevoPrestamo: NuevoPrestamo) => {
@@ -92,16 +119,17 @@ export default function App() {
   )
 
   const devolverPrestamo = useCallback(
-    async (id: string, estadoFisico?: EstadoFisico) => {
-      await api.devolverPrestamo(id, estadoFisico)
+    async (id: string, inspeccion: NuevaInspeccionDevolucion) => {
+      const registrada = await api.inspeccionarDevolucion(id, inspeccion)
       await cargarDatos(true)
+      return registrada
     },
     [cargarDatos],
   )
 
   const solicitarReserva = useCallback(
-    async (prestatarioId: string, catalogoItemId: string) => {
-      await api.solicitarReserva(prestatarioId, catalogoItemId)
+    async (prestatarioId: string, catalogoItemId: string, lugarUso: LugarUso) => {
+      await api.solicitarReserva(prestatarioId, catalogoItemId, lugarUso)
       await cargarDatos(true)
     },
     [cargarDatos],
@@ -115,9 +143,9 @@ export default function App() {
     [cargarDatos, usuarioActual],
   )
   const aceptarReserva = useCallback(
-    async (id: string) => {
+    async (id: string, ejemplarId: string) => {
       if (!usuarioActual?.id) return
-      await api.aceptarReserva(id, usuarioActual.id)
+      await api.aceptarReserva(id, usuarioActual.id, ejemplarId)
       await cargarDatos(true)
     },
     [cargarDatos, usuarioActual],
@@ -133,7 +161,7 @@ export default function App() {
 
 
   useEffect(() => {
-    if (pagina === 'prestamos' && !permisosActuales.includes('REGISTRAR_PRESTAMO')) {
+    if (pagina === 'prestamos' && !permisosActuales.includes('REGISTRAR_PRESTAMO') && !permisosActuales.includes('REGISTRAR_DEVOLUCION')) {
       setPagina('catalogo')
     }
     if (pagina === 'reservas' && !permisosActuales.includes('GESTIONAR_RESERVAS') && !permisosActuales.includes('GESTIONAR_CATALOGO')) {
@@ -193,7 +221,7 @@ export default function App() {
 
   const crearUsuarioCuenta = useCallback(
     async (usuario: NuevoUsuarioCuenta) => {
-      await api.crearUsuario(usuario)
+      await api.registrarCuenta(usuario)
       await cargarDatos(true)
     },
     [cargarDatos],
@@ -219,25 +247,16 @@ export default function App() {
     },
     [cargarDatos],
   )
-  const otorgarPermisoUsuarioCuenta = useCallback(
-    async (id: string, permiso: PermisoOperativo) => {
-      await api.otorgarPermisoUsuario(id, usuarioActual?.id ?? sesion?.id ?? '', permiso)
-      await cargarDatos(true)
-    },
-    [cargarDatos],
-  )
-  const revocarPermisoUsuarioCuenta = useCallback(
-    async (id: string, permiso: PermisoOperativo) => {
-      await api.revocarPermisoUsuario(id, permiso, usuarioActual?.id ?? sesion?.id ?? '')
-      await cargarDatos(true)
-    },
-    [cargarDatos],
-  )
+  const gestionarResponsables = useCallback((usuarioId?: string) => {
+    setPersonaResponsableId(usuarioId ?? null)
+    setPagina('administracion')
+  }, [])
 
   function cerrarSesion() {
     setSesion(null)
     localStorage.removeItem('biblioteca_sesion')
     localStorage.removeItem('biblioteca_token')
+    setDatos((actual) => ({ ...actual, reservas: [] }))
     setPagina('resumen')
   }
 
@@ -250,18 +269,15 @@ export default function App() {
             usuario?.estado === 'VALIDADO' && (usuario?.permisos.length ?? 0) > 0
           const sesionCompleta = {
             ...nuevaSesion,
-            id: usuario?.id,
-            permisos: usuario?.permisos ?? [],
-            rolAcceso: usuario?.rolAcceso,
+            id: usuario?.id ?? nuevaSesion.id,
+            permisos: usuario?.permisos ?? nuevaSesion.permisos ?? [],
+            rolAcceso: usuario?.rolAcceso ?? nuevaSesion.rolAcceso,
           }
           setSesion(sesionCompleta)
           localStorage.setItem('biblioteca_sesion', JSON.stringify(sesionCompleta))
           if (nuevaSesion.token) localStorage.setItem('biblioteca_token', nuevaSesion.token)
+          void cargarDatos(true)
           setPagina(nuevaSesion.publica ? 'catalogo' : esPersonal ? 'resumen' : 'catalogo')
-        }}
-        alVerCatalogo={() => {
-          setSesion({ nombre: 'Visitante', email: '', publica: true })
-          setPagina('catalogo')
         }}
       />
     )
@@ -274,17 +290,21 @@ export default function App() {
     switch (paginaActual) {
       case 'resumen':
         return <Resumen datos={datos} irA={setPagina} />
+      case 'mi-cuenta':
+        return <MiCuenta usuario={usuarioActual} actualizar={actualizarDatosCuenta} />
       case 'personas':
         return (
           <Personas
             usuarios={datos.usuarios}
             permisos={permisosActuales}
+            operadorId={usuarioActual?.id ?? null}
             crearUsuario={crearUsuarioCuenta}
             validarUsuario={validarUsuarioCuenta}
+            solicitarCorreccion={solicitarCorreccionCuenta}
+            actualizarDatos={actualizarDatosCuenta}
             suspenderUsuario={suspenderUsuarioCuenta}
             reactivarUsuario={reactivarUsuarioCuenta}
-            otorgarPermiso={otorgarPermisoUsuarioCuenta}
-            revocarPermiso={revocarPermisoUsuarioCuenta}
+            gestionarResponsables={gestionarResponsables}
           />
         )
       case 'mis-prestamos':
@@ -300,7 +320,7 @@ export default function App() {
           <Catalogo
             catalogo={datos.catalogo}
             ejemplares={datos.ejemplares}
-            puedeSolicitar={!soloCatalogo}
+            puedeSolicitar={!soloCatalogo && usuarioActual?.estado === 'VALIDADO'}
             irA={setPagina}
             permisos={permisosActuales}
             crearLibro={crearLibroCatalogo}
@@ -310,12 +330,13 @@ export default function App() {
             activar={activarCatalogo}
             desactivar={desactivarCatalogo}
             crearEjemplar={crearEjemplar}
-            puedeReservar={!soloCatalogo && !!usuarioActual?.id}
+            asignarArea={async (id, area) => { await api.asignarAreaCatalogo(id, area); await cargarDatos(true) }}
+            puedeReservar={!soloCatalogo && usuarioActual?.estado === 'VALIDADO'}
             itemsReservados={datos.reservas
-              .filter((r) => r.prestatarioId === usuarioActual?.id && r.estado === 'SOLICITADA')
+              .filter((r) => r.prestatarioId === usuarioActual?.id && (r.estado === 'SOLICITADA' || r.estado === 'APROBADA'))
               .map((r) => r.catalogoItemId)}
-            reservar={(catalogoItemId) =>
-              usuarioActual?.id ? solicitarReserva(usuarioActual.id, catalogoItemId) : Promise.resolve()
+            reservar={(catalogoItemId, lugarUso) =>
+              usuarioActual?.id ? solicitarReserva(usuarioActual.id, catalogoItemId, lugarUso) : Promise.resolve()
             }
           />
         )
@@ -326,8 +347,9 @@ export default function App() {
             usuarios={datos.usuarios}
             catalogo={datos.catalogo}
             ejemplares={datos.ejemplares}
-            operadorId={permisosActuales.includes('REGISTRAR_PRESTAMO') ? usuarioActual?.id ?? null : null}
+            operadorId={permisosActuales.includes('REGISTRAR_PRESTAMO') || permisosActuales.includes('REGISTRAR_DEVOLUCION') ? usuarioActual?.id ?? null : null}
             puedeOperar={permisosActuales.includes('REGISTRAR_PRESTAMO')}
+            puedeDevolver={permisosActuales.includes('REGISTRAR_DEVOLUCION')}
             crearPrestamo={crearPrestamo}
             devolverPrestamo={devolverPrestamo}
           />
@@ -346,16 +368,19 @@ export default function App() {
       case 'reservas':
         return (
           <Reservas
+            ejemplares={datos.ejemplares}
+            prestamos={datos.prestamos}
             reservas={datos.reservas}
             usuarios={datos.usuarios}
             catalogo={datos.catalogo}
             operadorId={permisosActuales.includes('GESTIONAR_RESERVAS') || permisosActuales.includes('GESTIONAR_CATALOGO') ? usuarioActual?.id ?? null : null}
+            entregarSolicitud={async (id) => { await api.entregarSolicitud(id); await cargarDatos(true) }}
             aceptarReserva={aceptarReserva}
             denegarReserva={denegarReserva}
           />
         )
       case 'administracion':
-        return <Administracion datos={datos} />
+        return <Administracion datos={datos} permisos={permisosActuales} personaInicialId={personaResponsableId} />
       default:
         return <Resumen datos={datos} irA={setPagina} />
     }
@@ -365,7 +390,10 @@ export default function App() {
     <div className="aplicacion">
       <BarraLateral
         pagina={paginaActual}
-        cambiarPagina={setPagina}
+        cambiarPagina={(destino) => {
+          if (destino === 'administracion') setPersonaResponsableId(null)
+          setPagina(destino)
+        }}
         cerrarSesion={cerrarSesion}
         sesion={sesion}
         soloCatalogo={soloCatalogo}
@@ -375,6 +403,10 @@ export default function App() {
       />
       <main className="contenido">
         <Encabezado pagina={paginaActual} publica={soloCatalogo} />
+        {usuarioActual?.estado === 'PROVISIONAL' && <div className="aviso" role="status">
+          {usuarioActual.correccionPendiente ? 'Tu cuenta necesita correcciones antes de validarse.' : 'Tu cuenta está pendiente de validación. Puedes consultar el catálogo.'}
+          <button className="enlace" type="button" onClick={() => setPagina('mi-cuenta')}>Revisar mi cuenta</button>
+        </div>}
         {errorCarga && (
           <div className="aviso error-aviso">
             ⚠ {errorCarga}
@@ -383,7 +415,7 @@ export default function App() {
             </button>
           </div>
         )}
-        {cargando ? <div className="cargando">Cargando datos de la API…</div> : renderPagina()}
+        {cargando ? <div className="cargando">Preparando tu biblioteca…</div> : renderPagina()}
       </main>
     </div>
   )

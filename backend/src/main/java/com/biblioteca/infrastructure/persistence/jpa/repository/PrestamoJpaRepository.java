@@ -9,6 +9,10 @@ import java.util.List;
 import java.util.UUID;
 
 public interface PrestamoJpaRepository extends JpaRepository<PrestamoJpaEntity, UUID> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select e from PrestamoJpaEntity e where e.id = :id")
+    java.util.Optional<PrestamoJpaEntity> buscarParaActualizar(@org.springframework.data.repository.query.Param("id") UUID id);
+
 
     List<PrestamoJpaEntity> findByPrestatarioId(UUID prestatarioId);
 

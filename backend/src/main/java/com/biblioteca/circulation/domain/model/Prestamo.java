@@ -88,9 +88,10 @@ public final class Prestamo extends AggregateRoot<PrestamoId> {
         }
         if (estadoFisico != EstadoFisico.DISPONIBLE
                 && estadoFisico != EstadoFisico.DANADO
-                && estadoFisico != EstadoFisico.PERDIDO) {
+                && estadoFisico != EstadoFisico.PERDIDO
+                && estadoFisico != EstadoFisico.EN_REVISION) {
             throw new DomainException("ESTADO_DEVOLUCION_INVALIDO",
-                    "La devolucion solo admite DISPONIBLE, DANADO o PERDIDO");
+                    "La devolucion solo admite DISPONIBLE, DANADO, PERDIDO o EN_REVISION");
         }
 
         int diasRetraso = periodo.diasRetraso(fecha);

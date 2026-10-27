@@ -1,5 +1,7 @@
 package com.biblioteca.reservations.application.usecase;
 
+import com.biblioteca.inventory.domain.repository.EjemplarRepository;
+
 import com.biblioteca.reservations.application.command.CancelarReservaCommand;
 import com.biblioteca.reservations.domain.model.EstadoReserva;
 import com.biblioteca.reservations.domain.model.Reserva;
@@ -17,20 +19,24 @@ import java.util.Objects;
 public class CancelarReservaUseCase {
 
     private final ReservaRepository reservas;
+    private final java.time.Clock clock;
     private final DomainEventPublisher eventos;
+    private final EjemplarRepository ejemplares;
 
-    public CancelarReservaUseCase(ReservaRepository reservas, DomainEventPublisher eventos) {
+    public CancelarReservaUseCase(ReservaRepository reservas, DomainEventPublisher eventos, EjemplarRepository ejemplares, java.time.Clock clock) {
         this.reservas = reservas;
+        this.clock = clock;
+        this.ejemplares = ejemplares;
         this.eventos = eventos;
     }
 
     public Reserva ejecutar(CancelarReservaCommand command) {
         Objects.requireNonNull(command, "El comando es obligatorio");
 
-        Reserva reserva = reservas.buscarPorId(command.reservaId())
+        Reserva reserva = reservas.buscarPorIdParaActualizar(command.reservaId())
                 .orElseThrow(() -> new NotFoundException("Reserva", command.reservaId().value()));
 
-        if (reserva.estado() != EstadoReserva.SOLICITADA) {
+        if (reserva.estado() != EstadoReserva.SOLICITADA && reserva.estado() != EstadoReserva.APROBADA) {
             throw new BusinessRuleException("TRANSICION_INVALIDA",
                     "Solo se cancelan reservas solicitadas");
         }
@@ -39,7 +45,12 @@ public class CancelarReservaUseCase {
                     "Solo el prestatario puede cancelar su reserva");
         }
 
-        reserva.cancelar(command.prestatarioId());
+        if (reserva.estado() == EstadoReserva.APROBADA) {
+            var ejemplar = ejemplares.buscarPorIdParaActualizar(reserva.ejemplarId()).orElseThrow(() -> new NotFoundException("Ejemplar", reserva.ejemplarId().value()));
+            ejemplar.liberarReserva();
+            ejemplares.guardar(ejemplar);
+        }
+        reserva.cancelar(command.prestatarioId(), clock.instant());
         reservas.guardar(reserva);
         eventos.publicarTodos(reserva.extraerEventos());
         return reserva;

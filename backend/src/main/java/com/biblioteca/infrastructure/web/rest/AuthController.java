@@ -34,35 +34,11 @@ public class AuthController {
     public LoginResponse login(@Valid @RequestBody LoginRequest request) {
         Usuario usuario = iniciarSesion.ejecutar(new EmailAddress(request.email()), request.password());
         String token = tokens.generar(usuario.id().value(), usuario.email().value());
-        return new LoginResponse(token, new UsuarioResponse(
-                usuario.id().value(),
-                usuario.email().value(),
-                usuario.nombreCompleto().value(),
-                usuario.estado().name(),
-                usuario.perfil().name(),
-                usuario.permisos().stream().map(Enum::name).toList(),
-                usuario.fechaAlta().toString(),
-                usuario.fechaValidacion() == null ? null : usuario.fechaValidacion().toString(),
-                usuario.motivoSuspension(),
-                usuario.rolAcceso().name()));
+        return new LoginResponse(token, UsuarioController.aResponse(usuario));
     }
 
     public record LoginRequest(@NotBlank String email, @NotBlank String password) {
     }
 
-    public record UsuarioResponse(
-            UUID id,
-            String email,
-            String nombreCompleto,
-            String estado,
-            String perfil,
-            java.util.List<String> permisos,
-            String fechaAlta,
-            String fechaValidacion,
-            String motivoSuspension,
-            String rolAcceso) {
-    }
-
-    public record LoginResponse(String token, UsuarioResponse usuario) {
-    }
+    public record LoginResponse(String token, UsuarioController.UsuarioResponse usuario) { }
 }

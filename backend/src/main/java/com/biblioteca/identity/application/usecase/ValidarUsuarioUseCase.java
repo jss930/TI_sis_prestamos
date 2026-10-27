@@ -15,9 +15,16 @@ public class ValidarUsuarioUseCase {
 
     private final UsuarioRepository usuarios;
     private final DomainEventPublisher eventos;
+    private final java.time.Clock clock;
 
     public ValidarUsuarioUseCase(UsuarioRepository usuarios, DomainEventPublisher eventos) {
+        this(usuarios, eventos, java.time.Clock.systemUTC());
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ValidarUsuarioUseCase(UsuarioRepository usuarios, DomainEventPublisher eventos, java.time.Clock clock) {
         this.usuarios = usuarios;
+        this.clock = clock;
         this.eventos = eventos;
     }
 
@@ -28,13 +35,13 @@ public class ValidarUsuarioUseCase {
         }
         Usuario operador = usuarios.buscarPorId(command.operadorId())
                 .orElseThrow(() -> new NotFoundException("Operador", command.operadorId().value()));
-        if (!operador.puedeValidarProvisionales()) {
+        if (!operador.puedeValidarProvisionales() && !operador.puedeAdministrarSistema()) {
             throw new BusinessRuleException("OPERADOR_NO_HABILITADO",
                     "El operador no tiene el permiso VALIDAR_USUARIO_PROVISIONAL");
         }
-        Usuario usuario = usuarios.buscarPorId(command.usuarioId())
+        Usuario usuario = usuarios.buscarPorIdParaActualizar(command.usuarioId())
                 .orElseThrow(() -> new NotFoundException("Usuario", command.usuarioId().value()));
-        usuario.validar();
+        usuario.validar(command.operadorId(), clock.instant(), command.datosRevisados());
         Usuario guardado = usuarios.guardar(usuario);
         eventos.publicarTodos(usuario.extraerEventos());
         return guardado;

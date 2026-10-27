@@ -50,6 +50,24 @@ public class UsuarioJpaEntity {
     @Column(name = "motivo_suspension", length = 500)
     public String motivoSuspension;
 
+    @Column(name = "codigo_institucional", length = 30)
+    public String codigoInstitucional;
+
+    @Column(name = "validado_por_id")
+    public UUID validadoPorId;
+
+    @Column(name = "observaciones_revision", length = 1000)
+    public String observacionesRevision;
+
+    @Column(name = "revisado_por_id")
+    public UUID revisadoPorId;
+
+    @Column(name = "fecha_revision")
+    public Instant fechaRevision;
+
+    @Column(name = "correccion_pendiente", nullable = false)
+    public boolean correccionPendiente;
+
     public UsuarioJpaEntity() {
     }
 }

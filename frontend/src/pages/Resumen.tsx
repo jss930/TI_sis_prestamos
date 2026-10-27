@@ -90,7 +90,7 @@ export default function Resumen({ datos, irA }: Props) {
         <div className="panel-titulo">
           <div>
             <h2>Préstamos recientes</h2>
-            <p>Últimos movimientos registrados en la API</p>
+            <p>Consulta las últimas entregas y sus fechas de devolución</p>
           </div>
           <button className="boton secundario" onClick={() => irA('prestamos')} type="button">
             Ver todos →

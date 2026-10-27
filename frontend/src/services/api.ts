@@ -1,4 +1,10 @@
 import type {
+  CategoriaResponsable,
+  DatosCuentaPendiente,
+  CargoResponsable,
+  ResumenResponsables,
+  NuevaInspeccionDevolucion,
+  InspeccionDevolucion,
   CatalogoItem,
   Ejemplar,
   EstadoFisico,
@@ -22,6 +28,14 @@ const API_BASE_URL = (
 ).replace(/\/+$/, '')
 
 const MENSAJES_POR_CODIGO: Record<string, string> = {
+  CODIGO_INSTITUCIONAL_REQUERIDO: 'Completa el código universitario o de personal antes de validar la cuenta.',
+  CODIGO_INSTITUCIONAL_DUPLICADO: 'Ya existe una cuenta con ese código institucional.',
+  CORRECCION_PENDIENTE: 'La persona debe corregir sus datos y enviarlos a revisión antes de validar su cuenta.',
+  REVISION_REQUERIDA: 'Confirma que revisaste los datos de la cuenta.',
+  CARGO_OCUPADO: 'Ese cargo del área ya está ocupado. Retira o cambia la asignación actual antes de reemplazarla.',
+  AREA_NO_AUTORIZADA: 'No tienes una asignación vigente para atender esta área.',
+  SOLICITUD_EXPIRADA: 'El plazo de recogida venció. El ejemplar se liberará automáticamente.',
+  SOLICITUD_DUPLICADA: 'Ya tienes una solicitud activa para este artículo.',
   SANCION_ACTIVA: 'El usuario tiene una sanción activa. Debe cumplirla antes de un nuevo préstamo.',
   USUARIO_NO_HABILITADO: 'La cuenta del usuario no está validada para solicitar préstamos.',
   USUARIO_NO_VALIDADO: 'La cuenta debe estar validada para realizar esta operación.',
@@ -108,6 +122,24 @@ async function solicitar<T>(ruta: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
+  confirmarResponsables: (usuarioId: string, capacitacionVerificada: boolean, categorias: CategoriaResponsable[], cargos: Partial<Record<CategoriaResponsable, CargoResponsable>>) =>
+    solicitar<ResumenResponsables>(`/responsables/${usuarioId}/asignaciones`, {
+      method: 'PUT', body: JSON.stringify({ capacitacionVerificada, categorias, cargos }),
+    }),
+  getResponsables: () => solicitar<ResumenResponsables>('/responsables'),
+  cambiarCapacitacion: (usuarioId: string, verificada: boolean) =>
+    solicitar<ResumenResponsables>(`/responsables/${usuarioId}/capacitacion`, {
+      method: 'PUT', body: JSON.stringify({ verificada }),
+    }),
+  asignarResponsable: (usuarioId: string, categoria: CategoriaResponsable, asignada: boolean) =>
+    solicitar<ResumenResponsables>(`/responsables/${usuarioId}/categorias/${categoria}`, {
+      method: 'PUT', body: JSON.stringify({ asignada }),
+    }),
+  getInspeccionesDevolucion: () => solicitar<InspeccionDevolucion[]>('/inspecciones-devolucion'),
+  inspeccionarDevolucion: (id: string, inspeccion: NuevaInspeccionDevolucion) =>
+    solicitar<InspeccionDevolucion>(`/prestamos/${id}/inspeccion-devolucion`, {
+      method: 'POST', body: JSON.stringify(inspeccion),
+    }),
   getCatalogo: () => solicitar<CatalogoItem[]>('/catalogo'),
   getUsuarios: () => solicitar<Usuario[]>('/usuarios'),
   getEjemplares: () => solicitar<Ejemplar[]>('/inventario/ejemplares'),
@@ -151,7 +183,7 @@ export const api = {
     solicitar<CatalogoItem>(`/catalogo/${id}/desactivar`, { method: 'POST' }),
 
   // Usuarios
-  crearUsuario: (usuario: NuevoUsuarioCuenta) =>
+  registrarCuenta: (usuario: NuevoUsuarioCuenta) =>
     solicitar<Usuario>('/usuarios', {
       method: 'POST',
       body: JSON.stringify(usuario),
@@ -159,8 +191,14 @@ export const api = {
   validarUsuario: (id: string, operadorId: string) =>
     solicitar<Usuario>(`/usuarios/${id}/validar`, {
       method: 'POST',
-      body: JSON.stringify({ operadorId }),
+      body: JSON.stringify({ operadorId, datosRevisados: true }),
     }),
+  solicitarCorreccionCuenta: (id: string, observaciones: string) => solicitar<Usuario>(`/usuarios/${id}/solicitar-correccion`, {
+    method: 'POST', body: JSON.stringify({ observaciones }),
+  }),
+  actualizarDatosCuenta: (id: string, datos: DatosCuentaPendiente) => solicitar<Usuario>(`/usuarios/${id}/datos-pendientes`, {
+    method: 'PATCH', body: JSON.stringify(datos),
+  }),
   suspenderUsuario: (id: string, operadorId: string, motivo: string) =>
     solicitar<Usuario>(`/usuarios/${id}/suspender`, {
       method: 'POST',
@@ -207,16 +245,20 @@ export const api = {
     const qs = params.toString()
     return solicitar<Reserva[]>(`/reservas${qs ? `?${qs}` : ''}`)
   },
-  solicitarReserva: (prestatarioId: string, catalogoItemId: string) =>
+  solicitarReserva: (prestatarioId: string, catalogoItemId: string, lugarUso: 'EN_CAMPUS' | 'DOMICILIO' = 'EN_CAMPUS') =>
     solicitar<Reserva>('/reservas', {
       method: 'POST',
-      body: JSON.stringify({ prestatarioId, catalogoItemId }),
+      body: JSON.stringify({ prestatarioId, catalogoItemId, lugarUso }),
     }),
-  aceptarReserva: (id: string, operadorId: string) =>
+  aceptarReserva: (id: string, operadorId: string, ejemplarId?: string) =>
     solicitar<Reserva>(`/reservas/${id}/aceptar`, {
       method: 'POST',
-      body: JSON.stringify({ operadorId }),
+      body: JSON.stringify({ operadorId, ejemplarId }),
     }),
+  entregarSolicitud: (id: string) => solicitar<Reserva>(`/reservas/${id}/entregar`, { method: 'POST' }),
+  asignarAreaCatalogo: (id: string, area: string) => solicitar<void>(`/catalogo/${id}/area`, {
+    method: 'PATCH', body: JSON.stringify({ area }),
+  }),
   denegarReserva: (id: string, operadorId: string, motivo: string) =>
     solicitar<Reserva>(`/reservas/${id}/denegar`, {
       method: 'POST',

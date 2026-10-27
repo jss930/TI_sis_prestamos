@@ -1,5 +1,8 @@
 package com.biblioteca.reservations.application.usecase;
 
+import com.biblioteca.inventory.domain.repository.EjemplarRepository;
+import com.biblioteca.reservations.domain.model.EstadoReserva;
+
 import com.biblioteca.catalog.domain.model.CatalogoItem;
 import com.biblioteca.catalog.domain.repository.CatalogoItemRepository;
 import com.biblioteca.identity.domain.model.Usuario;
@@ -31,6 +34,7 @@ public class SolicitarReservaUseCase {
     private final PoliticaReserva politica;
     private final DomainEventPublisher eventos;
     private final Clock clock;
+    private final EjemplarRepository ejemplares;
 
     @Autowired
     public SolicitarReservaUseCase(UsuarioRepository usuarios,
@@ -39,7 +43,7 @@ public class SolicitarReservaUseCase {
                                    ReservaRepository reservas,
                                    PoliticaReserva politica,
                                    DomainEventPublisher eventos,
-                                   Clock clock) {
+                                   Clock clock, EjemplarRepository ejemplares) {
         this.usuarios = usuarios;
         this.catalogo = catalogo;
         this.sanciones = sanciones;
@@ -47,23 +51,14 @@ public class SolicitarReservaUseCase {
         this.politica = politica;
         this.eventos = eventos;
         this.clock = clock;
-    }
-
-    public SolicitarReservaUseCase(UsuarioRepository usuarios,
-                                   CatalogoItemRepository catalogo,
-                                   ReservaRepository reservas,
-                                   SancionRepository sanciones,
-                                   PoliticaReserva politica,
-                                   DomainEventPublisher eventos,
-                                   Clock clock) {
-        this(usuarios, catalogo, sanciones, reservas, politica, eventos, clock);
+        this.ejemplares = ejemplares;
     }
 
     public Reserva ejecutar(SolicitarReservaCommand command) {
         Objects.requireNonNull(command, "El comando es obligatorio");
         LocalDate hoy = LocalDate.now(clock);
 
-        Usuario prestatario = usuarios.buscarPorId(command.prestatarioId())
+        Usuario prestatario = usuarios.buscarPorIdParaActualizar(command.prestatarioId())
                 .orElseThrow(() -> new NotFoundException("Prestatario", command.prestatarioId().value()));
         if (!prestatario.puedeSolicitarPrestamo()) {
             throw new BusinessRuleException("USUARIO_NO_HABILITADO",
@@ -81,13 +76,19 @@ public class SolicitarReservaUseCase {
                     "El prestatario tiene una sancion activa");
         }
 
+        if (ejemplares.listarPorItem(item.id()).stream().noneMatch(e -> e.estaDisponible()))
+            throw new BusinessRuleException("EJEMPLAR_NO_DISPONIBLE", "No hay ejemplares disponibles para solicitar este bien");
+        if (reservas.listarPorPrestatario(prestatario.id()).stream().anyMatch(r -> r.catalogoItemId().equals(item.id())
+                && (r.estado() == EstadoReserva.SOLICITADA
+                || r.estado() == EstadoReserva.APROBADA)))
+            throw new BusinessRuleException("SOLICITUD_DUPLICADA", "Ya tienes una solicitud activa para este bien");
         long activas = reservas.contarActivasPor(prestatario.id());
         if (activas >= politica.maxReservasActivas(prestatario.perfil())) {
             throw new BusinessRuleException("LIMITE_RESERVAS",
                     "El prestatario alcanzo el maximo de reservas activas");
         }
 
-        Reserva reserva = Reserva.solicitar(prestatario.id(), item.id());
+        Reserva reserva = Reserva.solicitar(prestatario.id(), item.id(), command.lugarUso(), clock.instant());
         reservas.guardar(reserva);
         eventos.publicarTodos(reserva.extraerEventos());
         return reserva;

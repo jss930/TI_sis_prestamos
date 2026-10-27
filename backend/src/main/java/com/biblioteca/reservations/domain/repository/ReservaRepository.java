@@ -15,6 +15,8 @@ public interface ReservaRepository {
 
     Optional<Reserva> buscarPorId(ReservaId id);
 
+    default Optional<Reserva> buscarPorIdParaActualizar(ReservaId id) { return buscarPorId(id); }
+
     List<Reserva> listarTodos();
 
     List<Reserva> listarPorPrestatario(UsuarioId prestatarioId);
