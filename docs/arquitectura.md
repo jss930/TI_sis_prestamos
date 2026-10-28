@@ -2,7 +2,7 @@
 
 **Universidad Nacional de San Agustín de Arequipa**<br>
 **Escuela Profesional de Ciencia de la Computación**<br>
-**Curso: Trabajo Interdisciplinario II — Grupo 3**
+**Curso: Trabajo Interdisciplinario II**
 
 ---
 
@@ -404,30 +404,3 @@ backend/src/main/java/com/biblioteca/
     └── web/
 ```
 
----
-
-## 14. Decisiones defendibles
-
-### ¿Por qué monolito modular?
-
-Reduce la complejidad operativa y conserva límites claros. Los módulos pueden evolucionar sin desplegar seis servicios distintos.
-
-### ¿Por qué no guardar stock?
-
-El stock se deriva de los ejemplares. Un contador separado podría quedar desactualizado.
-
-### ¿Por qué reservar por título?
-
-El usuario necesita el recurso, no una copia específica. El sistema puede elegir cualquier copia libre y aprovechar mejor el inventario.
-
-### ¿Por qué aprobación manual?
-
-Permite control institucional antes de comprometer una copia. La concurrencia sigue resuelta por el backend.
-
-### ¿Por qué no hay lista de espera?
-
-Mantiene el flujo simple. Si no existe disponibilidad, la solicitud se rechaza y no crea estados adicionales ni reglas de prioridad.
-
-### ¿Por qué la expiración no sanciona?
-
-La falta de recogida libera el horario sin crear una penalización automática. Las sanciones quedan ligadas a hechos más graves, como una devolución tardía o una decisión administrativa.
