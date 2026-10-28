@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import Tabla, { type Columna } from '../components/Tabla'
 import EtiquetaEstado from '../components/EtiquetaEstado'
 import type { CatalogoItem, Reserva } from '../types'
@@ -13,11 +14,19 @@ interface Props {
 }
 
 export default function MisReservas({ reservas, catalogo, usuarioId, cancelarReserva, reprogramarReserva }: Props) {
+  const location = useLocation()
+  const navegar = useNavigate()
   const [error, setError] = useState<string | null>(null)
-  const [exito, setExito] = useState<string | null>(null)
+  const [exito, setExito] = useState<string | null>((location.state as { mensaje?: string } | null)?.mensaje ?? null)
   const [procesando, setProcesando] = useState<string | null>(null)
   const [editando, setEditando] = useState<string | null>(null)
   const [horario, setHorario] = useState({ inicio: '', fin: '' })
+
+  useEffect(() => {
+    if ((location.state as { mensaje?: string } | null)?.mensaje) {
+      navegar(location.pathname, { replace: true, state: null })
+    }
+  }, [location.pathname, location.state, navegar])
 
   const mias = reservas
     .filter((r) => r.prestatarioId === usuarioId)
@@ -92,7 +101,7 @@ export default function MisReservas({ reservas, catalogo, usuarioId, cancelarRes
         </div>
       </div>
       {error && <div className="aviso error-aviso">{error}</div>}
-      {exito && <div className="aviso">{exito}</div>}
+      {exito && <div className="aviso correcto-aviso" role="status">✓ {exito}</div>}
       {editando && <form className="formulario" onSubmit={(e) => { e.preventDefault(); setProcesando(editando); setError(null); void reprogramarReserva(editando, new Date(horario.inicio).toISOString(), new Date(horario.fin).toISOString())
         .then(() => { setExito('Reserva reprogramada.'); setEditando(null) })
         .catch((e: unknown) => setError(e instanceof Error ? e.message : 'No se pudo reprogramar.'))

@@ -46,6 +46,12 @@ const DATOS_VACIOS: DatosBiblioteca = {
 export default function App() {
   const navegar = useNavigate()
   const location = useLocation()
+  const segmentosRuta = location.pathname.split('/').filter(Boolean)
+  const catalogoItemIdRuta = segmentosRuta[0] === 'catalogo'
+    ? segmentosRuta[1]
+    : segmentosRuta[0] === 'admin' && segmentosRuta[1] === 'catalogo'
+      ? segmentosRuta[2]
+      : undefined
   const [sesion, setSesion] = useState<Sesion | null>(() => {
     try {
       const raw = localStorage.getItem('biblioteca_sesion')
@@ -62,6 +68,14 @@ export default function App() {
     'catalogo-editar': location.pathname,
     'ejemplar-nuevo': location.pathname, 'reserva-nueva': location.pathname, 'prestamo-nuevo': '/prestamos/nuevo',
   }
+  const rutasEstaticas = [
+    '/', '/mi-cuenta', '/personas', '/catalogo', '/mis-prestamos', '/mis-reservas',
+    '/prestamos', '/prestamos/nuevo', '/sanciones', '/administracion', '/reservas',
+    '/admin/catalogo', '/admin/catalogo/nuevo',
+  ]
+  const rutaConocida = rutasEstaticas.includes(location.pathname)
+    || /^\/admin\/catalogo\/[^/]+\/(editar|ejemplares\/nuevo)$/.test(location.pathname)
+    || /^\/catalogo\/[^/]+\/reservar$/.test(location.pathname)
   const pagina: Pagina = location.pathname === '/' ? 'resumen'
     : location.pathname === '/admin/catalogo' ? 'catalogo-gestion'
     : location.pathname === '/admin/catalogo/nuevo' ? 'catalogo-nuevo'
@@ -179,6 +193,7 @@ export default function App() {
 
 
   useEffect(() => {
+    if (cargando) return
     if (usuarioActual && usuarioActual.estado !== 'VALIDADO' && pagina !== 'catalogo' && pagina !== 'mi-cuenta') {
       navegar('/catalogo', { replace: true })
       return
@@ -199,7 +214,7 @@ export default function App() {
     if (pagina === 'reserva-nueva' && usuarioActual?.estado !== 'VALIDADO') {
       navegar('/catalogo', { replace: true })
     }
-  }, [pagina, permisosActuales, usuarioActual, navegar])
+  }, [cargando, pagina, permisosActuales, usuarioActual, navegar])
 
   const crearLibroCatalogo = useCallback(
     async (libro: NuevoLibroCatalogo) => {
@@ -312,7 +327,7 @@ export default function App() {
   function renderPagina() {
     switch (paginaActual) {
       case 'resumen':
-        return <Resumen datos={datos} irA={irA} />
+        return <Resumen datos={datos} irA={irA} permisos={permisosActuales} />
       case 'mi-cuenta':
         return <MiCuenta usuario={usuarioActual} actualizar={actualizarDatosCuenta} />
       case 'personas':
@@ -352,15 +367,15 @@ export default function App() {
           />
         )
       case 'reserva-nueva':
-        return <ReservaNueva catalogo={datos.catalogo} reservar={(id, lugar, inicio, fin) => usuarioActual?.id ? solicitarReserva(usuarioActual.id, id, lugar, inicio, fin) : Promise.reject(new Error('Inicia sesión para reservar.'))} />
+        return <ReservaNueva itemId={catalogoItemIdRuta} catalogo={datos.catalogo} reservar={(id, lugar, inicio, fin) => usuarioActual?.id ? solicitarReserva(usuarioActual.id, id, lugar, inicio, fin) : Promise.reject(new Error('Inicia sesión para reservar.'))} />
       case 'catalogo-gestion':
         return <CatalogoGestion catalogo={datos.catalogo} ejemplares={datos.ejemplares} activar={activarCatalogo} desactivar={desactivarCatalogo} />
       case 'catalogo-nuevo':
         return <CatalogoAlta crearLibro={crearLibroCatalogo} crearEquipo={crearEquipoCatalogo} crearOtro={crearOtroCatalogo} />
       case 'catalogo-editar':
-        return <CatalogoEditar catalogo={datos.catalogo} actualizar={actualizarTituloCatalogo} />
+        return <CatalogoEditar itemId={catalogoItemIdRuta} catalogo={datos.catalogo} actualizar={actualizarTituloCatalogo} />
       case 'ejemplar-nuevo':
-        return <EjemplarAlta catalogo={datos.catalogo} crear={crearEjemplar} />
+        return <EjemplarAlta itemId={catalogoItemIdRuta} catalogo={datos.catalogo} crear={crearEjemplar} />
       case 'prestamo-nuevo':
         return <PrestamoNuevo usuarios={datos.usuarios} catalogo={datos.catalogo} ejemplares={datos.ejemplares} operadorId={usuarioActual?.id ?? ''} crear={crearPrestamo} />
       case 'prestamos':
@@ -404,7 +419,7 @@ export default function App() {
       case 'administracion':
         return <Administracion datos={datos} permisos={permisosActuales} />
       default:
-        return <Resumen datos={datos} irA={irA} />
+        return <Resumen datos={datos} irA={irA} permisos={permisosActuales} />
     }
   }
 
@@ -435,7 +450,14 @@ export default function App() {
             </button>
           </div>
         )}
-        {cargando ? <div className="cargando">Preparando tu biblioteca…</div> : renderPagina()}
+        {cargando ? <div className="cargando">Preparando tu biblioteca…</div> : !rutaConocida ? (
+          <div className="empty-state pagina-no-encontrada">
+            <span aria-hidden="true">404</span>
+            <strong>Página no encontrada</strong>
+            <p>La dirección no corresponde a una pantalla disponible.</p>
+            <button className="boton primario" type="button" onClick={() => navegar('/catalogo', { replace: true })}>Volver al catálogo</button>
+          </div>
+        ) : renderPagina()}
       </main>
     </div>
   )

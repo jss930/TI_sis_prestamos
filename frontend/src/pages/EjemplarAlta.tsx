@@ -1,12 +1,12 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import type { CatalogoItem, NuevoEjemplar } from '../types'
 
-export default function EjemplarAlta({ catalogo, crear }: { catalogo: CatalogoItem[]; crear: (v: NuevoEjemplar) => Promise<void> }) {
-  const { id } = useParams(); const navegar = useNavigate(); const item = catalogo.find((i) => i.id === id)
+export default function EjemplarAlta({ itemId, catalogo, crear }: { itemId?: string; catalogo: CatalogoItem[]; crear: (v: NuevoEjemplar) => Promise<void> }) {
+  const navegar = useNavigate(); const item = catalogo.find((i) => i.id === itemId)
   const [datos, setDatos] = useState({ barcode: '', sala: '', estante: '', notas: '' }); const [error, setError] = useState<string | null>(null); const [guardando, setGuardando] = useState(false)
-  async function enviar(e: FormEvent) { e.preventDefault(); if (!id) return; setGuardando(true); setError(null); try { await crear({ catalogoItemId: id, ...datos, notas: datos.notas || null }); navegar('/admin/catalogo', { replace: true }) } catch (ex) { setError(ex instanceof Error ? ex.message : 'No se pudo guardar.') } finally { setGuardando(false) } }
+  async function enviar(e: FormEvent) { e.preventDefault(); if (!itemId) return; setGuardando(true); setError(null); try { await crear({ catalogoItemId: itemId, ...datos, notas: datos.notas || null }); navegar('/admin/catalogo', { replace: true }) } catch (ex) { setError(ex instanceof Error ? ex.message : 'No se pudo guardar.') } finally { setGuardando(false) } }
   return <><PageHeader volverA="/admin/catalogo" titulo="Añadir ejemplar" descripcion={item ? `Nueva copia física de “${item.titulo}”.` : 'Registra una nueva copia física.'} />
     {error && <div className="aviso error-aviso">{error}</div>}<form className="panel formulario tarea-form" onSubmit={enviar}><div className="campos dos">
       <label>Código de inventario<input required autoFocus placeholder="Ej. LIB-004" value={datos.barcode} onChange={(e) => setDatos({ ...datos, barcode: e.target.value })} /><small>Debe ser único.</small></label>
