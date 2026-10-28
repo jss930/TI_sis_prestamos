@@ -25,11 +25,23 @@ public interface ReservaJpaRepository extends JpaRepository<ReservaJpaEntity, UU
             select count(r) from ReservaJpaEntity r
             where r.estado = com.biblioteca.reservations.domain.model.EstadoReserva.APROBADA
               and r.ejemplarId = :ejemplarId
-              and (:excluirId is null or r.id <> :excluirId)
               and r.inicioReserva < :fin
               and r.finReserva > :inicio
             """)
     long contarSolapamientos(@org.springframework.data.repository.query.Param("ejemplarId") UUID ejemplarId,
+            @org.springframework.data.repository.query.Param("inicio") Instant inicio,
+            @org.springframework.data.repository.query.Param("fin") Instant fin);
+
+    @org.springframework.data.jpa.repository.Query("""
+            select count(r) from ReservaJpaEntity r
+            where r.estado = com.biblioteca.reservations.domain.model.EstadoReserva.APROBADA
+              and r.ejemplarId = :ejemplarId
+              and r.id <> :excluirId
+              and r.inicioReserva < :fin
+              and r.finReserva > :inicio
+            """)
+    long contarSolapamientosExcluyendo(
+            @org.springframework.data.repository.query.Param("ejemplarId") UUID ejemplarId,
             @org.springframework.data.repository.query.Param("inicio") Instant inicio,
             @org.springframework.data.repository.query.Param("fin") Instant fin,
             @org.springframework.data.repository.query.Param("excluirId") UUID excluirId);
