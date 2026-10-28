@@ -1,6 +1,7 @@
 package com.biblioteca.reservations.application.usecase;
 
 import com.biblioteca.inventory.domain.repository.EjemplarRepository;
+import com.biblioteca.reservations.application.port.DisponibilidadProgramadaPort;
 import com.biblioteca.reservations.domain.model.EstadoReserva;
 
 import com.biblioteca.catalog.domain.model.CatalogoItem;
@@ -37,6 +38,7 @@ public class SolicitarReservaUseCase {
     private final Clock clock;
     private final EjemplarRepository ejemplares;
     private final ZoneId zona;
+    private final DisponibilidadProgramadaPort disponibilidad;
 
     @Autowired
     public SolicitarReservaUseCase(UsuarioRepository usuarios,
@@ -45,7 +47,8 @@ public class SolicitarReservaUseCase {
                                    ReservaRepository reservas,
                                    PoliticaReserva politica,
                                    DomainEventPublisher eventos,
-                                   Clock clock, EjemplarRepository ejemplares, ZoneId zona) {
+                                   Clock clock, EjemplarRepository ejemplares, ZoneId zona,
+                                   DisponibilidadProgramadaPort disponibilidad) {
         this.usuarios = usuarios;
         this.catalogo = catalogo;
         this.sanciones = sanciones;
@@ -55,6 +58,7 @@ public class SolicitarReservaUseCase {
         this.clock = clock;
         this.ejemplares = ejemplares;
         this.zona = zona;
+        this.disponibilidad = disponibilidad;
     }
 
     public Reserva ejecutar(SolicitarReservaCommand command) {
@@ -89,8 +93,8 @@ public class SolicitarReservaUseCase {
                     "El prestatario tiene una sancion activa");
         }
 
-        if (ejemplares.listarPorItem(item.id()).stream().noneMatch(e -> e.estaDisponible()
-                && !reservas.existeSolapamiento(e.id(), command.inicioReserva(), command.finReserva(), null)))
+        if (ejemplares.listarPorItem(item.id()).stream().noneMatch(e -> e.puedeProgramarse()
+                && disponibilidad.estaLibre(e.id(), command.inicioReserva(), command.finReserva(), null)))
             throw new BusinessRuleException("EJEMPLAR_NO_DISPONIBLE",
                     "No hay ejemplares libres durante el horario seleccionado");
         if (reservas.listarPorPrestatario(prestatario.id()).stream().anyMatch(r -> r.catalogoItemId().equals(item.id())

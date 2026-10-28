@@ -1,7 +1,5 @@
 package com.biblioteca.infrastructure.web.rest;
 
-import com.biblioteca.catalog.domain.model.AreaCatalogo;
-
 import com.biblioteca.catalog.application.command.RegistrarEquipoCommand;
 import com.biblioteca.catalog.application.command.RegistrarLibroCommand;
 import com.biblioteca.catalog.application.command.RegistrarOtroCommand;
@@ -128,7 +126,7 @@ public class CatalogoController {
 
     private static ItemResponse aResponse(CatalogoItem item) {
         return new ItemResponse(item.id().value(), item.titulo().value(), item.tipo(),
-                item.activo(), item.area(), aDetalle(item.detalle()));
+                item.activo(), aDetalle(item.detalle()));
     }
 
     private static DetalleResponse aDetalle(DetalleItem detalle) {
@@ -173,7 +171,6 @@ public class CatalogoController {
             String titulo,
             TipoItem tipo,
             boolean activo,
-            AreaCatalogo area,
             DetalleResponse detalle) {
     }
 

@@ -10,8 +10,7 @@ public enum PermisoOperativo {
     VALIDAR_USUARIO_PROVISIONAL,
     GESTIONAR_CATALOGO,
     GESTIONAR_SANCIONES,
-    GESTIONAR_USUARIOS,
-    GESTIONAR_RESERVAS;
+    GESTIONAR_USUARIOS;
 
     /**
      * Conjunto unico de permisos que convierten a una cuenta validada en

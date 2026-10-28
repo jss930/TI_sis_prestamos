@@ -45,7 +45,7 @@ public class DenegarReservaUseCase {
                     "Solo se deniegan reservas solicitadas");
         }
 
-        acceso.exigirResponsable(command.operadorId(), reserva);
+        acceso.exigirAdministrador(command.operadorId(), reserva);
         reserva.denegar(operador.id(), command.motivo());
         reservas.guardar(reserva);
         eventos.publicarTodos(reserva.extraerEventos());

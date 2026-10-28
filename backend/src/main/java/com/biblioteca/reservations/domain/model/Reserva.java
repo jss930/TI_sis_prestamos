@@ -85,9 +85,9 @@ public final class Reserva extends AggregateRoot<ReservaId> {
         reserva.finReserva = finReserva;
         if ((estado == EstadoReserva.APROBADA || estado == EstadoReserva.ATENDIDA || estado == EstadoReserva.EXPIRADA)
                 && (ejemplarId == null || fechaLimiteRetiro == null || operadorId == null))
-            throw new DomainException("RESERVA_INCONSISTENTE", "La aprobacion requiere ejemplar, responsable y plazo");
+            throw new DomainException("RESERVA_INCONSISTENTE", "La aprobacion requiere ejemplar, administrador y plazo");
         if (estado == EstadoReserva.ATENDIDA && (prestamoId == null || fechaEntrega == null || entregadoPorId == null))
-            throw new DomainException("RESERVA_INCONSISTENTE", "La entrega requiere prestamo y responsable");
+            throw new DomainException("RESERVA_INCONSISTENTE", "La entrega requiere prestamo y administrador");
         return reserva;
     }
 

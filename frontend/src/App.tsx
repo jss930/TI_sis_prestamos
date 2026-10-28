@@ -160,8 +160,8 @@ export default function App() {
   )
 
   const solicitarReserva = useCallback(
-    async (prestatarioId: string, catalogoItemId: string, lugarUso: LugarUso, inicioReserva: string, finReserva: string) => {
-      await api.solicitarReserva(prestatarioId, catalogoItemId, lugarUso, inicioReserva, finReserva)
+    async (catalogoItemId: string, lugarUso: LugarUso, inicioReserva: string, finReserva: string) => {
+      await api.solicitarReserva(catalogoItemId, lugarUso, inicioReserva, finReserva)
       await cargarDatos(true)
     },
     [cargarDatos],
@@ -169,15 +169,15 @@ export default function App() {
   const cancelarReserva = useCallback(
     async (id: string) => {
       if (!usuarioActual?.id) return
-      await api.cancelarReserva(id, usuarioActual.id)
+      await api.cancelarReserva(id)
       await cargarDatos(true)
     },
     [cargarDatos, usuarioActual],
   )
   const aceptarReserva = useCallback(
-    async (id: string, ejemplarId: string) => {
+    async (id: string) => {
       if (!usuarioActual?.id) return
-      await api.aceptarReserva(id, usuarioActual.id, ejemplarId)
+      await api.aceptarReserva(id)
       await cargarDatos(true)
     },
     [cargarDatos, usuarioActual],
@@ -185,7 +185,7 @@ export default function App() {
   const denegarReserva = useCallback(
     async (id: string, motivo: string) => {
       if (!usuarioActual?.id) return
-      await api.denegarReserva(id, usuarioActual.id, motivo)
+      await api.denegarReserva(id, motivo)
       await cargarDatos(true)
     },
     [cargarDatos, usuarioActual],
@@ -367,7 +367,7 @@ export default function App() {
           />
         )
       case 'reserva-nueva':
-        return <ReservaNueva itemId={catalogoItemIdRuta} catalogo={datos.catalogo} reservar={(id, lugar, inicio, fin) => usuarioActual?.id ? solicitarReserva(usuarioActual.id, id, lugar, inicio, fin) : Promise.reject(new Error('Inicia sesión para reservar.'))} />
+        return <ReservaNueva itemId={catalogoItemIdRuta} catalogo={datos.catalogo} reservar={(id, lugar, inicio, fin) => usuarioActual?.id ? solicitarReserva(id, lugar, inicio, fin) : Promise.reject(new Error('Inicia sesión para reservar.'))} />
       case 'catalogo-gestion':
         return <CatalogoGestion catalogo={datos.catalogo} ejemplares={datos.ejemplares} activar={activarCatalogo} desactivar={desactivarCatalogo} />
       case 'catalogo-nuevo':
@@ -412,7 +412,7 @@ export default function App() {
             catalogo={datos.catalogo}
             operadorId={permisosActuales.includes('ADMINISTRAR_SISTEMA') ? usuarioActual?.id ?? null : null}
             entregarSolicitud={async (id) => { await api.entregarSolicitud(id); await cargarDatos(true) }}
-            aceptarReserva={async (id) => aceptarReserva(id, '')}
+            aceptarReserva={aceptarReserva}
             denegarReserva={denegarReserva}
           />
         )

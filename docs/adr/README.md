@@ -1,18 +1,22 @@
-# Architecture Decision Records
+# Decisiones de arquitectura
 
-Decisiones tomadas durante la reescritura. El formato es una versión breve de ADR:
-contexto, decisión, consecuencias y alternativas.
+Los ADR explican decisiones técnicas concretas. Para aprender el estado actual del sistema, empieza por:
 
-| ADR | Decisión | Estado |
-|---|---|---|
-| [001](ADR-001-reescritura-limpia.md) | Reescritura limpia en lugar de reparar el legacy | Aceptado |
-| [002](ADR-002-contextos-y-dominio-puro.md) | Contextos delimitados y dominio puro | Aceptado |
-| [003](ADR-003-ids-uuid-tipados.md) | Identificadores UUID tipados | Aceptado |
-| [004](ADR-004-in-memory-primero.md) | Persistencia in-memory primero, JPA después | Superado (fase 2) |
-| [005](ADR-005-sanciones-por-eventos.md) | Sanciones por evento de dominio | Aceptado |
-| [006](ADR-006-sin-contadores-de-stock.md) | Sin contadores de stock en el catálogo | Aceptado |
-| [007](ADR-007-auth-fuera-del-corte-1.md) | Autenticación fuera del corte 1; login de personal y administradores | Temporal |
-| [008](ADR-008-reservas-fuera-de-alcance.md) | Reservas fuera del alcance del corte 1 | Aceptado |
+1. [`../../README.md`](../../README.md)
+2. [`../arquitectura.md`](../arquitectura.md)
+3. [`../solicitudes-prestamo.md`](../solicitudes-prestamo.md)
 
-Cuando una decisión temporal se revierta (por ejemplo, al entrar JPA o JWT), actualiza el
-ADR con una sección “Revisión” en lugar de borrarlo.
+Las decisiones que describen directamente el modelo operativo son:
+
+| ADR | Tema |
+|---|---|
+| [002](ADR-002-contextos-y-dominio-puro.md) | Contextos y dominio independiente |
+| [003](ADR-003-ids-uuid-tipados.md) | Identificadores tipados |
+| [005](ADR-005-sanciones-por-eventos.md) | Sanciones mediante eventos |
+| [006](ADR-006-sin-contadores-de-stock.md) | Disponibilidad derivada de ejemplares |
+| [009](ADR-009-rol-derivado-y-gestion-catalogo-usuarios.md) | Administrador derivado por permiso |
+| [013](ADR-013-revision-administrativa-de-cuentas.md) | Validación de cuentas |
+| [014](ADR-014-reservas-horarias-sin-areas.md) | Reservas horarias por título |
+| [015](ADR-015-navegacion-y-prestamos-con-hora.md) | Navegación y precisión horaria |
+
+La documentación principal es la referencia para exposición. Los ADR sirven para profundizar en la justificación de una decisión.

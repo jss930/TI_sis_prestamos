@@ -5,6 +5,7 @@ import com.biblioteca.infrastructure.persistence.jpa.entity.PrestamoJpaEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -22,4 +23,16 @@ public interface PrestamoJpaRepository extends JpaRepository<PrestamoJpaEntity, 
 
     boolean existsByPrestatarioIdAndEstadoAndFechaVencimientoBefore(
             UUID prestatarioId, EstadoPrestamo estado, LocalDate fecha);
+
+    @org.springframework.data.jpa.repository.Query("""
+            select count(p) from PrestamoJpaEntity p
+            where p.ejemplarId = :ejemplarId
+              and p.estado = com.biblioteca.circulation.domain.model.EstadoPrestamo.ACTIVO
+              and p.fechaHoraEntrega < :fin
+              and p.fechaHoraVencimiento > :inicio
+            """)
+    long contarSolapamientos(
+            @org.springframework.data.repository.query.Param("ejemplarId") UUID ejemplarId,
+            @org.springframework.data.repository.query.Param("inicio") Instant inicio,
+            @org.springframework.data.repository.query.Param("fin") Instant fin);
 }

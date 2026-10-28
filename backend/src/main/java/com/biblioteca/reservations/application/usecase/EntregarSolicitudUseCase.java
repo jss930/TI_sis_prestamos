@@ -31,7 +31,7 @@ public class EntregarSolicitudUseCase {
     }
     public Reserva ejecutar(UsuarioId operadorId, ReservaId id) {
         var reserva=reservas.buscarPorIdParaActualizar(id).orElseThrow(() -> new NotFoundException("Reserva", id.value()));
-        acceso.exigirResponsable(operadorId, reserva);
+        acceso.exigirAdministrador(operadorId, reserva);
         reserva.exigirRetiroVigente(clock.instant());
         usuarios.buscarPorIdParaActualizar(reserva.prestatarioId()).orElseThrow(() -> new NotFoundException("Usuario", reserva.prestatarioId().value()));
         var ejemplar=ejemplares.buscarPorIdParaActualizar(reserva.ejemplarId()).orElseThrow(() -> new NotFoundException("Ejemplar", reserva.ejemplarId().value()));

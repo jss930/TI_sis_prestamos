@@ -42,7 +42,6 @@ export type PermisoOperativo =
   | 'GESTIONAR_CATALOGO'
   | 'GESTIONAR_SANCIONES'
   | 'GESTIONAR_USUARIOS'
-  | 'GESTIONAR_RESERVAS'
 
 export type EstadoFisico = 'DISPONIBLE' | 'RESERVADO' | 'PRESTADO' | 'DANADO' | 'PERDIDO' | 'BAJA' | 'EN_REVISION'
 
@@ -71,7 +70,6 @@ export interface CatalogoItem {
   titulo: string
   tipo: TipoItem
   activo: boolean
-  area: CategoriaResponsable
   detalle: CatalogoDetalle
 }
 
@@ -225,7 +223,6 @@ export interface DatosBiblioteca {
 }
 
 
-export type CategoriaResponsable = 'BIBLIOTECA' | 'DEPORTES' | 'TECNOLOGIA' | 'COMPUTACION'
 export interface NuevaInspeccionDevolucion {
   estadoFisico: 'DISPONIBLE' | 'DANADO' | 'PERDIDO'
   accesoriosFaltantes: boolean

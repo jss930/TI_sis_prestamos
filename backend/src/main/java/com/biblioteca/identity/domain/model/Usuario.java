@@ -220,11 +220,6 @@ public final class Usuario extends AggregateRoot<UsuarioId> {
                 && permisos.contains(PermisoOperativo.GESTIONAR_CATALOGO);
     }
 
-    public boolean puedeGestionarReservas() {
-        return estado == EstadoCuentaUsuario.VALIDADO
-                && permisos.contains(PermisoOperativo.GESTIONAR_RESERVAS);
-    }
-
     public boolean tienePermiso(PermisoOperativo permiso) {
         return permisos.contains(permiso);
     }

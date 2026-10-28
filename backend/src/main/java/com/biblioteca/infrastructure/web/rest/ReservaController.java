@@ -1,7 +1,6 @@
 package com.biblioteca.infrastructure.web.rest;
 
 import com.biblioteca.circulation.domain.model.LugarUso;
-import com.biblioteca.inventory.domain.vo.EjemplarId;
 import com.biblioteca.reservations.application.usecase.AccesoSolicitudes;
 import com.biblioteca.reservations.application.usecase.EntregarSolicitudUseCase;
 import com.biblioteca.reservations.application.usecase.ReprogramarReservaUseCase;
@@ -115,11 +114,9 @@ public class ReservaController {
 
     @PostMapping("/{id}/aceptar")
     public ReservaResponse aceptar(@PathVariable UUID id,
-                                  @RequestHeader(value = "Authorization", required = false) String token,
-                                  @Valid @RequestBody OperadorRequest request) {
+                                  @RequestHeader(value = "Authorization", required = false) String token) {
         return aResponse(aceptar.ejecutar(new AceptarReservaCommand(
-                autenticado.exigir(token), new ReservaId(id), request.ejemplarId() == null
-                        ? null : new EjemplarId(request.ejemplarId()))));
+                autenticado.exigir(token), new ReservaId(id))));
     }
 
     @PostMapping("/{id}/entregar")
@@ -138,8 +135,7 @@ public class ReservaController {
 
     @PostMapping("/{id}/cancelar")
     public ReservaResponse cancelar(@PathVariable UUID id,
-                                    @RequestHeader(value = "Authorization", required = false) String token,
-                                    @Valid @RequestBody CancelarRequest request) {
+                                    @RequestHeader(value = "Authorization", required = false) String token) {
         return aResponse(cancelar.ejecutar(new CancelarReservaCommand(
                 autenticado.exigir(token), new ReservaId(id))));
     }
@@ -156,22 +152,14 @@ public class ReservaController {
     }
 
     public record SolicitarReservaRequest(
-            @NotNull UUID prestatarioId,
             @NotNull UUID catalogoItemId, LugarUso lugarUso,
             @NotNull Instant inicioReserva, @NotNull Instant finReserva) {
     }
 
     public record HorarioReservaRequest(@NotNull Instant inicioReserva, @NotNull Instant finReserva) { }
 
-    public record OperadorRequest(@NotNull UUID operadorId, UUID ejemplarId) {
-    }
-
     public record DenegarRequest(
-            @NotNull UUID operadorId,
             @NotNull String motivo) {
-    }
-
-    public record CancelarRequest(@NotNull UUID prestatarioId) {
     }
 
     public record ReservaResponse(

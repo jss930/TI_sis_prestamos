@@ -41,8 +41,6 @@ const MENSAJES_POR_CODIGO: Record<string, string> = {
   CODIGO_INSTITUCIONAL_DUPLICADO: 'Ya existe una cuenta con ese código institucional.',
   CORRECCION_PENDIENTE: 'La persona debe corregir sus datos y enviarlos a revisión antes de validar su cuenta.',
   REVISION_REQUERIDA: 'Confirma que revisaste los datos de la cuenta.',
-  CARGO_OCUPADO: 'Ese cargo del área ya está ocupado. Retira o cambia la asignación actual antes de reemplazarla.',
-  AREA_NO_AUTORIZADA: 'No tienes una asignación vigente para atender esta área.',
   SOLICITUD_EXPIRADA: 'El plazo de recogida venció. El ejemplar se liberará automáticamente.',
   SOLICITUD_DUPLICADA: 'Ya tienes una solicitud activa para este artículo.',
   SANCION_ACTIVA: 'El usuario tiene una sanción activa. Debe cumplirla antes de un nuevo préstamo.',
@@ -241,26 +239,24 @@ export const api = {
     const qs = params.toString()
     return solicitar<Reserva[]>(`/reservas${qs ? `?${qs}` : ''}`)
   },
-  solicitarReserva: (prestatarioId: string, catalogoItemId: string, lugarUso: 'EN_CAMPUS' | 'DOMICILIO', inicioReserva: string, finReserva: string) =>
+  solicitarReserva: (catalogoItemId: string, lugarUso: 'EN_CAMPUS' | 'DOMICILIO', inicioReserva: string, finReserva: string) =>
     solicitar<Reserva>('/reservas', {
       method: 'POST',
-      body: JSON.stringify({ prestatarioId, catalogoItemId, lugarUso, inicioReserva, finReserva }),
+      body: JSON.stringify({ catalogoItemId, lugarUso, inicioReserva, finReserva }),
     }),
-  aceptarReserva: (id: string, operadorId: string, ejemplarId?: string) =>
+  aceptarReserva: (id: string) =>
     solicitar<Reserva>(`/reservas/${id}/aceptar`, {
       method: 'POST',
-      body: JSON.stringify({ operadorId, ejemplarId }),
     }),
   entregarSolicitud: (id: string) => solicitar<Reserva>(`/reservas/${id}/entregar`, { method: 'POST' }),
-  denegarReserva: (id: string, operadorId: string, motivo: string) =>
+  denegarReserva: (id: string, motivo: string) =>
     solicitar<Reserva>(`/reservas/${id}/denegar`, {
       method: 'POST',
-      body: JSON.stringify({ operadorId, motivo }),
+      body: JSON.stringify({ motivo }),
     }),
-  cancelarReserva: (id: string, prestatarioId: string) =>
+  cancelarReserva: (id: string) =>
     solicitar<Reserva>(`/reservas/${id}/cancelar`, {
       method: 'POST',
-      body: JSON.stringify({ prestatarioId }),
     }),
   reprogramarReserva: (id: string, inicioReserva: string, finReserva: string) =>
     solicitar<Reserva>(`/reservas/${id}/horario`, {

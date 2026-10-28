@@ -55,7 +55,6 @@ public class CatalogoItemJpaAdapter implements CatalogoItemRepository {
         entidad.id = item.id().value();
         entidad.titulo = item.titulo().value();
         entidad.tipo = item.tipo();
-        entidad.area = item.area();
         entidad.activo = item.activo();
         entidad.fechaAlta = item.fechaAlta();
 
@@ -82,9 +81,7 @@ public class CatalogoItemJpaAdapter implements CatalogoItemRepository {
             case EQUIPO -> new EquipoDetalle(entidad.marca, entidad.modelo);
             case OTRO -> new OtroDetalle(entidad.descripcion);
         };
-        CatalogoItem item = CatalogoItem.reconstruir(new CatalogoItemId(entidad.id),
+        return CatalogoItem.reconstruir(new CatalogoItemId(entidad.id),
                 new Titulo(entidad.titulo), entidad.tipo, detalle, entidad.activo, entidad.fechaAlta);
-        item.asignarArea(entidad.area);
-        return item;
     }
 }

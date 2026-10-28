@@ -12,6 +12,7 @@ import com.biblioteca.reservations.application.command.AceptarReservaCommand;
 import com.biblioteca.reservations.domain.model.*;
 import com.biblioteca.reservations.domain.policy.PoliticaElegibilidadSolicitud;
 import com.biblioteca.reservations.domain.repository.ReservaRepository;
+import com.biblioteca.reservations.application.port.DisponibilidadProgramadaPort;
 import com.biblioteca.shared.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,14 +30,18 @@ public class AceptarReservaUseCase {
     private final AccesoSolicitudes acceso;
     private final Clock clock;
     private final DomainEventPublisher eventos;
+    private final DisponibilidadProgramadaPort disponibilidad;
     public AceptarReservaUseCase(UsuarioRepository usuarios, ReservaRepository reservas, EjemplarRepository ejemplares,
-            PrestamoRepository prestamos, SancionRepository sanciones, PoliticaPrestamo politica, AccesoSolicitudes acceso, Clock clock, DomainEventPublisher eventos) {
+            PrestamoRepository prestamos, SancionRepository sanciones, PoliticaPrestamo politica,
+            AccesoSolicitudes acceso, Clock clock, DomainEventPublisher eventos,
+            DisponibilidadProgramadaPort disponibilidad) {
         this.usuarios=usuarios; this.reservas=reservas; this.ejemplares=ejemplares; this.prestamos=prestamos;
         this.sanciones=sanciones; this.politica=politica; this.acceso=acceso; this.clock=clock; this.eventos=eventos;
+        this.disponibilidad=disponibilidad;
     }
     public Reserva ejecutar(AceptarReservaCommand command) {
         var reserva = reservas.buscarPorIdParaActualizar(command.reservaId()).orElseThrow(() -> new NotFoundException("Reserva", command.reservaId().value()));
-        acceso.exigirResponsable(command.operadorId(), reserva);
+        acceso.exigirAdministrador(command.operadorId(), reserva);
         if (reserva.estado() != EstadoReserva.SOLICITADA) throw new BusinessRuleException("TRANSICION_INVALIDA", "Solo se aprueban solicitudes pendientes");
         var alumno = usuarios.buscarPorIdParaActualizar(reserva.prestatarioId()).orElseThrow(() -> new NotFoundException("Usuario", reserva.prestatarioId().value()));
         var item = acceso.item(reserva);
@@ -47,16 +52,16 @@ public class AceptarReservaUseCase {
         if (reserva.inicioReserva() == null || reserva.finReserva() == null)
             throw new BusinessRuleException("HORARIO_REQUERIDO", "La solicitud no tiene un horario valido");
         var candidato = ejemplares.listarPorItem(item.id()).stream()
-                .filter(e -> e.estaDisponible())
-                .filter(e -> !reservas.existeSolapamiento(e.id(), reserva.inicioReserva(), reserva.finReserva(), reserva.id()))
+                .filter(e -> e.puedeProgramarse())
+                .filter(e -> disponibilidad.estaLibre(e.id(), reserva.inicioReserva(), reserva.finReserva(), reserva.id()))
                 .map(e -> e.id()).findFirst()
                 .orElseThrow(() -> new BusinessRuleException("EJEMPLAR_NO_DISPONIBLE",
                         "No hay ejemplares libres durante el horario solicitado"));
         // El bloqueo de la unidad serializa dos aprobaciones que compiten por la última copia.
         var ejemplar = ejemplares.buscarPorIdParaActualizar(candidato)
                 .orElseThrow(() -> new BusinessRuleException("EJEMPLAR_NO_DISPONIBLE", "El ejemplar no existe"));
-        if (!ejemplar.estaDisponible() || prestamos.existeActivoPara(ejemplar.id())
-                || reservas.existeSolapamiento(ejemplar.id(), reserva.inicioReserva(), reserva.finReserva(), reserva.id()))
+        if (!ejemplar.puedeProgramarse()
+                || !disponibilidad.estaLibre(ejemplar.id(), reserva.inicioReserva(), reserva.finReserva(), reserva.id()))
             throw new BusinessRuleException("EJEMPLAR_NO_DISPONIBLE",
                     "El ultimo ejemplar disponible acaba de ser asignado");
         reserva.aprobarProgramada(command.operadorId(), ejemplar.id(), clock.instant());

@@ -1,640 +1,493 @@
+# Sistema de Préstamos Universitario
+
 <div align="center">
 
-# Biblioteca UNSA
+**Universidad Nacional de San Agustín de Arequipa**<br>
+**Escuela Profesional de Ciencia de la Computación**<br>
+**Curso: Trabajo Interdisciplinario II**
 
-### Sistema de préstamos académicos con arquitectura DDD
+### GRUPO 3
 
-**Documentación ejecutiva, técnica y académica**
-
-![Java 21](https://img.shields.io/badge/Java-21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
-![Spring Boot 3.2.0](https://img.shields.io/badge/Spring_Boot-3.2.0-6DB33F?style=for-the-badge&logo=springboot&logoColor=white)
-![Maven](https://img.shields.io/badge/Maven-3.9%2B-C71A36?style=for-the-badge&logo=apachemaven&logoColor=white)
-![DDD](https://img.shields.io/badge/Arquitectura-DDD-1D5B40?style=for-the-badge)
-![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-100_passing-brightgreen?style=for-the-badge)
+| Integrantes |
+|---|
+| Alfaro Buiza, Jesùs Alberto |
+| Quispe Chavez, Sharmely |
+| Juan de Dios Delgado, Hellen Grace |
+| Tito Vilca, Lizeth Angélica |
 
 </div>
 
-> [!NOTE]
-> **Estado actual del repositorio.** El núcleo DDD, la API REST, la persistencia
-> PostgreSQL/JPA/Flyway y el frontend React + TypeScript + Vite están implementados.
-> La suite suma **100 tests verdes**. La autenticación por token, la revisión de cuentas y las reservas horarias están integradas.
+---
 
-Este repositorio reescribe el proyecto `TI_sis_prestamos` con **Domain-Driven Design (DDD)**
-y cinco contextos delimitados. El objetivo no es acumular pantallas o endpoints, sino
-construir un sistema cuyas reglas de negocio sean explícitas, testeables y defendibles en
-una sustentación académica.
+## 1. ¿Qué es este proyecto?
 
-El estado anterior se conserva en el tag **`legacy-v0`** y en `docs/legacy/` como
-referencia histórica. No se intentó reparar porque no compilaba y tenía dos fuentes de
-verdad para el inventario.
+Es una aplicación web para administrar préstamos de libros, equipos y otros bienes de una universidad.
+
+El sistema permite:
+
+- registrar cuentas institucionales;
+- validar cuentas antes de permitir reservas;
+- consultar el catálogo;
+- reservar un título para una fecha y hora;
+- aprobar o denegar reservas;
+- entregar una copia física e iniciar el préstamo;
+- registrar préstamos directos en ventanilla;
+- recibir devoluciones e inspeccionar el bien;
+- administrar sanciones, catálogo, ejemplares y permisos.
+
+El proyecto es un **monolito modular**: se ejecuta como una sola aplicación, pero el código está dividido por responsabilidades de negocio. Esto facilita entenderlo, probarlo y mantenerlo.
+
+> **Idea principal:** el usuario reserva un **título**, no una copia. Cuando el administrador aprueba, el sistema asigna una copia libre para ese horario.
 
 ---
 
-## 1. Visión general
+## 2. Modelo mental rápido
 
-El sistema permite administrar el ciclo completo de una biblioteca universitaria:
+Para entender todo el sistema, responde estas seis preguntas:
 
-- Registrar libros, equipos y otros recursos.
-- Gestionar ejemplares físicos y su disponibilidad.
-- Registrar cuentas, validarlas, suspenderlas y otorgar permisos.
-- Prestar, devolver y renovar ejemplares.
-- Generar sanciones automáticas por devoluciones tardías.
-- Consultar el catálogo desde una interfaz web integrada.
+| Pregunta | Concepto | Módulo |
+|---|---|---|
+| ¿Qué recurso es? | Título del catálogo | `catalog` |
+| ¿Cuál unidad física es? | Ejemplar o copia | `inventory` |
+| ¿Quién usa el sistema? | Cuenta, perfil y permisos | `identity` |
+| ¿Cuándo se quiere usar? | Reserva futura | `reservations` |
+| ¿Ya fue entregado? | Préstamo y devolución | `circulation` |
+| ¿Existe una restricción? | Sanción | `penalties` |
 
-### ¿Por qué DDD?
+Ejemplo:
 
-DDD no es una capa adicional ni una moda: es una forma de **proteger las reglas del
-negocio** frente al cambio. Cada contexto delimitado tiene su propio lenguaje, sus propias
-invariantes y sus propios límites. Esto produce cuatro beneficios concretos:
+```text
+"Clean Code"                         → título del catálogo
+La copia con código LIB-001           → ejemplar
+Luis Quispe                           → usuario
+Martes de 10:00 a 12:00              → reserva
+El administrador entrega LIB-001     → préstamo
+Luis devuelve fuera de plazo         → posible sanción
+```
 
-| Beneficio | Cómo se refleja en el proyecto |
+### Diferencias importantes
+
+- **Título:** descripción general del recurso. Ejemplo: *Clean Code*.
+- **Ejemplar:** copia física concreta. Ejemplo: `LIB-001`.
+- **Reserva:** solicitud para usar un título en un horario futuro.
+- **Préstamo:** operación que comienza cuando se entrega físicamente el ejemplar.
+- **Reserva aprobada:** compromiso temporal sobre una copia. No existe otra entidad llamada “apartado”.
+
+---
+
+## 3. Personas, cuentas y accesos
+
+### Estados de una cuenta
+
+| Estado | Qué puede hacer |
 |---|---|
-| **Mantenibilidad** | Cambiar la persistencia no obliga a tocar las reglas de préstamo. |
-| **Testabilidad** | El dominio se prueba sin Spring, sin base de datos y sin HTTP. |
-| **Escalabilidad** | Cada contexto puede evolucionar o desplegarse por separado. |
-| **Claridad académica** | Las decisiones se explican con un lenguaje ubicuo y un modelo explícito. |
+| `PROVISIONAL` | Iniciar sesión, ver catálogo y revisar su cuenta |
+| `VALIDADO` | Reservar y recibir préstamos, según sus permisos |
+| `SUSPENDIDO` | No puede reservar ni recibir préstamos |
 
-> [!TIP]
-> La idea central es sencilla: **el catálogo describe la obra; el inventario describe la
-> unidad física prestable; circulación aplica las reglas del préstamo; identidad controla
-> quién puede operar; y sanciones reacciona a los eventos de devolución tardía.**
+Una cuenta nueva queda `PROVISIONAL`. El administrador comprueba sus datos institucionales y la valida. La validación no concede automáticamente permisos administrativos.
 
-### Los cinco contextos delimitados
+### Los cuatro accesos visibles
 
-| Contexto | Responsabilidad | Ejemplos |
-|---|---|---|
-| `catalog` | Describe obras y recursos | Libro, equipo, otro recurso |
-| `inventory` | Gestiona unidades físicas | Ejemplar, código de barras, ubicación |
-| `identity` | Gestiona cuentas y permisos | Alumno, docente, administrativo |
-| `circulation` | Aplica reglas de préstamo | Préstamo, devolución, renovación |
-| `penalties` | Gestiona sanciones | Retraso, daño, pérdida |
-
-Los contextos comparten **identificadores tipados** y **eventos de dominio**, no agregados.
-Las consultas cruzadas se hacen mediante puertos de lectura explícitos; por ejemplo,
-`circulation` consulta `SancionRepository.existeActivaPara` sin modificar el agregado
-`Sancion`. Esa frontera es la que permite que `circulation` no conozca los detalles
-internos de `penalties`.
-
----
-
-## 2. Estado del proyecto
-
-| Área | Estado | Evidencia |
-|---|---|---|
-| Dominio puro en Java 21 | ✅ Completado | Agregados, value objects, eventos e invariantes |
-| API REST `/api/v1` | ✅ Completado | Controladores, validación y `ProblemDetail` |
-| Persistencia PostgreSQL/JPA | ✅ Completado | Adaptadores JPA, Flyway y esquema `V1__schema.sql` |
-| Frontend React + TypeScript | ✅ Completado | Rutas navegables, Soft UI accesible y flujos por tarea |
-| Tests automatizados | ✅ 100 verdes | Dominio, aplicación, concurrencia, JPA, reservas y ArchUnit |
-| Autenticación por token y permisos | ✅ Demo integrada | El servidor obtiene el actor del token |
-| Reservas | ✅ Implementadas | Contexto `reservations`, API `/api/v1/reservas`, ADR-010 |
-
-> [!IMPORTANT]
-> **La seguridad sigue siendo de demostración.** El backend valida el token y obtiene de él
-> al actor de las operaciones, pero el secreto y la estrategia de sesión deben endurecerse
-> antes de un despliegue productivo. No uses credenciales reales.
-
----
-
-## 3. Stack tecnológico
-
-| Capa | Tecnología |
+| Acceso | Cómo se representa |
 |---|---|
-| Lenguaje | Java 21 |
-| Framework | Spring Boot 3.2.0 — Web, Validation, Actuator, Data JPA |
-| Build | Maven Wrapper (`./mvnw` / `mvnw.cmd`) |
-| Persistencia | PostgreSQL 16, Spring Data JPA, Flyway |
-| Tests | JUnit 5, AssertJ, ArchUnit, Spring Boot Test, H2 |
-| Frontend | React 18, TypeScript 5, Vite 5 |
-| Documentación | Markdown, Mermaid, ADRs |
+| Alumno | Perfil `ALUMNO` |
+| Docente | Perfil `DOCENTE` |
+| Administrativo | Perfil `ADMINISTRATIVO` |
+| Administrador | Cuenta validada con permiso `ADMINISTRAR_SISTEMA` |
 
-No se usa Lombok ni MapStruct. JPA vive únicamente en
-`infrastructure/persistence/jpa`; el dominio no importa Spring, Jakarta Persistence,
-Hibernate ni Jackson. **ArchUnit verifica esa pureza en cada build.**
+El administrador no es un perfil de préstamo distinto. Es un acceso derivado de un permiso. Así, el sistema mantiene tres políticas de préstamo y concede las funciones administrativas directamente a la cuenta correspondiente.
+
+### Permisos por usuario
+
+- `ADMINISTRAR_SISTEMA`
+- `REGISTRAR_PRESTAMO`
+- `REGISTRAR_DEVOLUCION`
+- `VALIDAR_USUARIO_PROVISIONAL`
+- `GESTIONAR_CATALOGO`
+- `GESTIONAR_SANCIONES`
+- `GESTIONAR_USUARIOS`
+
+La administración concede o revoca permisos directamente a cada usuario.
 
 ---
 
-## 4. Puesta en marcha
+## 4. Cómo funciona una reserva
 
-### 4.1 Requisitos
+### Reglas
 
-| Herramienta | Versión | Uso |
-|---|---|---|
-| JDK | 21 | Backend |
-| Maven | 3.9+ o wrapper incluido | Compilación y tests |
-| Docker + Compose | Actual | PostgreSQL y Adminer |
-| Node.js | 18+ | Frontend |
-| pnpm / npm | pnpm recomendado | Dependencias del frontend |
+| Regla | Valor |
+|---|---|
+| Anticipación mínima | 2 horas |
+| Duración máxima | 24 horas |
+| Horario permitido | 07:00 a 20:00, hora de Arequipa/Lima |
+| Recurso seleccionado | Título, nunca una copia concreta |
+| Aprobación | Manual, solo administrador |
+| Lista de espera | No existe |
+| Recogida | Desde la hora inicial hasta 1 hora después |
+| Si no recoge | La reserva expira sin sanción |
+| Reprogramación | Solo pendiente y hasta 1 hora antes del inicio |
+| Equipos y otros bienes | Solo dentro del campus |
+| Libros | Campus o domicilio |
 
-### 4.2 Inicio rápido
+### Flujo
 
-```bash
-# 1. Base de datos
-docker compose up -d
-
-# 2. Backend (Linux / macOS)
-cd backend
-./mvnw spring-boot:run
-
-# 3. Frontend (otra terminal)
-cd frontend
-pnpm install
-pnpm dev
+```text
+Usuario validado
+      │
+      ▼
+Selecciona un título, fecha, hora y lugar de uso
+      │
+      ▼
+SOLICITADA
+      │
+      ├── administrador deniega ──────────────► DENEGADA
+      │
+      ├── usuario cancela ────────────────────► CANCELADA
+      │
+      ▼
+Administrador aprueba y el sistema asigna una copia
+      │
+      ▼
+APROBADA
+      │
+      ├── no recoge hasta una hora después ──► EXPIRADA
+      │
+      ├── usuario cancela ────────────────────► CANCELADA
+      │
+      ▼
+Administrador confirma la entrega
+      │
+      ▼
+ATENDIDA + préstamo ACTIVO
 ```
 
-Abre:
+### Disponibilidad por horario
 
-- Frontend: <http://localhost:5173>
-- API: <http://localhost:8080/api/v1>
-- Health: <http://localhost:8080/actuator/health>
-- Adminer: <http://localhost:8081>
+Una copia está libre para un intervalo cuando:
 
-> [!TIP]
-> El catálogo puede consultarse sin sesión con **Ver catálogo público**. Para registrar
-> préstamos o devoluciones, usa el login demo; cualquier correo y contraseña permiten
-> continuar.
+1. puede programarse físicamente;
+2. no tiene un préstamo que se cruce con el intervalo;
+3. no tiene otra reserva aprobada que se cruce con el intervalo.
 
-### 4.3 Comandos por sistema operativo
+Los intervalos consecutivos no chocan:
 
-| Acción | Linux / macOS | Windows PowerShell | Windows CMD |
-|---|---|---|---|
-| Compilar | `./mvnw clean compile` | `mvn clean compile` | `mvn clean compile` |
-| Ejecutar tests | `./mvnw test` | `mvn test` | `mvn test` |
-| Levantar API | `./mvnw spring-boot:run` | `mvn spring-boot:run` | `mvn spring-boot:run` |
-| Ver versión | `./mvnw -v` | `mvn -v` | `mvn -v` |
-| Alternativa sin Maven | `./mvnw ...` | `.\mvnw.cmd ...` | `mvnw.cmd ...` |
+```text
+10:00–11:00 y 11:00–12:00  → permitido
+10:00–11:30 y 11:00–12:00  → conflicto
+```
 
-> [!NOTE]
-> Los comandos de Windows usan `mvn` cuando Maven está instalado globalmente. Si no lo
-> está, el repositorio incluye el wrapper: `.\mvnw.cmd clean compile`, `.\mvnw.cmd test`
-> y `.\mvnw.cmd spring-boot:run`.
+Si dos administradores intentan aprobar la última copia al mismo tiempo, la base de datos bloquea la copia durante la decisión. La primera aprobación termina y la segunda recibe un error de disponibilidad.
 
-#### Configurar Java 21
+---
 
-**Linux**
+## 5. Préstamo directo
+
+El préstamo directo se usa cuando la persona llega a ventanilla sin una reserva.
+
+1. El administrador selecciona a la persona.
+2. Selecciona una copia física.
+3. Indica entrega, vencimiento y lugar de uso.
+4. El sistema comprueba cuenta validada, sanciones, préstamos vencidos, límites y reservas aprobadas.
+5. Si todo es válido, crea el préstamo y marca la copia como `PRESTADO`.
+
+No se crea una reserva para un préstamo inmediato. La operación se rechaza si la copia está comprometida por una reserva aprobada dentro del mismo horario.
+
+---
+
+## 6. Arquitectura en palabras sencillas
+
+El backend usa Domain-Driven Design y arquitectura hexagonal.
+
+```text
+HTTP / Base de datos / Framework
+            │
+            ▼
+      Infraestructura
+            │
+            ▼
+        Aplicación
+            │
+            ▼
+          Dominio
+```
+
+- **Dominio:** contiene las reglas de negocio.
+- **Aplicación:** coordina cada operación.
+- **Infraestructura:** conecta HTTP, PostgreSQL, JPA, tokens y eventos.
+- **Frontend:** presenta las tareas y consume la API.
+
+Ejemplo al reservar:
+
+```text
+ReservaNueva.tsx
+  → POST /api/v1/reservas
+  → ReservaController
+  → SolicitarReservaUseCase
+  → Reserva + PoliticaHorarioReserva
+  → ReservaJpaAdapter
+  → PostgreSQL
+```
+
+Más detalle: [`docs/arquitectura.md`](docs/arquitectura.md).
+
+---
+
+## 7. Tecnologías
+
+| Herramienta | Uso |
+|---|---|
+| Java 21 | Lenguaje del backend |
+| Spring Boot 3.2 | API, configuración y transacciones |
+| Maven | Compilación y pruebas del backend |
+| PostgreSQL 16 | Base de datos principal |
+| Spring Data JPA / Hibernate | Persistencia y consultas |
+| Flyway | Versionado del esquema |
+| React 18 | Interfaz web |
+| TypeScript 5 | Tipado del frontend |
+| Vite 5 | Desarrollo y construcción del frontend |
+| Docker Compose | PostgreSQL y Adminer locales |
+| JUnit 5 / AssertJ | Pruebas automatizadas |
+| ArchUnit | Reglas de arquitectura |
+| H2 | Base de pruebas |
+| GitHub Actions | Integración continua |
+
+Explicación completa: [`docs/herramientas.md`](docs/herramientas.md).
+
+---
+
+## 8. Requisitos
+
+- JDK 21.
+- Maven 3.9 o Maven Wrapper incluido.
+- Docker con Docker Compose.
+- Node.js 20 recomendado.
+- pnpm 9 recomendado; también funciona npm.
+
+Verifica:
 
 ```bash
-export JAVA_HOME=/ruta/a/jdk-21
-export PATH="$JAVA_HOME/bin:$PATH"
 java -version
+docker --version
+node --version
 ```
 
-**macOS**
+---
 
-```bash
-export JAVA_HOME=$(/usr/libexec/java_home -v 21)
-export PATH="$JAVA_HOME/bin:$PATH"
-java -version
-```
+## 9. Ejecutar el proyecto
 
-**Windows PowerShell**
+### Windows PowerShell
+
+Desde la raíz del repositorio:
 
 ```powershell
-$env:JAVA_HOME = "C:\ruta\a\jdk-21"
-$env:Path = "$env:JAVA_HOME\bin;$env:Path"
-java -version
-```
-
-**Windows CMD**
-
-```bat
-set "JAVA_HOME=C:\ruta\a\jdk-21"
-set "PATH=%JAVA_HOME%\bin;%PATH%"
-java -version
-```
-
-### 4.4 PostgreSQL con Docker
-
-```bash
-docker compose up -d
-docker compose ps
-```
-
-| Servicio | Puerto | Credenciales |
-|---|---:|---|
-| PostgreSQL | `5432` | base/usuario/clave: `biblioteca` |
-| Adminer | `8081` | Gestión visual de la base |
-
-Para detener los servicios:
-
-```bash
-docker compose down
-```
-
-Para borrar también los datos y volver al escenario inicial:
-
-```bash
-docker compose down -v
 docker compose up -d
 ```
 
-### 4.5 Backend
-
-**Linux / macOS**
-
-```bash
-cd backend
-./mvnw clean compile
-./mvnw test
-./mvnw spring-boot:run
-```
-
-**Windows PowerShell / CMD**
+Backend, en otra terminal:
 
 ```powershell
 cd backend
-mvn clean compile
-mvn test
 mvn spring-boot:run
 ```
 
-Alternativa con wrapper:
+Si Maven no está instalado globalmente:
 
 ```powershell
-.\mvnw.cmd clean compile
-.\mvnw.cmd test
+cd backend
 .\mvnw.cmd spring-boot:run
 ```
 
-- Perfil por defecto: `demo`.
-- Flyway aplica `V1__schema.sql` automáticamente.
-- Para arrancar sin datos demo, agrega `-Dspring-boot.run.profiles=prod` al comando de
-  arranque: `./mvnw spring-boot:run -Dspring-boot.run.profiles=prod` en Linux/macOS o
-  `mvn spring-boot:run -Dspring-boot.run.profiles=prod` en Windows.
-- La conexión se puede sobreescribir con `DB_URL`, `DB_USER` y `DB_PASSWORD`.
+Frontend, en otra terminal:
 
-> [!NOTE]
-> Los tests no necesitan Docker: usan H2 en modo PostgreSQL y ejecutan la misma migración
-> Flyway. La validación contra PostgreSQL real es parte de la fase de operación.
-
-### 4.6 Frontend
-
-```bash
+```powershell
 cd frontend
-pnpm install
-pnpm dev
-```
-
-Alternativa con npm:
-
-```bash
 npm install
 npm run dev
 ```
 
-Configuración en `frontend/.env`:
+> Maven debe ejecutarse dentro de `backend/`. Ejecutarlo en la raíz produce el error “No plugin found for prefix spring-boot”.
 
-```env
-VITE_API_BASE_URL=http://localhost:8080/api/v1
+### Linux, WSL o macOS
+
+```bash
+docker compose up -d
+
+cd backend
+./mvnw spring-boot:run
 ```
 
-`.env` está ignorado por Git. Usa `.env.example` como plantilla. Si cambias el puerto del
-backend, actualiza también el origen permitido en `WebConfig`.
+En otra terminal:
 
----
-
-## 5. Datos demo con UUIDs fijos
-
-El perfil `demo` carga el siguiente escenario. El seed solo se ejecuta si la tabla
-`usuarios` está vacía.
-
-| Recurso | UUID | Notas |
-|---|---|---|
-| Bibliotecario (Elena) | `00000000-0000-0000-0000-000000000001` | `VALIDADO`, todos los permisos |
-| Ana (alumna) | `00000000-0000-0000-0000-000000000002` | `PROVISIONAL`, no puede prestar ni operar |
-| Luis (alumno) | `00000000-0000-0000-0000-000000000003` | `VALIDADO`, préstamo vencido |
-| Rosa (docente) | `00000000-0000-0000-0000-000000000004` | `VALIDADO`, puede llevar equipos a domicilio |
-| Libro *Clean Code* | `00000000-0000-0000-0000-000000000101` | ISBN `9780132350884` |
-| Laptop Lenovo T14 | `00000000-0000-0000-0000-000000000102` | Equipo |
-| Ejemplar `LIB-001` | `00000000-0000-0000-0000-000000000201` | Disponible |
-| Ejemplar `LIB-002` | `00000000-0000-0000-0000-000000000202` | Prestado a Luis, vencido |
-| Ejemplar `LAP-001` | `00000000-0000-0000-0000-000000000203` | Disponible |
-| Préstamo vencido | `00000000-0000-0000-0000-000000000301` | Vence 3 días antes de “hoy” |
-
-> [!IMPORTANT]
-> El seed solo se ejecuta con el perfil `demo` y si la base no tiene usuarios. Los datos
-> persisten entre reinicios; para reiniciar el escenario debes borrar el volumen con
-> `docker compose down -v`.
-
-El frontend incluye un selector de cuentas demo (bibliotecario, Luis, Ana, docente) y
-muestra el rol derivado. El login sigue siendo demo: sin contraseña y la API confía en
-`operadorId`.
-
----
-
-## 6. API principal
-
-Base: `http://localhost:8080/api/v1`
-
-### Catálogo
-
-| Método | Ruta | Descripción |
-|---|---|---|
-| `GET` | `/catalogo?q=&tipo=` | Lista o busca ítems |
-| `GET` | `/catalogo/{id}` | Obtiene un ítem |
-| `POST` | `/catalogo/libros` | Registra un libro |
-| `POST` | `/catalogo/equipos` | Registra un equipo |
-| `POST` | `/catalogo/otros` | Registra otro recurso |
-| `POST` | `/catalogo/{id}/desactivar` | Saca un ítem de circulación |
-| `POST` | `/catalogo/{id}/activar` | Reactiva un ítem desactivado |
-| `PATCH` | `/catalogo/{id}/titulo` | Actualiza el título de un ítem |
-
-### Inventario
-
-| Método | Ruta | Descripción |
-|---|---|---|
-| `GET` | `/inventario/ejemplares?catalogoItemId=&barcode=` | Lista ejemplares |
-| `GET` | `/inventario/ejemplares/{id}` | Obtiene un ejemplar |
-| `POST` | `/inventario/ejemplares` | Registra una unidad física |
-| `POST` | `/inventario/ejemplares/{id}/baja` | Da de baja un ejemplar |
-
-### Identidad
-
-| Método | Ruta | Descripción |
-|---|---|---|
-| `GET` | `/usuarios?q=&estado=&perfil=` | Lista o busca cuentas |
-| `GET` | `/usuarios/{id}` | Obtiene una cuenta |
-| `POST` | `/usuarios` | Registra una cuenta `PROVISIONAL` |
-| `POST` | `/usuarios/{id}/validar` | Valida la cuenta |
-| `POST` | `/usuarios/{id}/suspender` | Suspende con motivo |
-| `POST` | `/usuarios/{id}/reactivar` | Reactiva la cuenta |
-| `POST` | `/usuarios/{id}/permisos` | Otorga permiso operativo |
-| `DELETE` | `/usuarios/{id}/permisos/{permiso}?operadorId=` | Revoca permiso |
-
-### Circulación y sanciones
-
-| Método | Ruta | Descripción |
-|---|---|---|
-| `GET` | `/prestamos?prestatarioId=&estado=` | Lista préstamos |
-| `GET` | `/prestamos/{id}` | Obtiene un préstamo |
-| `POST` | `/prestamos` | Registra un préstamo |
-| `POST` | `/prestamos/{id}/devolucion` | Registra devolución |
-| `POST` | `/prestamos/{id}/renovacion` | Renueva si no está vencido |
-| `GET` | `/sanciones?usuarioId=&estado=` | Lista sanciones |
-| `POST` | `/sanciones` | Registra sanción manual |
-| `POST` | `/sanciones/{id}/cumplir` | Marca la sanción como cumplida |
-
-Los errores usan `application/problem+json` (`ProblemDetail`) e incluyen un campo `codigo`
-estable para el frontend, por ejemplo `SANCION_ACTIVA`, `USUARIO_NO_HABILITADO` o
-`AUTOPRESTAMO_NO_PERMITIDO`.
-
-> [!TIP]
-> La demo completa con `curl`, incluidos los errores esperados, está en
-> [`docs/demo.md`](docs/demo.md).
-
----
-
-## 7. Roles, permisos y reglas de negocio
-
-### 7.1 Perfiles y alcance
-
-| Perfil | Consulta catálogo | Solicita préstamos | Opera ventanilla | Límite simultáneo | Renovaciones |
-|---|---|---:|---:|---:|---:|
-| `ALUMNO` | ✅ | ✅ si está `VALIDADO` | ❌ | 3 | 1 |
-| `DOCENTE` | ✅ | ✅ si está `VALIDADO` | ❌ | 10 | 2 |
-| `ADMINISTRATIVO` | ✅ | ✅ si está `VALIDADO` | Solo con permiso | 5 | 2 |
-
-Los permisos operativos son explícitos: `REGISTRAR_PRESTAMO`,
-`VALIDAR_USUARIO_PROVISIONAL`, `GESTIONAR_CATALOGO`, `GESTIONAR_SANCIONES` y
-`GESTIONAR_USUARIOS`. No son roles y no saltan la validación de la cuenta. Un usuario
-`VALIDADO` con al menos un permiso de gestión se considera administrador (rol derivado
-`rolAcceso`).
-
-### 7.2 Identidad
-
-- `PROVISIONAL` puede consultar el catálogo, pero **no** solicitar préstamos ni operar.
-- Un permiso operativo no salta la regla anterior: primero hay que validar la cuenta.
-- Transiciones permitidas: `PROVISIONAL → VALIDADO → SUSPENDIDO → VALIDADO`.
-- La suspensión exige motivo.
-- Solo una cuenta `VALIDADO` puede recibir permisos operativos.
-
-### 7.3 Circulación
-
-- El prestatario debe existir y estar `VALIDADO`.
-- El operador debe estar `VALIDADO` y tener `REGISTRAR_PRESTAMO`.
-- `operadorId != prestatarioId`: no hay autopréstamo.
-- El ítem debe estar activo y el ejemplar disponible.
-- No puede haber dos préstamos activos sobre el mismo ejemplar.
-- No se presta con sanción activa ni con préstamo vencido pendiente.
-- Se respeta el máximo de préstamos simultáneos por perfil.
-- Los equipos solo salen a domicilio para docentes y administrativos.
-- Un préstamo vencido puede devolverse, pero no renovarse.
-- “Vencido” se deriva de las fechas; no se persiste como estado.
-
-### 7.4 Sanciones
-
-- Una devolución tardía publica `PrestamoDevueltoConRetrasoEvent`.
-- `penalties` reacciona y crea una `Sancion`: 1 día de suspensión y S/ 1.00 por día de
-  retraso, con tope de 30 días.
-- Una sanción activa bloquea nuevos préstamos.
-- La sanción puede cumplirse o anularse; no cambia el estado de la cuenta.
-
-### 7.5 Política de plazos
-
-| Perfil | Libro | Equipo | Otro | Máx. simultáneos | Renovaciones |
-|---|---:|---:|---:|---:|---:|
-| Alumno | 7 días | 1 día | 3 días | 3 | 1 |
-| Docente | 30 días | 7 días | 7 días | 10 | 2 |
-| Administrativo | 15 días | 3 días | 5 días | 5 | 2 |
-
----
-
-## 8. Arquitectura en una vista
-
-```mermaid
-flowchart LR
-    C[catalog<br/>obras y recursos] --> I[inventory<br/>ejemplares físicos]
-    I --> CI[circulation<br/>préstamos]
-    ID[identity<br/>cuentas y permisos] --> CI
-    CI -->|PrestamoDevueltoConRetrasoEvent| P[penalties<br/>sanciones]
-    ID --> P
+```bash
+cd frontend
+pnpm install
+pnpm dev
 ```
 
-La regla de dependencias es estricta:
+### Direcciones
+
+| Servicio | Dirección |
+|---|---|
+| Frontend | <http://localhost:5173> |
+| API | <http://localhost:8080/api/v1> |
+| Salud | <http://localhost:8080/actuator/health> |
+| Adminer | <http://localhost:8081> |
+| PostgreSQL | `localhost:5432` |
+
+Base, usuario y contraseña local: `biblioteca`.
+
+### Cuentas de demostración
+
+Todas usan la contraseña `password`.
+
+| Cuenta | Situación |
+|---|---|
+| `bibliotecario@biblioteca.pe` | Administrador con permisos |
+| `ana@universidad.edu.pe` | Alumna provisional |
+| `luis@universidad.edu.pe` | Alumno validado |
+| `docente@universidad.edu.pe` | Docente validada |
+
+---
+
+## 10. Base de datos
+
+Las tablas principales son:
 
 ```text
-infrastructure/web ─┐
-infrastructure/jpa ─┼──> application ──> domain
-infrastructure/events┘
+usuarios ───────────┬── reservas ─── catalogo_items
+                    │       │
+                    │       └────── ejemplares
+                    │
+                    ├── prestamos ── ejemplares ── catalogo_items
+                    │
+                    └── sanciones
+
+usuarios ── credenciales
 ```
 
-- `domain` no conoce Spring, JPA, Hibernate, Jackson ni `infrastructure`.
-- Los repositorios son **puertos** definidos en `domain/repository`.
-- Los adaptadores JPA e in-memory implementan esos puertos en infraestructura.
-- Los eventos desacoplan la **creación** de sanciones: `circulation` publica y `penalties`
-  reacciona. Para bloquear préstamos, `circulation` consulta el puerto de lectura
-  `SancionRepository.existeActivaPara`.
-- `ArquitecturaTest` verifica estas reglas en cada build.
+- Las claves principales son UUID.
+- Las claves foráneas conservan la integridad entre tablas.
+- Flyway aplica 15 migraciones.
+- JPA usa `ddl-auto=validate`: valida el esquema, no lo inventa.
+- Las fechas horarias usan `TIMESTAMP WITH TIME ZONE`.
+- El servidor trabaja con la zona `America/Lima` y persiste instantes en UTC.
 
-### Estructura del repositorio
-
-```text
-TI_sis_prestamos/
-├── backend/
-│   ├── pom.xml
-│   └── src/
-│       ├── main/java/com/biblioteca/
-│       │   ├── shared/domain/              # AggregateRoot, ValueObject, DomainEvent
-│       │   ├── shared/application/         # DomainEventPublisher
-│       │   ├── catalog/                    # Catálogo e ítems
-│       │   ├── inventory/                  # Ejemplares físicos
-│       │   ├── identity/                   # Cuentas y permisos
-│       │   ├── circulation/                # Préstamos y devoluciones
-│       │   ├── penalties/                  # Sanciones y multas
-│       │   └── infrastructure/
-│       │       ├── persistence/jpa/        # Entidades y adaptadores JPA
-│       │       ├── persistence/inmemory/   # Adaptadores para tests
-│       │       ├── config/                 # Spring, CORS y datos demo
-│       │       └── web/                    # Controladores y ProblemDetail
-│       ├── main/resources/
-│       │   ├── application.yml             # PostgreSQL/JPA/Flyway
-│       │   └── db/migration/V1__schema.sql
-│       └── test/java/com/biblioteca/       # 100 tests, incluidos concurrencia y ArchUnit
-├── docs/
-│   ├── arquitectura.md
-│   ├── demo.md
-│   ├── adr/
-│   └── legacy/
-├── frontend/                               # React + TypeScript + Vite
-├── docker-compose.yml                      # PostgreSQL 16 + Adminer
-└── AGENT.md                                # Guía para agentes y desarrolladores
-```
-
-Cada contexto de negocio sigue la misma forma:
-
-```text
-<contexto>/
-├── domain/
-│   ├── model/          # Agregados, entidades, enums
-│   ├── event/          # Eventos de dominio
-│   ├── policy/         # Reglas configurables
-│   ├── repository/     # Puertos de salida
-│   └── vo/             # IDs tipados y value objects
-└── application/
-    ├── command/        # Intenciones de escritura
-    └── usecase/        # Orquestación sin reglas de negocio
-```
-
-El detalle completo, los diagramas de secuencia y las decisiones por contexto están en
-[`docs/arquitectura.md`](docs/arquitectura.md).
+Guía de base de datos, SQL y DB1/DB2: [`docs/base-de-datos.md`](docs/base-de-datos.md).
 
 ---
 
-## 9. Pruebas
+## 11. API principal
 
-La suite se ejecuta con:
+Todas las rutas comienzan con `/api/v1`.
+
+| Módulo | Rutas principales |
+|---|---|
+| Autenticación | `POST /auth/login` |
+| Catálogo | `GET /catalogo`, `POST /catalogo/libros`, `/equipos`, `/otros` |
+| Inventario | `GET/POST /inventario/ejemplares` |
+| Usuarios | `GET/POST /usuarios`, acciones de validación y permisos |
+| Reservas | `GET/POST /reservas`, aprobar, denegar, cancelar, reprogramar, entregar |
+| Préstamos | `GET/POST /prestamos`, devolución y renovación |
+| Sanciones | `GET/POST /sanciones` |
+
+Los errores siguen `ProblemDetail`:
+
+```json
+{
+  "title": "Regla de negocio",
+  "status": 409,
+  "detail": "No hay ejemplares libres durante el horario seleccionado",
+  "codigo": "EJEMPLAR_NO_DISPONIBLE"
+}
+```
+
+La API usa un token firmado para identificar al usuario en los flujos protegidos. Es una seguridad adecuada para la demostración académica local, no para publicar el sistema en Internet. La guía técnica explica su alcance en [`docs/arquitectura.md`](docs/arquitectura.md#9-seguridad).
+
+---
+
+## 12. Pruebas y calidad
+
+Backend:
 
 ```bash
 cd backend
 ./mvnw test
 ```
 
-Resultado esperado:
+Windows:
 
-```text
-BUILD SUCCESS
-Tests run: 100, Failures: 0, Errors: 0, Skipped: 0
+```powershell
+cd backend
+mvn test
 ```
 
-### Composición de la suite
+Frontend:
 
-| Suite | Tests | Qué protege |
-|---|---:|---|
-| `UsuarioTest` | 9 | Estados, permisos e invariantes de cuenta |
-| `ISBNTest` | 5 | Normalización y checksum ISBN |
-| `ContextLoadsTest` | 1 | Contexto Spring, JPA, Flyway y H2 |
-| `JpaPersistenciaTest` | 1 | Persistencia de los cinco agregados |
-| `SancionTest` | 6 | Vigencia, multa y estados de sanción |
-| `PrestamoDevueltoConRetrasoListenerTest` | 1 | Evento → sanción automática |
-| `FlujoPrestamoTest` | 1 | Flujo completo sin Spring |
-| `EjemplarTest` | 8 | Disponibilidad y transiciones físicas |
-| `PrestamoTest` | 9 | Invariantes y devolución tardía |
-| `RegistrarPrestamoUseCaseTest` | 10 | Reglas compuestas de préstamo |
-| `RegistrarDevolucionUseCaseTest` | 4 | Devolución y eventos |
-| `ArquitecturaTest` | 3 | Pureza del dominio y dependencias |
+```bash
+cd frontend
+pnpm typecheck
+pnpm build
+```
 
-> [!NOTE]
-> Los **57 tests originales** de dominio, aplicación, flujo y arquitectura se conservan.
-> `JpaPersistenciaTest` añade el test 58. Los tests de persistencia usan H2 en modo
-> PostgreSQL y la misma migración Flyway; no requieren Docker.
+Las pruebas cubren:
 
----
+- reglas de usuarios, ejemplares, préstamos, sanciones y reservas;
+- casos de uso;
+- persistencia JPA y migraciones Flyway;
+- concurrencia sobre la última copia;
+- disponibilidad futura por intervalo;
+- reglas de dependencia con ArchUnit.
 
-## 10. Roadmap de cuatro fases
+La suite actual ejecuta **103 pruebas backend: 0 fallos, 0 errores y 0 omitidas**.
 
-| Fase | Alcance | Estado |
-|---|---|---|
-| **1. Núcleo DDD + API + persistencia** | Contextos, reglas, REST, PostgreSQL, JPA, Flyway, tests y demo | ✅ Completada |
-| **2. Frontend integrado** | React + TypeScript + Vite, cliente HTTP, `ProblemDetail`, operaciones | ✅ Implementada y commiteada en `main` (`8f03528`) |
-| **3. Seguridad** | JWT, roles, sesiones reales y operador derivado del token | ⏳ Futura |
-| **4. Operación y calidad** | Testcontainers, outbox, CI/CD, observabilidad, backups | ⏳ Futura |
-
-> [!IMPORTANT]
-> El repositorio ya incluye el avance de la Fase 2 (persistencia y frontend). El roadmap
-> se mantiene en cuatro fases para la exposición; la columna **Estado** refleja el avance
-> real del repositorio y evita presentar como futuro lo que ya está implementado.
-
-**Alcance confirmado para la siguiente fase:** login solo para personal bibliotecario y
-administradores; catálogo público para alumnos; `identity` se mantiene unificado y
-preparado para habilitar el acceso de alumnos sin cambios de esquema. Las reservas quedan
-fuera del alcance principal.
-
-### Pendientes conocidos
-
-- No hay autenticación real: el login del frontend es demo y los `operadorId` se confían.
-- Los eventos se entregan de forma síncrona; falta outbox/async y Testcontainers.
-- Los endpoints de catálogo e inventario aún no exigen `GESTIONAR_CATALOGO`.
-- `POST /usuarios` sigue abierto (sin operador ni permiso) hasta la fase de seguridad.
-- Sin autenticación, cualquier cliente puede suplantar a un operador enviando su
-  `operadorId`.
-- No hay reservas, paginación, bloqueo optimista ni auditoría persistente.
-- La regla “un préstamo activo por ejemplar” se aplica en el caso de uso, pero aún no tiene
-  índice único parcial en PostgreSQL.
+GitHub Actions ejecuta automáticamente el backend con Java 21 y el frontend con Node 20 en cada `push` y `pull request`.
 
 ---
 
-## 11. Documentación
+## 13. Usabilidad
 
-| Documento | Contenido |
+La interfaz aplica principios básicos:
+
+- **Visibilidad:** reglas y estados se muestran antes de confirmar.
+- **Prevención de errores:** límites de fecha, opciones deshabilitadas y validación doble.
+- **Consistencia:** se usa el término “reserva” en todo el flujo.
+- **Retroalimentación:** muestra carga, éxito y errores comprensibles.
+- **Control del usuario:** permite volver, cancelar y reprogramar cuando corresponde.
+- **Accesibilidad:** etiquetas, foco visible, contraste y reducción de movimiento.
+
+---
+
+## 14. Documentos para estudiar
+
+| Documento | Para qué sirve |
 |---|---|
-| [Arquitectura](docs/arquitectura.md) | Contextos, dependencias, eventos, persistencia y trade-offs |
-| [Demo con curl](docs/demo.md) | Recorrido reproducible con resultados esperados |
-| [ADRs](docs/adr/) | Decisiones de arquitectura y su justificación |
-| [Guía para agentes](AGENT.md) | Reglas duras, comandos y mapa del código |
-| [Frontend](frontend/README.md) | Configuración, scripts y estructura de la interfaz |
-| [Legacy](docs/legacy/) | Referencia histórica, no forma parte del build |
+| [`docs/guia-del-sistema.md`](docs/guia-del-sistema.md) | Entender todo el sistema desde nivel cero |
+| [`docs/arquitectura.md`](docs/arquitectura.md) | Capas, contextos, reglas y concurrencia |
+| [`docs/solicitudes-prestamo.md`](docs/solicitudes-prestamo.md) | Reserva y préstamo directo |
+| [`docs/base-de-datos.md`](docs/base-de-datos.md) | Modelo, SQL, DB1 y DB2 |
+| [`docs/herramientas.md`](docs/herramientas.md) | Qué hace cada tecnología |
+| [`docs/interfaz-web.md`](docs/interfaz-web.md) | Pantallas, navegación y usabilidad |
+| [`docs/revision-cuentas.md`](docs/revision-cuentas.md) | Registro y validación de cuentas |
+| [`docs/demo.md`](docs/demo.md) | Guion de demostración |
+| [`docs/guia-sustentacion.md`](docs/guia-sustentacion.md) | Preguntas, respuestas y ruta de estudio |
+
+### Orden recomendado
+
+```text
+README
+  → guía del sistema
+  → reservas
+  → arquitectura
+  → base de datos
+  → herramientas
+  → guía de sustentación
+```
 
 ---
 
-## 12. Valor académico del diseño
+## 15. Estado académico
 
-Este proyecto prioriza tres cosas que suelen perderse en trabajos de curso:
+El sistema está preparado para ejecutarse y demostrarse localmente. Incluye frontend, API, base de datos, migraciones, datos demo, pruebas automatizadas y CI.
 
-1. **Reglas explícitas.** Las validaciones no están dispersas en controladores; viven en
-   agregados y políticas.
-2. **Fronteras defendibles.** Cada contexto tiene una responsabilidad clara y un lenguaje
-   propio. Se puede explicar por qué `catalog` no presta y por qué `inventory` no decide
-   sanciones.
-3. **Evidencia verificable.** Los tests, ArchUnit, Flyway y la demo reproducible permiten
-   demostrar que el diseño funciona, no solo describirlo.
-
-> [!NOTE]
-> Proyecto de Ingeniería de Software — Universidad Nacional de San Agustín. La reescritura
-> busca que las reglas del negocio sean explícitas, testeables y defendibles en una
-> sustentación, por encima de acumular endpoints o pantallas sin coherencia.
-
-
-## Reservas horarias y préstamos directos
-
-El usuario validado reserva un título para una fecha y horario. El administrador aprueba manualmente y el sistema asigna una copia sin solapamientos. La recogida inicia el préstamo; si no ocurre hasta una hora después del inicio, la reserva expira. Consulta [la guía completa](docs/solicitudes-prestamo.md) y [ADR-014](docs/adr/ADR-014-reservas-horarias-sin-areas.md).
-
-
-### Administración simplificada
-
-No hay responsables por área ni capacitación técnica. El administrador valida cuentas y concede permisos directamente a cada usuario desde Personas. Las migraciones históricas se conservan para no romper bases que ya las ejecutaron, pero esos conceptos no participan en la API ni en la interfaz actual.
-
-
-### Revisión de cuentas
-
-Personas permite revisar pendientes, solicitar correcciones y confirmar la validación con identificación del revisor y fecha. El titular puede corregir sus datos desde Mi cuenta. Véase [el flujo de revisión](docs/revision-cuentas.md) y [ADR-013](docs/adr/ADR-013-revision-administrativa-de-cuentas.md).
+Para un despliegue público se deben reforzar autenticación, autorización global, gestión de secretos, HTTPS, auditoría, copias de seguridad y observabilidad. Esta separación permite presentar honestamente qué funciona en la demostración y qué requiere una operación institucional real.

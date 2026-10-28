@@ -107,6 +107,15 @@ public final class Ejemplar extends AggregateRoot<EjemplarId> {
         return estadoFisico == EstadoFisico.DISPONIBLE;
     }
 
+    /**
+     * Indica si la copia puede planificarse para una fecha futura. Una copia
+     * prestada hoy también puede reservarse si su préstamo termina antes del
+     * intervalo solicitado; esa comprobación temporal la realiza el caso de uso.
+     */
+    public boolean puedeProgramarse() {
+        return estadoFisico == EstadoFisico.DISPONIBLE || estadoFisico == EstadoFisico.PRESTADO;
+    }
+
     private static String normalizarNotas(String notas) {
         return notas == null || notas.isBlank() ? null : notas.trim();
     }

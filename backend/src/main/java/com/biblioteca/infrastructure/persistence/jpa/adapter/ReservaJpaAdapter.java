@@ -78,10 +78,8 @@ public class ReservaJpaAdapter implements ReservaRepository {
 
     @Override
     public boolean existeSolapamiento(EjemplarId ejemplarId, Instant inicio, Instant fin, ReservaId excluir) {
-        if (excluir == null) {
-            return ReservaRepository.super.existeSolapamiento(ejemplarId, inicio, fin, null);
-        }
-        return repositorio.contarSolapamientos(ejemplarId.value(), inicio, fin, excluir.value()) > 0;
+        return repositorio.contarSolapamientos(ejemplarId.value(), inicio, fin,
+                excluir == null ? null : excluir.value()) > 0;
     }
 
     private static ReservaJpaEntity aEntidad(Reserva reserva) {

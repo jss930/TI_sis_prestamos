@@ -21,13 +21,13 @@ public class AccesoSolicitudes {
     public boolean puedeAtender(UsuarioId id, Reserva reserva) {
         return usuario(id).puedeAdministrarSistema();
     }
-    public void exigirResponsable(UsuarioId id, Reserva reserva) {
+    public void exigirAdministrador(UsuarioId id, Reserva reserva) {
         if (!puedeAtender(id, reserva)) {
             throw new BusinessRuleException("ADMINISTRADOR_REQUERIDO",
                     "Solo un administrador puede aprobar, denegar o entregar reservas");
         }
     }
     public void exigirLectura(UsuarioId id, Reserva reserva) {
-        if (!reserva.prestatarioId().equals(id)) exigirResponsable(id, reserva);
+        if (!reserva.prestatarioId().equals(id)) exigirAdministrador(id, reserva);
     }
 }

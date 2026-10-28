@@ -7,7 +7,7 @@ const TITULOS: Record<Pagina, [string, string]> = {
   catalogo: ['Catálogo de bienes', 'Libros, equipos y otros recursos disponibles.'],
   'mis-prestamos': ['Mis préstamos', 'Historial de préstamos de tu cuenta.'],
   'mis-reservas': ['Mis solicitudes', 'Aprobación, recogida y estado de tus solicitudes.'],
-  'reservas': ['Solicitudes pendientes', 'Aprueba solicitudes de tus áreas y confirma la entrega física.'],
+  'reservas': ['Solicitudes pendientes', 'Aprueba reservas y confirma la entrega física.'],
   prestamos: ['Préstamos', 'Registra entregas y devoluciones.'],
   sanciones: ['Sanciones', 'Restricciones informadas por el sistema.'],
   administracion: ['Panel administrador', 'Administra los recursos y la configuración de la biblioteca.'],

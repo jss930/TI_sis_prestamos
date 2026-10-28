@@ -25,7 +25,7 @@ public interface ReservaJpaRepository extends JpaRepository<ReservaJpaEntity, UU
             select count(r) from ReservaJpaEntity r
             where r.estado = com.biblioteca.reservations.domain.model.EstadoReserva.APROBADA
               and r.ejemplarId = :ejemplarId
-              and r.id <> :excluirId
+              and (:excluirId is null or r.id <> :excluirId)
               and r.inicioReserva < :fin
               and r.finReserva > :inicio
             """)

@@ -28,7 +28,6 @@ const PERMISOS: Array<{ id: PermisoOperativo; texto: string }> = [
   { id: 'GESTIONAR_CATALOGO', texto: 'Gestionar catálogo' },
   { id: 'GESTIONAR_SANCIONES', texto: 'Gestionar sanciones' },
   { id: 'GESTIONAR_USUARIOS', texto: 'Gestionar usuarios' },
-  { id: 'GESTIONAR_RESERVAS', texto: 'Gestionar reservas' },
 ]
 export default function Personas({ usuarios, permisos, operadorId, crearUsuario, validarUsuario,
   suspenderUsuario, reactivarUsuario, otorgarPermiso, revocarPermiso, solicitarCorreccion, actualizarDatos }: Props) {

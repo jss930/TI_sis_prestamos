@@ -1,79 +1,139 @@
 # Reservas horarias y préstamos directos
 
-## Modelo simple
+## 1. Vocabulario
 
-Una **reserva** es una solicitud para usar un título en una fecha y horario futuros. El usuario no elige una copia: al aprobar, el sistema asigna automáticamente un ejemplar libre que no tenga otro horario superpuesto.
+- **Reserva:** solicitud para usar un título en un intervalo futuro.
+- **Reserva aprobada:** compromiso temporal sobre una copia asignada.
+- **Préstamo:** entrega física de una copia a una persona.
+- **Préstamo directo:** entrega en ventanilla sin reserva previa.
 
-Un **préstamo directo** ocurre cuando la persona se presenta en ventanilla sin reserva. El administrador selecciona una copia y registra el préstamo. La operación se rechaza si esa copia está comprometida por una reserva aprobada dentro del periodo del préstamo.
+El usuario reserva un título. Nunca selecciona una copia concreta.
 
-No existen áreas responsables, responsables principales/suplentes ni capacitación técnica. La administración valida cuentas y concede permisos directamente a cada usuario.
+## 2. Acceso
 
-## Acceso
+1. La persona registra una cuenta institucional.
+2. La cuenta queda `PROVISIONAL` y puede consultar catálogo y cuenta.
+3. La administración revisa sus datos.
+4. Una cuenta `VALIDADO` puede reservar.
+5. Solo un administrador con `ADMINISTRAR_SISTEMA` aprueba, deniega y entrega reservas.
 
-1. Cualquier persona con correo y código institucional puede registrar una cuenta.
-2. Una cuenta `PROVISIONAL` inicia sesión y solo consulta el catálogo y sus datos.
-3. El administrador revisa y valida la cuenta.
-4. Una cuenta `VALIDADO` puede crear, consultar, cancelar y reprogramar sus reservas.
-5. Solo una cuenta validada con `ADMINISTRAR_SISTEMA` puede aprobar, denegar y entregar reservas.
+Los perfiles son alumno, docente y administrativo. Administrador es un acceso concedido por permiso.
 
-Los perfiles de negocio son alumno, docente y administrativo. Administrador es un acceso derivado del permiso `ADMINISTRAR_SISTEMA`, no un perfil de préstamo distinto.
+## 3. Datos solicitados
 
-## Reglas del horario
+La pantalla pide:
 
-- Inicio con al menos **2 horas de anticipación**.
-- Atención entre **07:00 y 20:00**, zona `America/Lima`.
-- La hora final debe ser posterior a la inicial.
-- Duración máxima de **24 horas**.
-- La reserva se realiza por título.
-- Libros: uso en campus o domicilio.
-- Equipos y otros bienes: solo dentro del campus.
-- No existe lista de espera.
-- Si no hay una copia libre para todo el intervalo, la operación se rechaza.
-- Horarios consecutivos no se consideran superpuestos; por ejemplo, 10:00–11:00 y 11:00–12:00.
-- Una reserva aprobada cuenta dentro del límite de préstamos/apartados.
+- título;
+- fecha y hora inicial;
+- fecha y hora final;
+- lugar de uso cuando es un libro.
 
-## Estados
+El usuario sale del token de sesión. No se permite escoger otra cuenta ni una copia.
+
+## 4. Horario
+
+- Anticipación mínima: 2 horas.
+- Horario: 07:00–20:00 en `America/Lima`.
+- Fin posterior al inicio.
+- Duración máxima: 24 horas.
+- Libros: campus o domicilio.
+- Equipos y otros bienes: campus.
+
+El frontend previene errores y el backend vuelve a validar todo.
+
+## 5. Disponibilidad
+
+Una copia puede programarse cuando su estado físico lo permite y no existe un préstamo ni reserva aprobada que se cruce con el intervalo.
+
+```text
+solapamiento = inicioA < finB AND inicioB < finA
+```
+
+Una copia prestada en este momento puede reservarse para después de su vencimiento. Una copia dañada, perdida, en revisión o de baja no se programa.
+
+No existe lista de espera. Si ninguna copia puede cubrir todo el intervalo, la solicitud se rechaza.
+
+## 6. Estados
 
 ```text
 SOLICITADA ──aprobar──> APROBADA ──entregar──> ATENDIDA
      │                      │
-     ├──denegar──> DENEGADA ├──no recoge +1 h──> EXPIRADA
+     ├──denegar──> DENEGADA ├──no recoge──> EXPIRADA
      └──cancelar────────────┴──cancelar──> CANCELADA
 ```
 
-`ACEPTADA` se conserva únicamente para leer registros históricos de la versión anterior.
+## 7. Aprobación
 
-La aprobación no cambia el estado físico del ejemplar a `RESERVADO`: el compromiso es temporal y vive en la reserva. Así una misma copia puede tener reservas no superpuestas. Cuando se entrega, el ejemplar pasa a `PRESTADO` y se crea el préstamo.
+1. El administrador abre la bandeja.
+2. Revisa persona, título, horario y lugar.
+3. El sistema busca una copia libre.
+4. Bloquea la copia candidata.
+5. Vuelve a comprobar la disponibilidad.
+6. Asigna la copia y marca la reserva `APROBADA`.
 
-## Reprogramación y vencimiento
+La copia no cambia a un estado físico `RESERVADO`. El compromiso vive en la reserva y se calcula por intervalo. Esto permite usar una misma copia en horarios consecutivos.
 
-- El titular puede reprogramar una reserva `SOLICITADA` hasta una hora antes del inicio original.
-- El nuevo horario vuelve a validar anticipación, jornada y duración.
-- Una reserva aprobada se puede recoger desde su hora inicial.
-- Si no se recoge dentro de la hora siguiente al inicio, expira automáticamente.
-- La expiración no genera sanción y no crea lista de espera.
+## 8. Recogida y expiración
 
-## Concurrencia
+- La entrega puede comenzar en la hora inicial.
+- No se permite recoger antes.
+- El plazo termina una hora después del inicio.
+- Un proceso programado revisa expiraciones cada 30 segundos.
+- La expiración no genera sanción.
+- No se asigna la copia a otra persona mediante una cola.
 
-La aprobación bloquea la reserva y la copia candidata con `PESSIMISTIC_WRITE`. Después del bloqueo se vuelve a consultar si existe solapamiento. Si dos administradores intentan asignar la última copia al mismo horario, solo la primera aprobación termina; la segunda recibe `EJEMPLAR_NO_DISPONIBLE`.
+## 9. Reprogramación
 
-## API
+El titular puede reprogramar únicamente una reserva `SOLICITADA`.
+
+- Debe hacerlo antes de la última hora previa al inicio original.
+- El nuevo inicio debe conservar 2 horas de anticipación.
+- Se validan duración, jornada y disponibilidad.
+- Una reserva aprobada no se reprograma.
+
+## 10. Cancelación
+
+El titular puede cancelar una reserva `SOLICITADA` o `APROBADA`. No puede cancelar una reserva ajena ni una ya entregada, expirada o denegada.
+
+## 11. Límite de uso
+
+| Perfil | Máximo |
+|---|---:|
+| Alumno | 3 |
+| Docente | 10 |
+| Administrativo | 5 |
+
+Al aprobar se suman préstamos activos y reservas aprobadas. Una reserva pendiente también se controla con el límite de reservas activas.
+
+## 12. Préstamo directo
+
+Cuando una persona llega sin reserva:
+
+1. un operador con permiso registra el préstamo;
+2. selecciona una copia concreta;
+3. el sistema verifica cuenta, sanciones, vencidos, límite y lugar;
+4. comprueba que el intervalo no invada una reserva aprobada;
+5. crea el préstamo.
+
+No se crea una reserva artificial para este flujo.
+
+## 13. API
 
 | Acción | Método y ruta |
 |---|---|
-| Ver reservas visibles | `GET /api/v1/reservas` |
-| Crear reserva | `POST /api/v1/reservas` |
+| Listar reservas visibles | `GET /api/v1/reservas` |
+| Crear | `POST /api/v1/reservas` |
 | Reprogramar | `PATCH /api/v1/reservas/{id}/horario` |
-| Aprobar y asignar copia | `POST /api/v1/reservas/{id}/aceptar` |
-| Confirmar entrega | `POST /api/v1/reservas/{id}/entregar` |
+| Aprobar | `POST /api/v1/reservas/{id}/aceptar` |
+| Entregar | `POST /api/v1/reservas/{id}/entregar` |
 | Denegar | `POST /api/v1/reservas/{id}/denegar` |
 | Cancelar | `POST /api/v1/reservas/{id}/cancelar` |
+| Préstamo directo | `POST /api/v1/prestamos` |
 
-Ejemplo de creación:
+Ejemplo:
 
 ```json
 {
-  "prestatarioId": "UUID-IGNORADO-POR-COMPATIBILIDAD",
   "catalogoItemId": "UUID-DEL-TITULO",
   "lugarUso": "EN_CAMPUS",
   "inicioReserva": "2026-10-28T15:00:00Z",
@@ -81,33 +141,29 @@ Ejemplo de creación:
 }
 ```
 
-La identidad real se obtiene del token. `prestatarioId` se conserva temporalmente en el DTO para compatibilidad, pero no decide el titular.
+El backend obtiene el titular real del token. La petición no acepta el identificador de otra cuenta ni una copia elegida por el usuario.
 
-## Persistencia
+## 14. Usabilidad
 
-`V13__reservas_con_horario.sql` agrega `inicio_reserva`, `fin_reserva` y un índice de consulta. Las migraciones anteriores no se modifican porque Flyway las considera historial inmutable. Las tablas históricas de responsables pueden seguir presentes en bases ya migradas, pero no tienen endpoint ni interfaz y ya no participan en las reglas.
+- Reglas visibles antes de enviar.
+- Selección de domicilio solo para libros.
+- Resumen antes de confirmar.
+- Estados y plazos legibles.
+- Mensajes de progreso, éxito y error.
+- Cancelación y reprogramación visibles solo cuando corresponden.
+- Foco y etiquetas accesibles.
 
-`V14__prestamos_con_horario.sql` añade la hora exacta de entrega, vencimiento y devolución. Los préstamos históricos se completan usando sus fechas existentes y las operaciones nuevas conservan precisión horaria.
+## 15. Archivos clave
 
-## Usabilidad aplicada
-
-- **Visibilidad:** reglas y estado se muestran antes de confirmar.
-- **Prevención de errores:** mínimos de fecha, controles deshabilitados y validación cliente/servidor.
-- **Correspondencia con el mundo real:** reservar, aprobar, recoger y devolver son acciones separadas.
-- **Consistencia:** se usa “reserva” en navegación y mensajes.
-- **Retroalimentación:** cada acción muestra progreso, éxito o error comprensible.
-- **Control del usuario:** cancelar y reprogramar tienen condiciones visibles.
-- **Accesibilidad:** etiquetas, foco visible, estados ARIA y botones con texto explícito.
-
-## Verificación
-
-```bash
-cd backend
-./mvnw test
-
-cd ../frontend
-pnpm typecheck
-pnpm build
-```
-
-La línea base actual es **100 pruebas backend verdes** y compilación TypeScript/Vite correcta.
+| Tema | Archivo |
+|---|---|
+| Reglas de horario | `PoliticaHorarioReserva.java` |
+| Estados | `Reserva.java` |
+| Solicitud | `SolicitarReservaUseCase.java` |
+| Aprobación | `AceptarReservaUseCase.java` |
+| Disponibilidad | `DisponibilidadProgramadaAdapter.java` |
+| Entrega | `EntregarSolicitudUseCase.java` |
+| Expiración | `ExpiracionSolicitudesConfig.java` |
+| API | `ReservaController.java` |
+| Formulario web | `ReservaNueva.tsx` |
+| Bandeja admin | `Reservas.tsx` |
