@@ -1,4 +1,4 @@
-# Base de datos: modelo, SQL, DB1 y DB2
+# Base de datos
 
 ## 1. Explicación sencilla
 
@@ -93,81 +93,7 @@ Regla práctica:
 
 Hibernate usa `ddl-auto=validate`: verifica el esquema, pero Flyway sigue siendo la fuente de verdad.
 
-## 6. Consultas SQL útiles
-
-### Catálogo y cantidad de copias disponibles ahora
-
-```sql
-SELECT c.id, c.titulo, c.tipo,
-       COUNT(e.id) FILTER (WHERE e.estado_fisico = 'DISPONIBLE') AS disponibles
-FROM catalogo_items c
-LEFT JOIN ejemplares e ON e.catalogo_item_id = c.id
-WHERE c.activo = TRUE
-GROUP BY c.id, c.titulo, c.tipo
-ORDER BY c.titulo;
-```
-
-### Reservas pendientes con persona y título
-
-```sql
-SELECT r.id, u.nombre_completo, c.titulo,
-       r.inicio_reserva, r.fin_reserva, r.estado
-FROM reservas r
-JOIN usuarios u ON u.id = r.prestatario_id
-JOIN catalogo_items c ON c.id = r.catalogo_item_id
-WHERE r.estado = 'SOLICITADA'
-ORDER BY r.inicio_reserva;
-```
-
-### Solapamiento de una copia
-
-```sql
-SELECT r.id, r.inicio_reserva, r.fin_reserva
-FROM reservas r
-WHERE r.estado = 'APROBADA'
-  AND r.ejemplar_id = :ejemplar_id
-  AND r.inicio_reserva < :fin_solicitado
-  AND r.fin_reserva > :inicio_solicitado;
-```
-
-La condición significa: cada intervalo empieza antes de que termine el otro.
-
-### Préstamos activos
-
-```sql
-SELECT p.id, u.nombre_completo, c.titulo, e.barcode,
-       p.fecha_hora_entrega, p.fecha_hora_vencimiento
-FROM prestamos p
-JOIN usuarios u ON u.id = p.prestatario_id
-JOIN ejemplares e ON e.id = p.ejemplar_id
-JOIN catalogo_items c ON c.id = e.catalogo_item_id
-WHERE p.estado = 'ACTIVO'
-ORDER BY p.fecha_hora_vencimiento;
-```
-
-### Uso del límite por persona
-
-```sql
-SELECT u.nombre_completo,
-       COUNT(DISTINCT p.id) FILTER (WHERE p.estado = 'ACTIVO') AS prestamos,
-       COUNT(DISTINCT r.id) FILTER (WHERE r.estado = 'APROBADA') AS apartados
-FROM usuarios u
-LEFT JOIN prestamos p ON p.prestatario_id = u.id
-LEFT JOIN reservas r ON r.prestatario_id = u.id
-GROUP BY u.id, u.nombre_completo
-ORDER BY u.nombre_completo;
-```
-
-### Sanciones activas
-
-```sql
-SELECT u.nombre_completo, s.motivo, s.fecha_inicio, s.fecha_fin, s.multa
-FROM sanciones s
-JOIN usuarios u ON u.id = s.usuario_id
-WHERE s.estado = 'ACTIVA';
-```
-
-## 7. Índices
+## 6. Índices
 
 Un índice es parecido al índice de un libro: permite encontrar datos sin leer todas las filas.
 
@@ -179,21 +105,7 @@ El sistema incluye índices para:
 - sanciones por usuario y estado;
 - cuentas por estado de revisión.
 
-Los índices de horario priorizan `ejemplar_id`, estado e intervalo para las consultas de conflicto.
-
-Para analizar una consulta:
-
-```sql
-EXPLAIN (ANALYZE, BUFFERS)
-SELECT *
-FROM reservas
-WHERE estado = 'APROBADA'
-  AND ejemplar_id = :id
-  AND inicio_reserva < :fin
-  AND fin_reserva > :inicio;
-```
-
-## 8. Transacciones y bloqueo
+## 7. Transacciones y bloqueo
 
 Los casos de uso de escritura usan `@Transactional`.
 
@@ -204,60 +116,4 @@ Propiedades ACID:
 - **Aislamiento:** operaciones simultáneas no se mezclan incorrectamente.
 - **Durabilidad:** después del commit, PostgreSQL conserva los datos.
 
-Bloqueo de una fila:
 
-```sql
-BEGIN;
-SELECT * FROM ejemplares WHERE id = :id FOR UPDATE;
--- comprobar y guardar
-COMMIT;
-```
-
-JPA expresa este comportamiento con `PESSIMISTIC_WRITE`.
-
-## 9. DB1 frente a DB2
-
-| Base de Datos I | Aplicación en el proyecto |
-|---|---|
-| Entidades y relaciones | Usuarios, títulos, copias, reservas y préstamos |
-| PK y FK | UUID y referencias entre tablas |
-| Cardinalidad | Un título tiene muchas copias |
-| Normalización | Separación de catálogo, inventario y circulación |
-| SQL básico | SELECT, JOIN, WHERE, GROUP BY |
-| Restricciones | NOT NULL, UNIQUE, CHECK |
-
-| Base de Datos II | Aplicación en el proyecto |
-|---|---|
-| Transacciones | `@Transactional` |
-| Concurrencia | Dos aprobaciones simultáneas |
-| Bloqueos | `PESSIMISTIC_WRITE` / `FOR UPDATE` |
-| Índices | Consultas por estado, copia y horario |
-| Plan de ejecución | `EXPLAIN ANALYZE` |
-| Migraciones | Flyway |
-| Integridad avanzada | Segunda comprobación después del bloqueo |
-
-## 10. Preguntas rápidas
-
-### ¿Por qué separar título y copia?
-
-Porque un título puede tener varias copias con estados distintos.
-
-### ¿Dónde está el stock?
-
-Se calcula desde los ejemplares; no existe un contador duplicado.
-
-### ¿Por qué UUID?
-
-Permite generar identificadores fuera de la base y evita confundir IDs secuenciales. Su costo es un índice más grande.
-
-### ¿Cómo se evita una doble reserva?
-
-Consulta de solapamiento, transacción, bloqueo de la copia y segunda consulta.
-
-### ¿Los permisos están normalizados?
-
-Se guardan como texto separado por comas para mantener simple el agregado. Una instalación mayor podría usar una tabla `usuario_permisos`.
-
-### ¿Cómo se prueba la base?
-
-Los tests usan H2 en modo PostgreSQL y ejecutan las mismas migraciones. La aplicación real usa PostgreSQL 16.
