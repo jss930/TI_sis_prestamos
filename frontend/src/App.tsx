@@ -12,6 +12,13 @@ import Reservas from './pages/Reservas'
 import Prestamos from './pages/Prestamos'
 import Sanciones from './pages/Sanciones'
 import Administracion from './pages/Administracion'
+import ReservaNueva from './pages/ReservaNueva'
+import CatalogoGestion from './pages/CatalogoGestion'
+import CatalogoAlta from './pages/CatalogoAlta'
+import EjemplarAlta from './pages/EjemplarAlta'
+import PrestamoNuevo from './pages/PrestamoNuevo'
+import CatalogoEditar from './pages/CatalogoEditar'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { api, mensajeDeError } from './services/api'
 import type {
   DatosBiblioteca,
@@ -37,6 +44,8 @@ const DATOS_VACIOS: DatosBiblioteca = {
 }
 
 export default function App() {
+  const navegar = useNavigate()
+  const location = useLocation()
   const [sesion, setSesion] = useState<Sesion | null>(() => {
     try {
       const raw = localStorage.getItem('biblioteca_sesion')
@@ -45,7 +54,23 @@ export default function App() {
       return null
     }
   })
-  const [pagina, setPagina] = useState<Pagina>('resumen')
+  const rutas: Record<Pagina, string> = {
+    resumen: '/', 'mi-cuenta': '/mi-cuenta', personas: '/personas', catalogo: '/catalogo',
+    'mis-prestamos': '/mis-prestamos', 'mis-reservas': '/mis-reservas', prestamos: '/prestamos',
+    sanciones: '/sanciones', administracion: '/administracion', reservas: '/reservas',
+    'catalogo-gestion': '/admin/catalogo', 'catalogo-nuevo': '/admin/catalogo/nuevo',
+    'catalogo-editar': location.pathname,
+    'ejemplar-nuevo': location.pathname, 'reserva-nueva': location.pathname, 'prestamo-nuevo': '/prestamos/nuevo',
+  }
+  const pagina: Pagina = location.pathname === '/' ? 'resumen'
+    : location.pathname === '/admin/catalogo' ? 'catalogo-gestion'
+    : location.pathname === '/admin/catalogo/nuevo' ? 'catalogo-nuevo'
+    : /^\/admin\/catalogo\/[^/]+\/editar$/.test(location.pathname) ? 'catalogo-editar'
+    : /^\/admin\/catalogo\/[^/]+\/ejemplares\/nuevo$/.test(location.pathname) ? 'ejemplar-nuevo'
+    : /^\/catalogo\/[^/]+\/reservar$/.test(location.pathname) ? 'reserva-nueva'
+    : location.pathname === '/prestamos/nuevo' ? 'prestamo-nuevo'
+    : (Object.entries(rutas).find(([, ruta]) => ruta === location.pathname)?.[0] as Pagina | undefined) ?? 'catalogo'
+  const irA = (destino: Pagina) => navegar(rutas[destino] ?? '/catalogo')
   const [datos, setDatos] = useState<DatosBiblioteca>(DATOS_VACIOS)
   const [cargando, setCargando] = useState(true)
   const [errorCarga, setErrorCarga] = useState<string | null>(null)
@@ -73,12 +98,6 @@ export default function App() {
   useEffect(() => {
     void cargarDatos()
   }, [cargarDatos])
-
-  useEffect(() => {
-    if (!sesion || sesion.publica) return
-    const intervalo = window.setInterval(() => { void cargarDatos(true) }, 30000)
-    return () => window.clearInterval(intervalo)
-  }, [sesion, cargarDatos])
 
   const usuarioActual = sesion && !sesion.publica
     ? datos.usuarios.find((usuario) => usuario.id === sesion.id || usuario.email === sesion.email) ?? null
@@ -161,16 +180,26 @@ export default function App() {
 
   useEffect(() => {
     if (usuarioActual && usuarioActual.estado !== 'VALIDADO' && pagina !== 'catalogo' && pagina !== 'mi-cuenta') {
-      setPagina('catalogo')
+      navegar('/catalogo', { replace: true })
       return
     }
     if (pagina === 'prestamos' && !permisosActuales.includes('REGISTRAR_PRESTAMO') && !permisosActuales.includes('REGISTRAR_DEVOLUCION')) {
-      setPagina('catalogo')
+      navegar('/catalogo', { replace: true })
     }
     if (pagina === 'reservas' && !permisosActuales.includes('ADMINISTRAR_SISTEMA')) {
-      setPagina('catalogo')
+      navegar('/catalogo', { replace: true })
     }
-  }, [pagina, permisosActuales, usuarioActual])
+    if (pagina === 'prestamo-nuevo' && !permisosActuales.includes('REGISTRAR_PRESTAMO')) {
+      navegar('/catalogo', { replace: true })
+    }
+    if (['catalogo-gestion', 'catalogo-nuevo', 'catalogo-editar', 'ejemplar-nuevo'].includes(pagina)
+        && !permisosActuales.includes('GESTIONAR_CATALOGO')) {
+      navegar('/catalogo', { replace: true })
+    }
+    if (pagina === 'reserva-nueva' && usuarioActual?.estado !== 'VALIDADO') {
+      navegar('/catalogo', { replace: true })
+    }
+  }, [pagina, permisosActuales, usuarioActual, navegar])
 
   const crearLibroCatalogo = useCallback(
     async (libro: NuevoLibroCatalogo) => {
@@ -193,13 +222,9 @@ export default function App() {
     },
     [cargarDatos],
   )
-  const actualizarTituloCatalogo = useCallback(
-    async (id: string, titulo: string) => {
-      await api.actualizarTituloCatalogo(id, titulo)
-      await cargarDatos(true)
-    },
-    [cargarDatos],
-  )
+  const actualizarTituloCatalogo = useCallback(async (id: string, titulo: string) => {
+    await api.actualizarTituloCatalogo(id, titulo); await cargarDatos(true)
+  }, [cargarDatos])
   const activarCatalogo = useCallback(
     async (id: string) => {
       await api.activarCatalogo(id)
@@ -255,7 +280,7 @@ export default function App() {
     localStorage.removeItem('biblioteca_sesion')
     localStorage.removeItem('biblioteca_token')
     setDatos((actual) => ({ ...actual, reservas: [] }))
-    setPagina('resumen')
+    navegar('/')
   }
 
   if (!sesion) {
@@ -275,7 +300,7 @@ export default function App() {
           localStorage.setItem('biblioteca_sesion', JSON.stringify(sesionCompleta))
           if (nuevaSesion.token) localStorage.setItem('biblioteca_token', nuevaSesion.token)
           void cargarDatos(true)
-          setPagina(nuevaSesion.publica ? 'catalogo' : esPersonal ? 'resumen' : 'catalogo')
+          navegar(nuevaSesion.publica ? '/catalogo' : esPersonal ? '/' : '/catalogo')
         }}
       />
     )
@@ -287,7 +312,7 @@ export default function App() {
   function renderPagina() {
     switch (paginaActual) {
       case 'resumen':
-        return <Resumen datos={datos} irA={setPagina} />
+        return <Resumen datos={datos} irA={irA} />
       case 'mi-cuenta':
         return <MiCuenta usuario={usuarioActual} actualizar={actualizarDatosCuenta} />
       case 'personas':
@@ -319,25 +344,25 @@ export default function App() {
           <Catalogo
             catalogo={datos.catalogo}
             ejemplares={datos.ejemplares}
-            puedeSolicitar={!soloCatalogo && usuarioActual?.estado === 'VALIDADO'}
-            irA={setPagina}
-            permisos={permisosActuales}
-            crearLibro={crearLibroCatalogo}
-            crearEquipo={crearEquipoCatalogo}
-            crearOtro={crearOtroCatalogo}
-            actualizarTitulo={actualizarTituloCatalogo}
-            activar={activarCatalogo}
-            desactivar={desactivarCatalogo}
-            crearEjemplar={crearEjemplar}
             puedeReservar={!soloCatalogo && usuarioActual?.estado === 'VALIDADO'}
+            puedeGestionar={permisosActuales.includes('GESTIONAR_CATALOGO')}
             itemsReservados={datos.reservas
               .filter((r) => r.prestatarioId === usuarioActual?.id && (r.estado === 'SOLICITADA' || r.estado === 'APROBADA'))
               .map((r) => r.catalogoItemId)}
-            reservar={(catalogoItemId, lugarUso, inicioReserva, finReserva) =>
-              usuarioActual?.id ? solicitarReserva(usuarioActual.id, catalogoItemId, lugarUso, inicioReserva, finReserva) : Promise.resolve()
-            }
           />
         )
+      case 'reserva-nueva':
+        return <ReservaNueva catalogo={datos.catalogo} reservar={(id, lugar, inicio, fin) => usuarioActual?.id ? solicitarReserva(usuarioActual.id, id, lugar, inicio, fin) : Promise.reject(new Error('Inicia sesión para reservar.'))} />
+      case 'catalogo-gestion':
+        return <CatalogoGestion catalogo={datos.catalogo} ejemplares={datos.ejemplares} activar={activarCatalogo} desactivar={desactivarCatalogo} />
+      case 'catalogo-nuevo':
+        return <CatalogoAlta crearLibro={crearLibroCatalogo} crearEquipo={crearEquipoCatalogo} crearOtro={crearOtroCatalogo} />
+      case 'catalogo-editar':
+        return <CatalogoEditar catalogo={datos.catalogo} actualizar={actualizarTituloCatalogo} />
+      case 'ejemplar-nuevo':
+        return <EjemplarAlta catalogo={datos.catalogo} crear={crearEjemplar} />
+      case 'prestamo-nuevo':
+        return <PrestamoNuevo usuarios={datos.usuarios} catalogo={datos.catalogo} ejemplares={datos.ejemplares} operadorId={usuarioActual?.id ?? ''} crear={crearPrestamo} />
       case 'prestamos':
         return (
           <Prestamos
@@ -345,10 +370,8 @@ export default function App() {
             usuarios={datos.usuarios}
             catalogo={datos.catalogo}
             ejemplares={datos.ejemplares}
-            operadorId={permisosActuales.includes('REGISTRAR_PRESTAMO') || permisosActuales.includes('REGISTRAR_DEVOLUCION') ? usuarioActual?.id ?? null : null}
             puedeOperar={permisosActuales.includes('REGISTRAR_PRESTAMO')}
             puedeDevolver={permisosActuales.includes('REGISTRAR_DEVOLUCION')}
-            crearPrestamo={crearPrestamo}
             devolverPrestamo={devolverPrestamo}
           />
         )
@@ -381,17 +404,15 @@ export default function App() {
       case 'administracion':
         return <Administracion datos={datos} permisos={permisosActuales} />
       default:
-        return <Resumen datos={datos} irA={setPagina} />
+        return <Resumen datos={datos} irA={irA} />
     }
   }
 
   return (
     <div className="aplicacion">
       <BarraLateral
-        pagina={paginaActual}
-        cambiarPagina={(destino) => {
-          setPagina(destino)
-        }}
+        pagina={['catalogo-gestion','catalogo-nuevo','catalogo-editar','ejemplar-nuevo','reserva-nueva'].includes(paginaActual) ? 'catalogo' : paginaActual === 'prestamo-nuevo' ? 'prestamos' : paginaActual}
+        cambiarPagina={irA}
         cerrarSesion={cerrarSesion}
         sesion={sesion}
         soloCatalogo={soloCatalogo}
@@ -401,10 +422,10 @@ export default function App() {
         cuentaValidada={usuarioActual?.estado === 'VALIDADO'}
       />
       <main className="contenido">
-        <Encabezado pagina={paginaActual} publica={soloCatalogo} />
+        {!['reserva-nueva','catalogo-gestion','catalogo-nuevo','catalogo-editar','ejemplar-nuevo','prestamo-nuevo'].includes(paginaActual) && <Encabezado pagina={paginaActual} publica={soloCatalogo} />}
         {usuarioActual?.estado === 'PROVISIONAL' && <div className="aviso" role="status">
           {usuarioActual.correccionPendiente ? 'Tu cuenta necesita correcciones antes de validarse.' : 'Tu cuenta está pendiente de validación. Puedes consultar el catálogo.'}
-          <button className="enlace" type="button" onClick={() => setPagina('mi-cuenta')}>Revisar mi cuenta</button>
+           <button className="enlace" type="button" onClick={() => navegar('/mi-cuenta')}>Revisar mi cuenta</button>
         </div>}
         {errorCarga && (
           <div className="aviso error-aviso">

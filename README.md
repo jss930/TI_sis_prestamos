@@ -85,15 +85,15 @@ internos de `penalties`.
 | Dominio puro en Java 21 | ✅ Completado | Agregados, value objects, eventos e invariantes |
 | API REST `/api/v1` | ✅ Completado | Controladores, validación y `ProblemDetail` |
 | Persistencia PostgreSQL/JPA | ✅ Completado | Adaptadores JPA, Flyway y esquema `V1__schema.sql` |
-| Frontend React + TypeScript | ✅ Completado | Catálogo público, login demo y operaciones |
+| Frontend React + TypeScript | ✅ Completado | Rutas navegables, Soft UI accesible y flujos por tarea |
 | Tests automatizados | ✅ 100 verdes | Dominio, aplicación, concurrencia, JPA, reservas y ArchUnit |
-| Autenticación JWT y roles | ⏳ Pendiente | Fase de seguridad |
+| Autenticación por token y permisos | ✅ Demo integrada | El servidor obtiene el actor del token |
 | Reservas | ✅ Implementadas | Contexto `reservations`, API `/api/v1/reservas`, ADR-010 |
 
 > [!IMPORTANT]
-> **El login del frontend es una demostración.** No valida credenciales ni protege la API;
-> los `operadorId` todavía se envían en el cuerpo de la petición. La autenticación real se
-> implementará en la siguiente fase. No uses credenciales reales.
+> **La seguridad sigue siendo de demostración.** El backend valida el token y obtiene de él
+> al actor de las operaciones, pero el secreto y la estrategia de sesión deben endurecerse
+> antes de un despliegue productivo. No uses credenciales reales.
 
 ---
 

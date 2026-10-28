@@ -41,7 +41,7 @@ public class RegistrarDevolucionUseCase {
                 .orElseThrow(() -> new NotFoundException("Ejemplar", prestamo.ejemplarId().value()));
 
         LocalDate hoy = LocalDate.now(clock);
-        prestamo.registrarDevolucion(hoy, command.estadoFisico());
+        prestamo.registrarDevolucion(hoy, clock.instant(), command.estadoFisico());
         ejemplar.devolver(command.estadoFisico());
 
         prestamos.guardar(prestamo);

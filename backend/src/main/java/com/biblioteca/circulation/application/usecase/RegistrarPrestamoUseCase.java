@@ -24,6 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Objects;
 
 @Service
@@ -81,7 +83,9 @@ public class RegistrarPrestamoUseCase {
     /** Registra la entrega asociada a una reserva respetando su fecha final. */
     public Prestamo ejecutarProgramado(RegistrarPrestamoCommand command,
                                        java.time.Instant inicio, java.time.Instant fin) {
-        return ejecutar(command, new PeriodoPrestamo(
+        var programado = new RegistrarPrestamoCommand(command.operadorId(), command.prestatarioId(),
+                command.ejemplarId(), command.lugarUso(), clock.instant(), fin);
+        return ejecutar(programado, new PeriodoPrestamo(
                 java.time.LocalDate.ofInstant(inicio, clock.getZone()),
                 java.time.LocalDate.ofInstant(fin, clock.getZone())), fin);
     }
@@ -148,20 +152,36 @@ public class RegistrarPrestamoUseCase {
         }
 
         int dias = politica.diasPrestamo(prestatario.perfil(), item.tipo());
+        Instant ahora = clock.instant();
+        Instant entrega = command.fechaHoraEntrega() == null ? ahora : command.fechaHoraEntrega();
+        if (entrega.isAfter(ahora.plus(Duration.ofMinutes(5)))) {
+            throw new BusinessRuleException("ENTREGA_FUTURA_NO_PERMITIDA",
+                    "La entrega presencial no puede registrarse en el futuro");
+        }
+        LocalDate fechaEntrega = LocalDate.ofInstant(entrega, clock.getZone());
         PeriodoPrestamo periodo = periodoProgramado == null
-                ? PeriodoPrestamo.desde(hoy, dias)
+                ? PeriodoPrestamo.desde(fechaEntrega, dias)
                 : periodoProgramado;
-        var ahora = clock.instant();
-        var finPrevisto = finProgramado == null
-                ? periodo.vencimiento().atTime(LocalTime.of(20, 0)).atZone(clock.getZone()).toInstant()
-                : finProgramado;
-        if (disponibilidadReservas.existeConflicto(ejemplar.id(), prestatario.id(), ahora, finPrevisto)) {
+        Instant limitePolitica = periodo.vencimiento().atTime(LocalTime.of(20, 0))
+                .atZone(clock.getZone()).toInstant();
+        Instant finPrevisto = command.fechaHoraVencimiento() == null
+                ? (finProgramado == null ? limitePolitica : finProgramado)
+                : command.fechaHoraVencimiento();
+        if (!finPrevisto.isAfter(entrega)) {
+            throw new BusinessRuleException("VENCIMIENTO_INVALIDO",
+                    "La devolución prevista debe ser posterior a la entrega");
+        }
+        if (periodoProgramado == null && finPrevisto.isAfter(limitePolitica)) {
+            throw new BusinessRuleException("PLAZO_PRESTAMO_EXCEDIDO",
+                    "La devolución prevista supera el plazo permitido para este bien");
+        }
+        if (disponibilidadReservas.existeConflicto(ejemplar.id(), prestatario.id(), entrega, finPrevisto)) {
             throw new BusinessRuleException("EJEMPLAR_RESERVADO_EN_HORARIO",
                     "El ejemplar tiene una reserva aprobada dentro del periodo del prestamo");
         }
 
-        Prestamo prestamo = Prestamo.registrar(
-                operador.id(), prestatario.id(), ejemplar.id(), periodo, command.lugarUso());
+        Prestamo prestamo = Prestamo.registrar(operador.id(), prestatario.id(), ejemplar.id(),
+                periodo, command.lugarUso(), entrega, finPrevisto);
 
         ejemplar.prestar();
         prestamos.guardar(prestamo);

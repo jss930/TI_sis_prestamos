@@ -11,6 +11,12 @@ const TITULOS: Record<Pagina, [string, string]> = {
   prestamos: ['Préstamos', 'Registra entregas y devoluciones.'],
   sanciones: ['Sanciones', 'Restricciones informadas por el sistema.'],
   administracion: ['Panel administrador', 'Administra los recursos y la configuración de la biblioteca.'],
+  'catalogo-gestion': ['Gestión del catálogo', 'Administra títulos y ejemplares.'],
+  'catalogo-nuevo': ['Nuevo título', 'Registra un nuevo recurso.'],
+  'catalogo-editar': ['Editar título', 'Actualiza la información principal.'],
+  'ejemplar-nuevo': ['Nuevo ejemplar', 'Registra una copia física.'],
+  'reserva-nueva': ['Nueva reserva', 'Selecciona un horario.'],
+  'prestamo-nuevo': ['Nuevo préstamo', 'Registra una entrega presencial.'],
 }
 
 interface Props {

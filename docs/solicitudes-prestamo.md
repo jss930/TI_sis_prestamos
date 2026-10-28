@@ -87,6 +87,8 @@ La identidad real se obtiene del token. `prestatarioId` se conserva temporalment
 
 `V13__reservas_con_horario.sql` agrega `inicio_reserva`, `fin_reserva` y un índice de consulta. Las migraciones anteriores no se modifican porque Flyway las considera historial inmutable. Las tablas históricas de responsables pueden seguir presentes en bases ya migradas, pero no tienen endpoint ni interfaz y ya no participan en las reglas.
 
+`V14__prestamos_con_horario.sql` añade la hora exacta de entrega, vencimiento y devolución. Los préstamos históricos se completan usando sus fechas existentes y las operaciones nuevas conservan precisión horaria.
+
 ## Usabilidad aplicada
 
 - **Visibilidad:** reglas y estado se muestran antes de confirmar.

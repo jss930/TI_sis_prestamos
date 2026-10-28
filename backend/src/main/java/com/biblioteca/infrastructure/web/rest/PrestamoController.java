@@ -30,6 +30,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -77,10 +78,9 @@ public class PrestamoController {
     @ResponseStatus(HttpStatus.CREATED)
     public PrestamoResponse registrar(@RequestHeader(value = "Authorization", required = false) String token, @Valid @RequestBody RegistrarPrestamoRequest request) {
         Prestamo prestamo = registrar.ejecutar(new RegistrarPrestamoCommand(
-                autenticado.exigir(token),
-                new UsuarioId(request.prestatarioId()),
-                new EjemplarId(request.ejemplarId()),
-                request.lugarUso()));
+                autenticado.exigir(token), new UsuarioId(request.prestatarioId()),
+                new EjemplarId(request.ejemplarId()), request.lugarUso(),
+                request.fechaHoraEntrega(), request.fechaHoraVencimiento()));
         return aResponse(prestamo);
     }
 
@@ -105,14 +105,17 @@ public class PrestamoController {
                 prestamo.prestatarioId().value(), prestamo.ejemplarId().value(),
                 prestamo.periodo().inicio(), prestamo.periodo().vencimiento(),
                 prestamo.fechaDevolucion(), prestamo.lugarUso(), prestamo.estado(),
-                prestamo.renovaciones(), prestamo.estaVencido(hoy), prestamo.diasRetraso(hoy));
+                prestamo.renovaciones(), prestamo.estaVencido(hoy), prestamo.diasRetraso(hoy),
+                prestamo.fechaHoraEntrega(), prestamo.fechaHoraVencimiento(), prestamo.fechaHoraDevolucion());
     }
 
     public record RegistrarPrestamoRequest(
             @NotNull UUID operadorId,
             @NotNull UUID prestatarioId,
             @NotNull UUID ejemplarId,
-            @NotNull LugarUso lugarUso) {
+            @NotNull LugarUso lugarUso,
+            Instant fechaHoraEntrega,
+            Instant fechaHoraVencimiento) {
     }
 
     public record DevolucionRequest(@NotNull EstadoFisico estadoFisico) {
@@ -130,6 +133,9 @@ public class PrestamoController {
             EstadoPrestamo estado,
             int renovaciones,
             boolean vencido,
-            int diasRetraso) {
+            int diasRetraso,
+            Instant fechaHoraEntrega,
+            Instant fechaHoraVencimiento,
+            Instant fechaHoraDevolucion) {
     }
 }

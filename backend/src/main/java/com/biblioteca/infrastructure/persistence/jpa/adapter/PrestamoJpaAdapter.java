@@ -87,6 +87,9 @@ public class PrestamoJpaAdapter implements PrestamoRepository {
         entidad.renovaciones = prestamo.renovaciones();
         entidad.observaciones = prestamo.observaciones();
         entidad.fechaAlta = prestamo.fechaAlta();
+        entidad.fechaHoraEntrega = prestamo.fechaHoraEntrega();
+        entidad.fechaHoraVencimiento = prestamo.fechaHoraVencimiento();
+        entidad.fechaHoraDevolucion = prestamo.fechaHoraDevolucion();
         return entidad;
     }
 
@@ -96,6 +99,7 @@ public class PrestamoJpaAdapter implements PrestamoRepository {
                 new EjemplarId(entidad.ejemplarId),
                 new PeriodoPrestamo(entidad.fechaInicio, entidad.fechaVencimiento),
                 entidad.lugarUso, entidad.estado, entidad.fechaDevolucion,
-                entidad.renovaciones, entidad.observaciones, entidad.fechaAlta);
+                entidad.renovaciones, entidad.observaciones, entidad.fechaAlta,
+                entidad.fechaHoraEntrega, entidad.fechaHoraVencimiento, entidad.fechaHoraDevolucion);
     }
 }

@@ -56,6 +56,15 @@ public class PrestamoJpaEntity {
     @Column(name = "fecha_alta", nullable = false)
     public Instant fechaAlta;
 
+    @Column(name = "fecha_hora_entrega", nullable = false)
+    public Instant fechaHoraEntrega;
+
+    @Column(name = "fecha_hora_vencimiento", nullable = false)
+    public Instant fechaHoraVencimiento;
+
+    @Column(name = "fecha_hora_devolucion")
+    public Instant fechaHoraDevolucion;
+
     public PrestamoJpaEntity() {
     }
 }

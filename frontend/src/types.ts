@@ -9,6 +9,12 @@ export type Pagina =
   | 'sanciones'
   | 'administracion'
   | 'reservas'
+  | 'catalogo-gestion'
+  | 'catalogo-nuevo'
+  | 'catalogo-editar'
+  | 'ejemplar-nuevo'
+  | 'reserva-nueva'
+  | 'prestamo-nuevo'
 
 export interface Sesion {
   nombre: string
@@ -111,6 +117,9 @@ export interface Prestamo {
   renovaciones: number
   vencido: boolean
   diasRetraso: number
+  fechaHoraEntrega: string
+  fechaHoraVencimiento: string
+  fechaHoraDevolucion: string | null
 }
 
 export interface Sancion {
@@ -159,6 +168,8 @@ export interface NuevoPrestamo {
   prestatarioId: string
   ejemplarId: string
   lugarUso: LugarUso
+  fechaHoraEntrega: string
+  fechaHoraVencimiento: string
 }
 
 export interface ProblemDetail {

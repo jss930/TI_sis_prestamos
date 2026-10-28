@@ -92,3 +92,48 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   outline-offset: 2px;
 }
 button:disabled { cursor: not-allowed; opacity: .6; }
+
+/* Soft UI azul/verde: profundidad suave sin sacrificar contraste. */
+:root {
+  --azul-900:#0b1f33; --azul-700:#1d4ed8; --azul-600:#2563eb; --azul-100:#dbeafe;
+  --verde-700:#047857; --verde-600:#059669; --verde-500:#10b981; --verde-100:#d1fae5;
+  --lienzo:#eef3f8; --superficie:#f8fbfd; --hundido:#e7edf4;
+  --texto:#102033; --texto-2:#526477; --borde:#dce5ee;
+  --marca:linear-gradient(135deg,#2563eb 0%,#10b981 100%);
+  --sombra-suave:8px 8px 22px rgba(30,55,80,.09),-7px -7px 20px rgba(255,255,255,.9);
+  --sombra-alta:16px 18px 42px rgba(30,55,80,.11),-12px -12px 32px rgba(255,255,255,.88);
+  --sombra-hundida:inset 3px 3px 8px rgba(30,55,80,.08),inset -3px -3px 8px #fff;
+}
+html{background:var(--lienzo)} body{color:var(--texto);background:var(--lienzo)}
+.aplicacion{background:radial-gradient(circle at 95% 0,#d9f8ee 0,transparent 25%),var(--lienzo)}
+.barra-lateral{background:linear-gradient(170deg,#0b2440 0%,#0c3b43 55%,#07563f 120%);box-shadow:8px 0 30px rgba(8,31,51,.12)}
+.marca-icono,.sello{background:var(--marca);color:white;box-shadow:0 8px 22px rgba(16,185,129,.25)}
+.barra-lateral nav button.activo{background:linear-gradient(135deg,rgba(37,99,235,.95),rgba(16,185,129,.92));color:#fff;box-shadow:0 8px 20px rgba(20,100,130,.28)}
+.barra-lateral nav button:hover:not(.activo){background:rgba(255,255,255,.1)}
+.contenido{max-width:1480px;padding-top:38px}
+.encabezado h1,.page-header h1{font-family:Inter,"Segoe UI",system-ui,sans-serif;font-weight:750;letter-spacing:-1.2px;color:var(--azul-900)}
+.panel,.item,.tarjeta{background:linear-gradient(145deg,#fbfdff,#f1f6fa);border:1px solid rgba(255,255,255,.8);box-shadow:var(--sombra-suave);border-radius:20px}
+.panel{padding:clamp(20px,3vw,32px)}
+.boton{border:0;border-radius:13px;min-height:44px;padding:11px 18px;font-weight:700;letter-spacing:.01em}
+.boton.primario,.primario{background:var(--marca);color:white;box-shadow:0 9px 20px rgba(37,99,235,.18)}
+.boton.primario:hover:not(:disabled),.primario:hover:not(:disabled){transform:translateY(-1px);filter:saturate(1.1);box-shadow:0 12px 26px rgba(20,120,160,.25)}
+.boton.secundario,.secundario{background:linear-gradient(145deg,#fff,#edf3f8);color:var(--azul-700);border:1px solid #d7e2ed;box-shadow:4px 4px 10px rgba(30,55,80,.07),-4px -4px 10px #fff}
+.boton.terciario,.terciario{background:transparent;color:var(--azul-700);padding-inline:10px;box-shadow:none}
+.boton.terciario:hover{background:var(--azul-100)}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #3b82f6;outline-offset:3px}
+.formulario input:not([type=checkbox]):not([type=radio]),.formulario select,.formulario textarea,.buscador{background:var(--hundido);border:1px solid transparent;border-radius:13px;box-shadow:var(--sombra-hundida);min-height:48px;color:var(--texto)}
+.formulario input:focus,.formulario select:focus,.formulario textarea:focus,.buscador:focus{background:#f8fbff;border-color:#60a5fa;box-shadow:0 0 0 4px rgba(59,130,246,.1)}
+.page-header{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin:0 0 30px}.page-header h1{font-size:clamp(30px,4vw,46px);margin:8px 0}.page-header p{color:var(--texto-2);margin:0;max-width:680px}.page-actions{display:flex;gap:10px;flex-shrink:0}
+.volver{border:0;background:transparent;color:var(--azul-700);padding:8px 0;font-weight:700;cursor:pointer}.volver span{display:inline-grid;place-items:center;width:26px;height:26px;background:var(--azul-100);border-radius:50%;margin-right:7px}
+.catalogo-toolbar{display:flex;justify-content:space-between;align-items:end;gap:22px;margin-bottom:22px}.catalogo-toolbar .busqueda-catalogo{flex:1;max-width:620px;margin:0}.catalogo-toolbar .buscador{width:100%}.resultado-conteo{color:var(--texto-2);font-size:13px;margin:-10px 0 18px}
+.filtros button{border:0;background:transparent}.filtros button.activo{background:var(--marca);box-shadow:0 7px 16px rgba(37,99,235,.16)}
+.catalogo-grid{grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:26px}.item{padding:18px;overflow:hidden;transition:transform .2s,box-shadow .2s}.item:hover{transform:translateY(-3px);box-shadow:var(--sombra-alta)}.item-imagen{height:190px;border-radius:15px;background:linear-gradient(145deg,#e5edf5,#f8fbfd)}.item-tipo{font-size:10px;font-weight:800;letter-spacing:.14em;color:var(--verde-700);margin:2px 0 8px}.item h3{font-size:17px;min-height:auto}.item-accion{margin-top:14px}.item-accion .boton{width:100%}
+.stepper{list-style:none;padding:0;margin:0 auto 28px;display:flex;max-width:520px;position:relative}.stepper:before{content:"";height:3px;background:#d5e0ea;position:absolute;left:32px;right:32px;top:18px}.stepper li{z-index:1;flex:1;display:grid;justify-items:center;gap:8px;color:#7a8b9b;font-weight:800}.stepper li:first-letter{background:var(--superficie)}.stepper li{font-size:0}.stepper li:before{content:counter(list-item);font-size:13px;display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:#e2eaf1;box-shadow:var(--sombra-suave)}.stepper li span{font-size:12px}.stepper li.activo{color:var(--azul-700)}.stepper li.activo:before{background:var(--marca);color:#fff}
+.tarea-form{max-width:860px;margin-inline:auto}.campos.dos{grid-template-columns:repeat(2,minmax(0,1fr))}.context-card,.seleccion-card{display:flex;justify-content:space-between;align-items:center;gap:20px;background:#eaf2f8;border-radius:15px;padding:18px 20px;margin-bottom:20px}.context-card{display:grid}.context-card span,.seleccion-card span{display:block;color:var(--texto-2);font-size:12px;margin-top:4px}.reglas-inline{display:flex;flex-wrap:wrap;gap:9px;margin:18px 0}.reglas-inline span{background:var(--verde-100);color:var(--verde-700);padding:7px 11px;border-radius:999px;font-size:11px;font-weight:700}.campo-informativo{display:grid;align-content:start;gap:5px;padding:12px 0}.campo-informativo>span{font-size:12px;font-weight:700;color:#3c5344}.campo-informativo small{color:var(--texto-2)}
+.acciones-finales{display:flex;justify-content:flex-end;gap:12px;margin-top:28px;padding-top:22px;border-top:1px solid var(--borde)}.resumen-confirmacion{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.resumen-confirmacion div{background:#eaf1f7;padding:15px;border-radius:13px}.resumen-confirmacion dt{font-size:11px;color:var(--texto-2)}.resumen-confirmacion dd{margin:5px 0 0;font-weight:700}
+.form-seccion{display:flex;gap:13px;align-items:center;border-top:1px solid var(--borde);padding-top:25px;margin-top:25px}.form-seccion:first-child{border-top:0;margin-top:0;padding-top:0}.form-seccion h2{margin:0;font-size:17px}.form-seccion p{margin:3px 0 0}.seccion-numero{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--marca);color:white;font-weight:800;flex-shrink:0}
+.combobox-resultados{border:1px solid var(--borde);border-radius:14px;padding:6px;background:#f8fbfd;box-shadow:var(--sombra-suave);margin-top:-12px}.combobox-resultados button{width:100%;display:grid;text-align:left;gap:3px;border:0;background:transparent;padding:11px;border-radius:9px;color:var(--texto)}.combobox-resultados button:hover{background:var(--azul-100)}.combobox-resultados span{font-size:11px;color:var(--texto-2)}
+.tabla-contenedor{border:0;border-radius:14px;box-shadow:var(--sombra-hundida);background:#edf3f7}.tabla-contenedor table{background:#f8fbfd}.tabla-subtexto{display:block;color:var(--texto-2);font-size:11px;margin-top:4px}.status-dot{display:inline-flex;align-items:center;gap:6px}.status-dot:before{content:"";width:8px;height:8px;border-radius:50%;background:#94a3b8}.status-dot.ok:before{background:var(--verde-500);box-shadow:0 0 0 4px rgba(16,185,129,.12)}
+.empty-state{text-align:center;padding:60px 24px;color:var(--texto-2)}.empty-state strong{display:block;color:var(--texto);font-size:20px}.empty-state .boton{margin-top:15px}.historial-secundario summary{cursor:pointer;font-weight:800;color:var(--azul-900)}.historial-secundario[open] summary{margin-bottom:20px}
+.correcto-aviso{background:#e4f8ef;color:#046c4e;border-left-color:var(--verde-500)}.error-aviso{background:#fff0f0;color:#a53c3c}.aviso{box-shadow:0 5px 16px rgba(30,55,80,.05)}
+@media(max-width:760px){.page-header,.catalogo-toolbar{align-items:stretch;flex-direction:column}.page-actions .boton,.catalogo-toolbar>.boton{width:100%}.campos.dos,.resumen-confirmacion{grid-template-columns:1fr}.acciones-finales{flex-direction:column-reverse}.acciones-finales .boton{width:100%}.catalogo-grid{grid-template-columns:1fr}.tarea-form{padding:20px}}

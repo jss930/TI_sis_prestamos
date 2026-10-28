@@ -37,11 +37,15 @@ public final class Prestamo extends AggregateRoot<PrestamoId> {
     private LocalDate fechaDevolucion;
     private int renovaciones;
     private String observaciones;
+    private final Instant fechaHoraEntrega;
+    private Instant fechaHoraVencimiento;
+    private Instant fechaHoraDevolucion;
 
     private Prestamo(PrestamoId id, UsuarioId operadorId, UsuarioId prestatarioId,
                      EjemplarId ejemplarId, PeriodoPrestamo periodo, LugarUso lugarUso,
                      EstadoPrestamo estado, LocalDate fechaDevolucion, int renovaciones,
-                     String observaciones, Instant fechaAlta) {
+                     String observaciones, Instant fechaAlta, Instant fechaHoraEntrega,
+                     Instant fechaHoraVencimiento, Instant fechaHoraDevolucion) {
         this.id = Objects.requireNonNull(id);
         this.operadorId = Objects.requireNonNull(operadorId);
         this.prestatarioId = Objects.requireNonNull(prestatarioId);
@@ -53,14 +57,26 @@ public final class Prestamo extends AggregateRoot<PrestamoId> {
         this.renovaciones = renovaciones;
         this.observaciones = normalizar(observaciones);
         this.fechaAlta = Objects.requireNonNull(fechaAlta);
+        this.fechaHoraEntrega = Objects.requireNonNull(fechaHoraEntrega);
+        this.fechaHoraVencimiento = Objects.requireNonNull(fechaHoraVencimiento);
+        this.fechaHoraDevolucion = fechaHoraDevolucion;
         validarInvariantes();
     }
 
     public static Prestamo registrar(UsuarioId operadorId, UsuarioId prestatarioId,
                                      EjemplarId ejemplarId, PeriodoPrestamo periodo,
                                      LugarUso lugarUso) {
+        Instant alta = Instant.now();
+        return registrar(operadorId, prestatarioId, ejemplarId, periodo, lugarUso, alta,
+                periodo.vencimiento().plusDays(1).atStartOfDay(java.time.ZoneOffset.UTC).minusSeconds(1).toInstant());
+    }
+
+    public static Prestamo registrar(UsuarioId operadorId, UsuarioId prestatarioId,
+                                     EjemplarId ejemplarId, PeriodoPrestamo periodo,
+                                     LugarUso lugarUso, Instant entrega, Instant vencimiento) {
         Prestamo prestamo = new Prestamo(PrestamoId.nuevo(), operadorId, prestatarioId,
-                ejemplarId, periodo, lugarUso, EstadoPrestamo.ACTIVO, null, 0, null, Instant.now());
+                ejemplarId, periodo, lugarUso, EstadoPrestamo.ACTIVO, null, 0, null,
+                Instant.now(), entrega, vencimiento, null);
         prestamo.registrarEvento(new PrestamoRegistradoEvent(
                 prestamo.id, operadorId, prestatarioId, ejemplarId,
                 periodo.inicio(), periodo.vencimiento(), lugarUso, prestamo.fechaAlta));
@@ -72,10 +88,26 @@ public final class Prestamo extends AggregateRoot<PrestamoId> {
                                        EstadoPrestamo estado, LocalDate fechaDevolucion,
                                        int renovaciones, String observaciones, Instant fechaAlta) {
         return new Prestamo(id, operadorId, prestatarioId, ejemplarId, periodo, lugarUso,
-                estado, fechaDevolucion, renovaciones, observaciones, fechaAlta);
+                estado, fechaDevolucion, renovaciones, observaciones, fechaAlta,
+                fechaAlta, periodo.vencimiento().plusDays(1).atStartOfDay(java.time.ZoneOffset.UTC).minusSeconds(1).toInstant(),
+                fechaDevolucion == null ? null : fechaDevolucion.atStartOfDay(java.time.ZoneOffset.UTC).toInstant());
+    }
+
+    public static Prestamo reconstruir(PrestamoId id, UsuarioId operadorId, UsuarioId prestatarioId,
+                                       EjemplarId ejemplarId, PeriodoPrestamo periodo, LugarUso lugarUso,
+                                       EstadoPrestamo estado, LocalDate fechaDevolucion, int renovaciones,
+                                       String observaciones, Instant fechaAlta, Instant fechaHoraEntrega,
+                                       Instant fechaHoraVencimiento, Instant fechaHoraDevolucion) {
+        return new Prestamo(id, operadorId, prestatarioId, ejemplarId, periodo, lugarUso,
+                estado, fechaDevolucion, renovaciones, observaciones, fechaAlta,
+                fechaHoraEntrega, fechaHoraVencimiento, fechaHoraDevolucion);
     }
 
     public void registrarDevolucion(LocalDate fecha, EstadoFisico estadoFisico) {
+        registrarDevolucion(fecha, Instant.now(), estadoFisico);
+    }
+
+    public void registrarDevolucion(LocalDate fecha, Instant fechaHora, EstadoFisico estadoFisico) {
         if (estado != EstadoPrestamo.ACTIVO) {
             throw new BusinessRuleException("PRESTAMO_NO_ACTIVO",
                     "El prestamo ya fue cerrado con estado " + estado);
@@ -99,6 +131,7 @@ public final class Prestamo extends AggregateRoot<PrestamoId> {
                 ? EstadoPrestamo.PERDIDO
                 : EstadoPrestamo.DEVUELTO;
         this.fechaDevolucion = fecha;
+        this.fechaHoraDevolucion = Objects.requireNonNull(fechaHora);
 
         registrarEvento(new PrestamoDevueltoEvent(
                 id, prestatarioId, ejemplarId, fecha, estadoFisico, diasRetraso, Instant.now()));
@@ -119,6 +152,7 @@ public final class Prestamo extends AggregateRoot<PrestamoId> {
                     "No se puede renovar un prestamo vencido");
         }
         periodo = periodo.renovar(dias);
+        fechaHoraVencimiento = fechaHoraVencimiento.plus(java.time.Duration.ofDays(dias));
         renovaciones++;
         registrarEvento(new PrestamoRenovadoEvent(id, periodo.vencimiento(), renovaciones, Instant.now()));
     }
@@ -209,6 +243,10 @@ public final class Prestamo extends AggregateRoot<PrestamoId> {
     public Instant fechaAlta() {
         return fechaAlta;
     }
+
+    public Instant fechaHoraEntrega() { return fechaHoraEntrega; }
+    public Instant fechaHoraVencimiento() { return fechaHoraVencimiento; }
+    public Instant fechaHoraDevolucion() { return fechaHoraDevolucion; }
 
     @Override
     public boolean equals(Object otro) {
