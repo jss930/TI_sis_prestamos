@@ -281,8 +281,14 @@ node --version
 Desde la raíz del repositorio:
 
 ```powershell
-docker compose up -d
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 ```
+
+Usa PostgreSQL instalado localmente o un proveedor remoto; Docker no es necesario.
+Configura `DB_URL`, `DB_USER` y `DB_PASSWORD` en `.env` con los datos de esa base.
+Para una conexión remota, usa TLS si el proveedor lo requiere (por ejemplo,
+`?sslmode=require`). Spring Boot lee ese archivo al iniciar Maven desde `backend/`.
+`.env` está excluido de Git; no compartas ni subas sus credenciales.
 
 Backend, en otra terminal:
 
@@ -311,11 +317,15 @@ npm run dev
 ### Linux, WSL o macOS
 
 ```bash
-docker compose up -d
+cp .env.example .env
 
 cd backend
 ./mvnw spring-boot:run
 ```
+
+Usa PostgreSQL instalado localmente o un proveedor remoto; Docker no es necesario.
+Configura `DB_URL`, `DB_USER` y `DB_PASSWORD` en `.env` y asegúrate de que la base
+esté disponible antes de iniciar el backend.
 
 En otra terminal:
 
@@ -332,10 +342,7 @@ pnpm dev
 | Frontend | <http://localhost:5173> |
 | API | <http://localhost:8080/api/v1> |
 | Salud | <http://localhost:8080/actuator/health> |
-| Adminer | <http://localhost:8081> |
-| PostgreSQL | `localhost:5432` |
-
-Base, usuario y contraseña local: `biblioteca`.
+| PostgreSQL | El host y puerto configurados en `.env` |
 
 ### Cuentas de demostración
 

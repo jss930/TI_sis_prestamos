@@ -1,4 +1,6 @@
 spring:
+  config:
+    import: optional:file:../.env[.properties]
   application:
     name: biblioteca
   profiles:
@@ -8,6 +10,9 @@ spring:
     username: ${DB_USER:biblioteca}
     password: ${DB_PASSWORD:biblioteca}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      data-source-properties:
+        prepareThreshold: 0
   jpa:
     open-in-view: false
     hibernate:
