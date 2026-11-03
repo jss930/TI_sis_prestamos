@@ -453,33 +453,6 @@ GitHub Actions ejecuta automáticamente el backend con Java 21 y el frontend con
 
 ---
 
-## 13. Usabilidad
-
-La interfaz aplica principios básicos:
-
-- **Visibilidad:** reglas y estados se muestran antes de confirmar.
-- **Prevención de errores:** límites de fecha, opciones deshabilitadas y validación doble.
-- **Consistencia:** se usa el término “reserva” en todo el flujo.
-- **Retroalimentación:** muestra carga, éxito y errores comprensibles.
-- **Control del usuario:** permite volver, cancelar y reprogramar cuando corresponde.
-- **Accesibilidad:** etiquetas, foco visible, contraste y reducción de movimiento.
-
----
-
-## 14. Documentos para estudiar
-
-| Documento | Para qué sirve |
-|---|---|
-| [`docs/guia-del-sistema.md`](docs/guia-del-sistema.md) | Entender todo el sistema desde nivel cero |
-| [`docs/arquitectura.md`](docs/arquitectura.md) | Capas, contextos, reglas y concurrencia |
-| [`docs/solicitudes-prestamo.md`](docs/solicitudes-prestamo.md) | Reserva y préstamo directo |
-| [`docs/base-de-datos.md`](docs/base-de-datos.md) | Modelo, SQL, DB1 y DB2 |
-| [`docs/herramientas.md`](docs/herramientas.md) | Qué hace cada tecnología |
-| [`docs/interfaz-web.md`](docs/interfaz-web.md) | Pantallas, navegación y usabilidad |
-| [`docs/revision-cuentas.md`](docs/revision-cuentas.md) | Registro y validación de cuentas |
-| [`docs/demo.md`](docs/demo.md) | Guion de demostración |
-| [`docs/guia-sustentacion.md`](docs/guia-sustentacion.md) | Preguntas, respuestas y ruta de estudio |
-
 ### Orden recomendado
 
 ```text
@@ -489,12 +462,11 @@ README
   → arquitectura
   → base de datos
   → herramientas
-  → guía de sustentación
 ```
 
 ---
 
-## 15. Estado académico
+## 13. Estado académico
 
 El sistema está preparado para ejecutarse y demostrarse localmente. Incluye frontend, API, base de datos, migraciones, datos demo, pruebas automatizadas y CI.
 
