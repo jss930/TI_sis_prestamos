@@ -164,6 +164,28 @@ class RegistrarPrestamoUseCaseTest {
     }
 
     @Test
+    void rechazaSuperarElLimiteCombinadoConReservasActivas() {
+        var conReservas = new RegistrarPrestamoUseCase(usuarios, catalogo, ejemplares, prestamos,
+                sanciones, new PoliticaPrestamoEstandar(), eventos, Fixtures.clock(),
+                (ejemplarId, prestatarioId, inicio, fin) -> false, prestatarioId -> 3);
+
+        assertThatThrownBy(() -> conReservas.ejecutar(
+                command(bibliotecario.id(), alumno.id(), ejemplar.id())))
+                .isInstanceOfSatisfying(BusinessRuleException.class,
+                        ex -> assertThat(ex.codigo()).isEqualTo("LIMITE_PRESTAMOS"));
+    }
+
+    @Test
+    void rechazaUnPrestamoConDuracionMenorAUnaHora() {
+        Instant entrega = Fixtures.AHORA;
+        assertThatThrownBy(() -> useCase.ejecutar(new RegistrarPrestamoCommand(
+                bibliotecario.id(), alumno.id(), ejemplar.id(), LugarUso.EN_CAMPUS,
+                entrega, entrega.plusSeconds(30 * 60))))
+                .isInstanceOfSatisfying(BusinessRuleException.class,
+                        ex -> assertThat(ex.codigo()).isEqualTo("DURACION_PRESTAMO_INSUFICIENTE"));
+    }
+
+    @Test
     void unAlumnoNoPuedeLlevarEquiposADomicilio() {
         CatalogoItem laptop = Fixtures.laptop();
         Ejemplar ejemplarLaptop = Fixtures.ejemplarDisponible(laptop.id());
@@ -177,7 +199,7 @@ class RegistrarPrestamoUseCaseTest {
     }
 
     @Test
-    void unDocenteTampocoPuedeLlevarEquiposADomicilio() {
+    void unDocentePuedeLlevarEquiposADomicilio() {
         Usuario docente = Fixtures.docenteValidado();
         usuarios.guardar(docente);
         CatalogoItem laptop = Fixtures.laptop();
@@ -185,10 +207,9 @@ class RegistrarPrestamoUseCaseTest {
         catalogo.guardar(laptop);
         ejemplares.guardar(ejemplarLaptop);
 
-        assertThatThrownBy(() -> useCase.ejecutar(new RegistrarPrestamoCommand(
-                bibliotecario.id(), docente.id(), ejemplarLaptop.id(), LugarUso.DOMICILIO)))
-                .isInstanceOfSatisfying(BusinessRuleException.class,
-                        ex -> assertThat(ex.codigo()).isEqualTo("DOMICILIO_NO_PERMITIDO"));
+        Prestamo prestamo = useCase.ejecutar(new RegistrarPrestamoCommand(
+                bibliotecario.id(), docente.id(), ejemplarLaptop.id(), LugarUso.DOMICILIO));
+        assertThat(prestamo.lugarUso()).isEqualTo(LugarUso.DOMICILIO);
     }
 
     private RegistrarPrestamoCommand command(UsuarioId operador, UsuarioId prestatario, EjemplarId id) {

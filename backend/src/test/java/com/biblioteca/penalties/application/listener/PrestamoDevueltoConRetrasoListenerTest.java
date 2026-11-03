@@ -40,7 +40,7 @@ class PrestamoDevueltoConRetrasoListenerTest {
         assertThat(sanciones.listarTodas()).hasSize(1);
         var sancion = sanciones.listarTodas().getFirst();
         assertThat(sancion.diasSuspension()).isEqualTo(5);
-        assertThat(sancion.multa().monto()).isEqualByComparingTo("5.00");
+        assertThat(sancion.multa().monto()).isEqualByComparingTo("0.00");
         assertThat(sancion.estaVigente(Fixtures.HOY)).isTrue();
         assertThat(eventos.contiene(SancionRegistradaEvent.class)).isTrue();
     }

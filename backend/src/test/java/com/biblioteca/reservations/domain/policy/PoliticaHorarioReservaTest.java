@@ -1,6 +1,7 @@
 package com.biblioteca.reservations.domain.policy;
 
 import com.biblioteca.shared.domain.BusinessRuleException;
+import com.biblioteca.circulation.domain.model.LugarUso;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -16,17 +17,41 @@ class PoliticaHorarioReservaTest {
     @Test
     void aceptaUnHorarioConAnticipacionDentroDeLaJornada() {
         PoliticaHorarioReserva.validar(
-                Instant.parse("2026-10-27T15:00:00Z"),
-                Instant.parse("2026-10-27T17:00:00Z"), ahora, lima);
+                Instant.parse("2026-10-27T14:30:00Z"),
+                Instant.parse("2026-10-27T15:30:00Z"), ahora, lima, LugarUso.EN_CAMPUS);
     }
 
     @Test
-    void rechazaMenosDeDosHorasDeAnticipacion() {
+    void rechazaMenosDeTreintaMinutosDeAnticipacion() {
         assertThatThrownBy(() -> PoliticaHorarioReserva.validar(
-                Instant.parse("2026-10-27T13:30:00Z"),
-                Instant.parse("2026-10-27T15:00:00Z"), ahora, lima))
+                Instant.parse("2026-10-27T12:15:00Z"),
+                Instant.parse("2026-10-27T13:15:00Z"), ahora, lima, LugarUso.EN_CAMPUS))
                 .isInstanceOf(BusinessRuleException.class)
-                .hasMessageContaining("2 horas");
+                .hasMessageContaining("30 minutos");
+    }
+
+    @Test
+    void rechazaUnaReservaMenorAUnaHora() {
+        assertThatThrownBy(() -> PoliticaHorarioReserva.validar(
+                Instant.parse("2026-10-27T14:30:00Z"), Instant.parse("2026-10-27T15:15:00Z"),
+                ahora, lima, LugarUso.EN_CAMPUS))
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("una hora");
+    }
+
+    @Test
+    void permiteDomicilioPorUnDiaPeroNoMasDe24Horas() {
+        PoliticaHorarioReserva.validar(Instant.parse("2026-10-27T15:00:00Z"),
+                Instant.parse("2026-10-28T15:00:00Z"), ahora, lima, LugarUso.DOMICILIO);
+        assertThatThrownBy(() -> PoliticaHorarioReserva.validar(Instant.parse("2026-10-27T15:00:00Z"),
+                Instant.parse("2026-10-28T16:00:00Z"), ahora, lima, LugarUso.DOMICILIO))
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("24 horas");
+    }
+
+    @Test
+    void campusNoPuedeAtraviesarDias() {
+        assertThatThrownBy(() -> PoliticaHorarioReserva.validar(Instant.parse("2026-10-28T00:00:00Z"),
+                Instant.parse("2026-10-28T13:00:00Z"), ahora, lima, LugarUso.EN_CAMPUS))
+                .isInstanceOf(BusinessRuleException.class);
     }
 
     @Test

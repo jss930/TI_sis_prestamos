@@ -17,6 +17,7 @@ import com.biblioteca.shared.application.port.DomainEventPublisher;
 import com.biblioteca.shared.domain.BusinessRuleException;
 import com.biblioteca.shared.domain.NotFoundException;
 import com.biblioteca.circulation.application.port.DisponibilidadReservasPort;
+import com.biblioteca.circulation.application.port.ContarReservasActivasPort;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +42,7 @@ public class RegistrarPrestamoUseCase {
     private final DomainEventPublisher eventos;
     private final Clock clock;
     private final DisponibilidadReservasPort disponibilidadReservas;
+    private final ContarReservasActivasPort contarReservas;
 
     @Autowired
     public RegistrarPrestamoUseCase(UsuarioRepository usuarios,
@@ -51,7 +53,8 @@ public class RegistrarPrestamoUseCase {
                                     PoliticaPrestamo politica,
                                     DomainEventPublisher eventos,
                                     Clock clock,
-                                    DisponibilidadReservasPort disponibilidadReservas) {
+                                    DisponibilidadReservasPort disponibilidadReservas,
+                                    ContarReservasActivasPort contarReservas) {
         this.usuarios = usuarios;
         this.catalogo = catalogo;
         this.ejemplares = ejemplares;
@@ -61,6 +64,7 @@ public class RegistrarPrestamoUseCase {
         this.eventos = eventos;
         this.clock = clock;
         this.disponibilidadReservas = disponibilidadReservas;
+        this.contarReservas = contarReservas;
     }
 
     /** Constructor conservado para tests unitarios sin el contexto de reservas. */
@@ -73,11 +77,11 @@ public class RegistrarPrestamoUseCase {
                                     DomainEventPublisher eventos,
                                     Clock clock) {
         this(usuarios, catalogo, ejemplares, prestamos, sanciones, politica, eventos, clock,
-                (ejemplarId, prestatarioId, inicio, fin) -> false);
+                (ejemplarId, prestatarioId, inicio, fin) -> false, prestatarioId -> 0);
     }
 
     public Prestamo ejecutar(RegistrarPrestamoCommand command) {
-        return ejecutar(command, null, null);
+        return ejecutar(command, null, null, 0);
     }
 
     /** Registra la entrega asociada a una reserva respetando su fecha final. */
@@ -87,11 +91,11 @@ public class RegistrarPrestamoUseCase {
                 command.ejemplarId(), command.lugarUso(), clock.instant(), fin);
         return ejecutar(programado, new PeriodoPrestamo(
                 java.time.LocalDate.ofInstant(inicio, clock.getZone()),
-                java.time.LocalDate.ofInstant(fin, clock.getZone())), fin);
+                java.time.LocalDate.ofInstant(fin, clock.getZone())), fin, 1);
     }
 
     private Prestamo ejecutar(RegistrarPrestamoCommand command, PeriodoPrestamo periodoProgramado,
-                              java.time.Instant finProgramado) {
+                              java.time.Instant finProgramado, long reservasExcluidas) {
         Objects.requireNonNull(command.lugarUso(), "El lugar de uso es obligatorio");
         LocalDate hoy = LocalDate.now(clock);
 
@@ -141,9 +145,10 @@ public class RegistrarPrestamoUseCase {
                     "El prestatario tiene un prestamo vencido sin devolver");
         }
         if (prestamos.contarActivosPor(prestatario.id())
+                + contarReservas.contar(prestatario.id()) - reservasExcluidas
                 >= politica.maxPrestamosSimultaneos(prestatario.perfil())) {
             throw new BusinessRuleException("LIMITE_PRESTAMOS",
-                    "El prestatario alcanzo el maximo de prestamos simultaneos");
+                    "El prestatario alcanzo el maximo combinado de prestamos y reservas activas");
         }
         if (command.lugarUso() == LugarUso.DOMICILIO
                 && !politica.permiteDomicilio(prestatario.perfil(), item.tipo())) {
@@ -170,6 +175,10 @@ public class RegistrarPrestamoUseCase {
         if (!finPrevisto.isAfter(entrega)) {
             throw new BusinessRuleException("VENCIMIENTO_INVALIDO",
                     "La devolución prevista debe ser posterior a la entrega");
+        }
+        if (Duration.between(entrega, finPrevisto).compareTo(Duration.ofHours(1)) < 0) {
+            throw new BusinessRuleException("DURACION_PRESTAMO_INSUFICIENTE",
+                    "El prestamo debe durar al menos una hora");
         }
         if (periodoProgramado == null && finPrevisto.isAfter(limitePolitica)) {
             throw new BusinessRuleException("PLAZO_PRESTAMO_EXCEDIDO",

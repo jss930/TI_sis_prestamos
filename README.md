@@ -118,9 +118,10 @@ La administración concede o revoca permisos directamente a cada usuario.
 
 | Regla | Valor |
 |---|---|
-| Anticipación mínima | 2 horas |
-| Duración máxima | 24 horas |
-| Horario permitido | 07:00 a 20:00, hora de Arequipa/Lima |
+| Anticipación mínima | 30 minutos |
+| Duración de reserva | Mínimo 1 hora, máximo 24 horas |
+| Horario permitido | 07:00 a 20:00, hora de Arequipa/Lima; campus en el mismo día |
+| Domicilio | Libros para todos; equipos para docentes y administrativos; otros bienes solo campus |
 | Recurso seleccionado | Título, nunca una copia concreta |
 | Aprobación | Manual, solo administrador |
 | Lista de espera | No existe |
@@ -446,7 +447,7 @@ Las pruebas cubren:
 - disponibilidad futura por intervalo;
 - reglas de dependencia con ArchUnit.
 
-La suite actual ejecuta **103 pruebas backend: 0 fallos, 0 errores y 0 omitidas**.
+La suite actual ejecuta **109 pruebas backend: 0 fallos, 0 errores y 0 omitidas**.
 
 GitHub Actions ejecuta automáticamente el backend con Java 21 y el frontend con Node 20 en cada `push` y `pull request`.
 

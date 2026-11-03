@@ -88,8 +88,9 @@ Representa una restricción activa por retraso, daño, pérdida o decisión admi
 ## 4. Reglas fáciles de recordar
 
 ```text
-2 horas   anticipación mínima
-24 horas  duración máxima de reserva
+30 min    anticipación mínima
+1 hora    duración mínima de reserva o préstamo
+24 horas duración máxima de reserva
 07–20     horario permitido
 1 hora    tolerancia para recoger
 0 colas   no existe lista de espera

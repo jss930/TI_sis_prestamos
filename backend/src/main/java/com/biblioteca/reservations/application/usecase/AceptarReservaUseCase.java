@@ -46,7 +46,7 @@ public class AceptarReservaUseCase {
         var alumno = usuarios.buscarPorIdParaActualizar(reserva.prestatarioId()).orElseThrow(() -> new NotFoundException("Usuario", reserva.prestatarioId().value()));
         var item = acceso.item(reserva);
         var hoy = LocalDate.now(clock);
-        long apartados = reservas.listarPorPrestatario(alumno.id()).stream().filter(r -> r.estado()==EstadoReserva.APROBADA).count();
+        long apartados = reservas.contarActivasPor(alumno.id()) - 1;
         PoliticaElegibilidadSolicitud.validar(acceso.usuario(command.operadorId()), alumno, item, reserva.lugarUso(),
                 sanciones.existeActivaPara(alumno.id(), hoy), prestamos.tieneVencido(alumno.id(), hoy), prestamos.contarActivosPor(alumno.id())+apartados, politica);
         if (reserva.inicioReserva() == null || reserva.finReserva() == null)

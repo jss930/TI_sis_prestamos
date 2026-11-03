@@ -28,15 +28,15 @@ public final class PoliticaPrestamoEstandar implements PoliticaPrestamo {
 
     @Override
     public boolean permiteDomicilio(PerfilPrestatario perfil, TipoItem tipo) {
-        return tipo == TipoItem.LIBRO;
+        return tipo == TipoItem.LIBRO
+                || (tipo == TipoItem.EQUIPO && perfil != PerfilPrestatario.ALUMNO);
     }
 
     @Override
     public int maxPrestamosSimultaneos(PerfilPrestatario perfil) {
         return switch (perfil) {
             case ALUMNO -> 3;
-            case DOCENTE -> 10;
-            case ADMINISTRATIVO -> 5;
+            case DOCENTE, ADMINISTRATIVO -> 3;
         };
     }
 

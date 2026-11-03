@@ -19,15 +19,24 @@ class SancionTest {
     private static final LocalDate HOY = LocalDate.of(2026, 10, 20);
 
     @Test
-    void calculaDiasYMultaPorRetraso() {
+    void calculaSuspensionSinMultaAutomaticaPorRetraso() {
         var sancion = Sancion.porRetraso(SancionId.nuevo(), new UsuarioId(UUID.randomUUID()),
                 new PrestamoId(UUID.randomUUID()), 3, HOY, new PoliticaSancionEstandar());
 
         assertThat(sancion.motivo()).isEqualTo(MotivoSancion.RETRASO);
         assertThat(sancion.diasSuspension()).isEqualTo(3);
-        assertThat(sancion.multa().monto()).isEqualByComparingTo("3.00");
+        assertThat(sancion.multa().monto()).isEqualByComparingTo("0.00");
         assertThat(sancion.multa().moneda()).isEqualTo("PEN");
         assertThat(sancion.fechaFin()).isEqualTo(HOY.plusDays(3));
+    }
+
+    @Test
+    void limitaSuspensionPorRetrasoAUnaSemana() {
+        var sancion = Sancion.porRetraso(SancionId.nuevo(), new UsuarioId(UUID.randomUUID()),
+                new PrestamoId(UUID.randomUUID()), 12, HOY, new PoliticaSancionEstandar());
+        assertThat(sancion.diasSuspension()).isEqualTo(7);
+        assertThat(sancion.multa().monto()).isEqualByComparingTo("0.00");
+        assertThat(sancion.fechaFin()).isEqualTo(HOY.plusDays(7));
     }
 
     @Test
@@ -72,11 +81,11 @@ class SancionTest {
     }
 
     @Test
-    void laPoliticaTopeaLaSancionEnTreintaDias() {
+    void laPoliticaTopeaLaSuspensionEnSieteDiasYNoCalculaMulta() {
         var politica = new PoliticaSancionEstandar();
 
-        assertThat(politica.diasSuspension(45)).isEqualTo(30);
-        assertThat(politica.multaPorRetraso(45).monto()).isEqualByComparingTo(new BigDecimal("30.00"));
+        assertThat(politica.diasSuspension(45)).isEqualTo(7);
+        assertThat(politica.multaPorRetraso(45).monto()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(politica.diasSuspension(0)).isZero();
         assertThat(politica.multaPorRetraso(0).monto()).isEqualByComparingTo(BigDecimal.ZERO);
     }

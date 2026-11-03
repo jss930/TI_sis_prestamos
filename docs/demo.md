@@ -66,7 +66,8 @@ Entrar con una cuenta validada, abrir un título y pulsar Reservar.
 Mostrar:
 
 - detalles del título;
-- mínimo de 2 horas;
+- mínimo de 30 minutos de anticipación;
+- duración entre 1 y 24 horas;
 - jornada 07:00–20:00;
 - máximo 24 horas;
 - campus/domicilio para libro;

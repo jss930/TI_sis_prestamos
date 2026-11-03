@@ -12,6 +12,8 @@ import com.biblioteca.penalties.domain.repository.SancionRepository;
 import com.biblioteca.reservations.application.command.SolicitarReservaCommand;
 import com.biblioteca.reservations.domain.model.Reserva;
 import com.biblioteca.reservations.domain.policy.PoliticaReserva;
+import com.biblioteca.circulation.domain.policy.PoliticaPrestamo;
+import com.biblioteca.reservations.application.port.ContarPrestamosActivosPort;
 import com.biblioteca.reservations.domain.repository.ReservaRepository;
 import com.biblioteca.shared.application.port.DomainEventPublisher;
 import com.biblioteca.shared.domain.BusinessRuleException;
@@ -39,6 +41,8 @@ public class SolicitarReservaUseCase {
     private final EjemplarRepository ejemplares;
     private final ZoneId zona;
     private final DisponibilidadProgramadaPort disponibilidad;
+    private final PoliticaPrestamo politicaPrestamo;
+    private final ContarPrestamosActivosPort contarPrestamos;
 
     @Autowired
     public SolicitarReservaUseCase(UsuarioRepository usuarios,
@@ -48,7 +52,8 @@ public class SolicitarReservaUseCase {
                                    PoliticaReserva politica,
                                    DomainEventPublisher eventos,
                                    Clock clock, EjemplarRepository ejemplares, ZoneId zona,
-                                   DisponibilidadProgramadaPort disponibilidad) {
+                                   DisponibilidadProgramadaPort disponibilidad, PoliticaPrestamo politicaPrestamo,
+                                   ContarPrestamosActivosPort contarPrestamos) {
         this.usuarios = usuarios;
         this.catalogo = catalogo;
         this.sanciones = sanciones;
@@ -59,6 +64,8 @@ public class SolicitarReservaUseCase {
         this.ejemplares = ejemplares;
         this.zona = zona;
         this.disponibilidad = disponibilidad;
+        this.politicaPrestamo = politicaPrestamo;
+        this.contarPrestamos = contarPrestamos;
     }
 
     public Reserva ejecutar(SolicitarReservaCommand command) {
@@ -83,14 +90,18 @@ public class SolicitarReservaUseCase {
                     "Selecciona la fecha y hora inicial y final de la reserva");
         }
         if (command.lugarUso() == com.biblioteca.circulation.domain.model.LugarUso.DOMICILIO
-                && item.tipo() != com.biblioteca.catalog.domain.model.TipoItem.LIBRO) {
+                && !politicaPrestamo.permiteDomicilio(prestatario.perfil(), item.tipo())) {
             throw new BusinessRuleException("DOMICILIO_NO_PERMITIDO",
-                    "Solo los libros pueden reservarse para uso a domicilio");
+                    "Este perfil no puede reservar este tipo de bien para uso a domicilio");
         }
 
         if (sanciones.existeActivaPara(prestatario.id(), hoy)) {
             throw new BusinessRuleException("SANCION_ACTIVA",
                     "El prestatario tiene una sancion activa");
+        }
+        if (contarPrestamos.tieneVencido(prestatario.id(), hoy)) {
+            throw new BusinessRuleException("PRESTAMO_VENCIDO_PENDIENTE",
+                    "El prestatario tiene un prestamo vencido sin devolver");
         }
 
         if (ejemplares.listarPorItem(item.id()).stream().noneMatch(e -> e.puedeProgramarse()
@@ -103,10 +114,10 @@ public class SolicitarReservaUseCase {
                 && com.biblioteca.reservations.domain.policy.PoliticaHorarioReserva.seSolapan(
                         command.inicioReserva(), command.finReserva(), r.inicioReserva(), r.finReserva())))
             throw new BusinessRuleException("SOLICITUD_DUPLICADA", "Ya tienes una solicitud activa para este bien");
-        long activas = reservas.contarActivasPor(prestatario.id());
+        long activas = reservas.contarActivasPor(prestatario.id()) + contarPrestamos.contar(prestatario.id());
         if (activas >= politica.maxReservasActivas(prestatario.perfil())) {
             throw new BusinessRuleException("LIMITE_RESERVAS",
-                    "El prestatario alcanzo el maximo de reservas activas");
+                    "El prestatario alcanzo el maximo combinado de prestamos y reservas activas");
         }
 
         Reserva reserva = Reserva.solicitarProgramada(prestatario.id(), item.id(), command.lugarUso(),

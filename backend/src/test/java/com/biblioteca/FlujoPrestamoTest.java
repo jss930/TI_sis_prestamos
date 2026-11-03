@@ -100,8 +100,8 @@ class FlujoPrestamoTest {
 
         assertThat(sanciones.listarPorUsuario(alumno.id())).hasSize(1);
         var sancion = sanciones.listarPorUsuario(alumno.id()).getFirst();
-        assertThat(sancion.diasSuspension()).isEqualTo(12);
-        assertThat(sancion.multa().monto()).isEqualByComparingTo("12.00");
+        assertThat(sancion.diasSuspension()).isEqualTo(7);
+        assertThat(sancion.multa().monto()).isEqualByComparingTo("0.00");
         assertThat(sancion.estaVigente(devolucion)).isTrue();
         assertThat(eventos.stream().anyMatch(SancionRegistradaEvent.class::isInstance)).isTrue();
 

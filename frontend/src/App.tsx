@@ -367,7 +367,7 @@ export default function App() {
           />
         )
       case 'reserva-nueva':
-        return <ReservaNueva itemId={catalogoItemIdRuta} catalogo={datos.catalogo} reservar={(id, lugar, inicio, fin) => usuarioActual?.id ? solicitarReserva(id, lugar, inicio, fin) : Promise.reject(new Error('Inicia sesión para reservar.'))} />
+        return <ReservaNueva itemId={catalogoItemIdRuta} catalogo={datos.catalogo} perfil={usuarioActual?.perfil ?? 'ALUMNO'} reservar={(id, lugar, inicio, fin) => usuarioActual?.id ? solicitarReserva(id, lugar, inicio, fin) : Promise.reject(new Error('Inicia sesión para reservar.'))} />
       case 'catalogo-gestion':
         return <CatalogoGestion catalogo={datos.catalogo} ejemplares={datos.ejemplares} activar={activarCatalogo} desactivar={desactivarCatalogo} />
       case 'catalogo-nuevo':

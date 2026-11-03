@@ -113,7 +113,7 @@ public final class Reserva extends AggregateRoot<ReservaId> {
 
     public static Reserva solicitarProgramada(UsuarioId prestatarioId, CatalogoItemId itemId,
             LugarUso lugarUso, Instant inicio, Instant fin, Instant ahora, ZoneId zona) {
-        PoliticaHorarioReserva.validar(inicio, fin, ahora, zona);
+        PoliticaHorarioReserva.validar(inicio, fin, ahora, zona, lugarUso);
         Reserva reserva = new Reserva(ReservaId.nuevo(), prestatarioId, itemId,
                 EstadoReserva.SOLICITADA, null, null, null, ahora, null);
         reserva.lugarUso = Objects.requireNonNull(lugarUso);
@@ -162,7 +162,7 @@ public final class Reserva extends AggregateRoot<ReservaId> {
             throw new BusinessRuleException("REPROGRAMACION_FUERA_DE_PLAZO",
                     "Solo puedes reprogramar hasta una hora antes del inicio");
         }
-        PoliticaHorarioReserva.validar(inicio, fin, ahora, zona);
+        PoliticaHorarioReserva.validar(inicio, fin, ahora, zona, lugarUso);
         this.inicioReserva = inicio;
         this.finReserva = fin;
     }

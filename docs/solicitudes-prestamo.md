@@ -32,12 +32,15 @@ El usuario sale del token de sesión. No se permite escoger otra cuenta ni una c
 
 ## 4. Horario
 
-- Anticipación mínima: 2 horas.
+- Anticipación mínima: 30 minutos.
 - Horario: 07:00–20:00 en `America/Lima`.
 - Fin posterior al inicio.
-- Duración máxima: 24 horas.
-- Libros: campus o domicilio.
-- Equipos y otros bienes: campus.
+- Duración mínima: 1 hora; máxima: 24 horas.
+- Campus: inicio y fin el mismo día, dentro del horario.
+- Domicilio: puede atravesar la noche, hasta 24 horas; entrega y devolución dentro del horario.
+- Libros: campus o domicilio para todos los perfiles.
+- Equipos: domicilio solo para docentes y administrativos.
+- Otros bienes: solo campus.
 
 El frontend previene errores y el backend vuelve a validar todo.
 
@@ -87,7 +90,7 @@ La copia no cambia a un estado físico `RESERVADO`. El compromiso vive en la res
 El titular puede reprogramar únicamente una reserva `SOLICITADA`.
 
 - Debe hacerlo antes de la última hora previa al inicio original.
-- El nuevo inicio debe conservar 2 horas de anticipación.
+- El nuevo inicio debe conservar 30 minutos de anticipación.
 - Se validan duración, jornada y disponibilidad.
 - Una reserva aprobada no se reprograma.
 
@@ -100,10 +103,10 @@ El titular puede cancelar una reserva `SOLICITADA` o `APROBADA`. No puede cancel
 | Perfil | Máximo |
 |---|---:|
 | Alumno | 3 |
-| Docente | 10 |
-| Administrativo | 5 |
+| Docente | 3 |
+| Administrativo | 3 |
 
-Al aprobar se suman préstamos activos y reservas aprobadas. Una reserva pendiente también se controla con el límite de reservas activas.
+El límite de 3 es combinado: se cuentan los préstamos activos y reservas solicitadas o aprobadas. Al entregar una reserva, esta se convierte en un préstamo y no se cuenta dos veces.
 
 ## 12. Préstamo directo
 
@@ -114,6 +117,8 @@ Cuando una persona llega sin reserva:
 3. el sistema verifica cuenta, sanciones, vencidos, límite y lugar;
 4. comprueba que el intervalo no invada una reserva aprobada;
 5. crea el préstamo.
+
+Todo préstamo debe tener al menos una hora de duración prevista; la devolución puede registrarse antes.
 
 No se crea una reserva artificial para este flujo.
 

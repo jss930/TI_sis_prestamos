@@ -19,7 +19,7 @@ export default function Prestamos({ prestamos, usuarios, catalogo, ejemplares, p
     { clave: 'persona', titulo: 'PERSONA', render: (p) => <div className="celda-principal"><strong>{nombreUsuario(usuarios, p.prestatarioId)}</strong><small>{usuarios.find((u) => u.id === p.prestatarioId)?.email}</small></div> },
     { clave: 'bien', titulo: 'BIEN', render: (p) => <div className="celda-principal"><strong>{tituloDeEjemplar(ejemplares, catalogo, p.ejemplarId)}</strong><small>{etiquetaLugar(p.lugarUso)}</small></div> },
     { clave: 'entrega', titulo: 'ENTREGA', render: (p) => new Date(p.fechaHoraEntrega).toLocaleString('es-PE') },
-    { clave: 'vence', titulo: 'DEVOLUCIÓN PREVISTA', render: (p) => <div className="celda-principal"><span>{new Date(p.fechaHoraVencimiento).toLocaleString('es-PE')}</span>{p.vencido && <small className="texto-peligro">{p.diasRetraso} días de retraso</small>}</div> },
+    { clave: 'vence', titulo: 'DEVOLUCIÓN PREVISTA', render: (p) => <div className="celda-principal"><span>{new Date(p.fechaHoraVencimiento).toLocaleString('es-PE')}</span>{p.vencido && <small className="texto-peligro">{p.diasRetraso} días de retraso</small>}{p.diasRetraso > 7 && <small>Al superar 7 días corresponde registrar una multa manual.</small>}</div> },
     { clave: 'estado', titulo: 'ESTADO', render: (p) => <EtiquetaEstado estado={p.vencido ? 'VENCIDO' : p.estado} /> },
     { clave: 'accion', titulo: '', render: (p) => p.estado === 'ACTIVO' && puedeDevolver ? <button className="boton terciario" onClick={() => setSeleccionado(p)}>Recibir devolución</button> : null },
   ]

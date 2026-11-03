@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
-import type { CatalogoItem, LugarUso } from '../types'
+import type { CatalogoItem, LugarUso, PerfilPrestatario } from '../types'
 import { descripcionItem } from '../utils/format'
 import { imagenCatalogo } from '../utils/imagenesCatalogo'
 
@@ -10,7 +10,7 @@ function valorLocal(fecha: Date) {
 }
 
 function siguienteCuartoDeHora() {
-  const fecha = new Date(Date.now() + 2 * 60 * 60 * 1000)
+  const fecha = new Date(Date.now() + 30 * 60 * 1000)
   fecha.setMinutes(Math.ceil(fecha.getMinutes() / 15) * 15, 0, 0)
   if (fecha.getHours() < 7) fecha.setHours(7, 0, 0, 0)
   if (fecha.getHours() > 19 || (fecha.getHours() === 19 && fecha.getMinutes() > 0)) {
@@ -23,10 +23,11 @@ function siguienteCuartoDeHora() {
 interface Props {
   itemId?: string
   catalogo: CatalogoItem[]
+  perfil: PerfilPrestatario
   reservar: (id: string, lugar: LugarUso, inicio: string, fin: string) => Promise<void>
 }
 
-export default function ReservaNueva({ itemId, catalogo, reservar }: Props) {
+export default function ReservaNueva({ itemId, catalogo, perfil, reservar }: Props) {
   const navegar = useNavigate()
   const item = catalogo.find((actual) => actual.id === itemId)
   const inicioInicial = useMemo(siguienteCuartoDeHora, [])
@@ -66,9 +67,11 @@ export default function ReservaNueva({ itemId, catalogo, reservar }: Props) {
     const inicio = new Date(datos.inicio)
     const fin = new Date(datos.fin)
     if (Number.isNaN(inicio.getTime()) || Number.isNaN(fin.getTime())) throw new Error('Selecciona un horario válido.')
-    if (inicio.getTime() < Date.now() + 2 * 60 * 60 * 1000) throw new Error('El inicio debe tener al menos 2 horas de anticipación.')
+    if (inicio.getTime() < Date.now() + 30 * 60 * 1000) throw new Error('El inicio debe tener al menos 30 minutos de anticipación.')
     if (fin <= inicio) throw new Error('La hora final debe ser posterior al inicio.')
+    if (fin.getTime() - inicio.getTime() < 60 * 60 * 1000) throw new Error('La reserva debe durar al menos una hora.')
     if (fin.getTime() - inicio.getTime() > 24 * 60 * 60 * 1000) throw new Error('La reserva no puede durar más de 24 horas.')
+    if (datos.lugar === 'EN_CAMPUS' && inicio.toDateString() !== fin.toDateString()) throw new Error('Las reservas en campus deben iniciar y terminar el mismo día.')
     for (const fecha of [inicio, fin]) {
       const minutos = fecha.getHours() * 60 + fecha.getMinutes()
       if (minutos < 7 * 60 || minutos > 20 * 60) throw new Error('El horario permitido es de 07:00 a 20:00.')
@@ -88,7 +91,9 @@ export default function ReservaNueva({ itemId, catalogo, reservar }: Props) {
       setEnviando(true)
       await reservar(
         item.id,
-        item.tipo === 'LIBRO' ? datos.lugar : 'EN_CAMPUS',
+        item.tipo === 'LIBRO' || (item.tipo === 'EQUIPO' && perfil !== 'ALUMNO')
+          ? datos.lugar
+          : 'EN_CAMPUS',
         new Date(datos.inicio).toISOString(),
         new Date(datos.fin).toISOString(),
       )
@@ -130,7 +135,7 @@ export default function ReservaNueva({ itemId, catalogo, reservar }: Props) {
                 {detalles.length > 0 && <dl>{detalles.map(([etiqueta, valor]) => <div key={etiqueta}><dt>{etiqueta}</dt><dd>{valor}</dd></div>)}</dl>}
               </div>
             </article>
-            <div className="reglas-inline"><span>✓ 2 h de anticipación</span><span>✓ 07:00–20:00</span><span>✓ Máximo 24 h</span></div>
+            <div className="reglas-inline"><span>✓ 30 min de anticipación</span><span>✓ Mínimo 1 h</span><span>✓ Máximo 24 h</span></div>
             <div className="campos dos">
               <label>Fecha y hora de inicio
                 <input type="datetime-local" required step="900" min={valorLocal(siguienteCuartoDeHora())} value={datos.inicio} onChange={(evento) => cambiarInicio(evento.target.value)} />
@@ -138,13 +143,13 @@ export default function ReservaNueva({ itemId, catalogo, reservar }: Props) {
               <label>Fecha y hora final
                 <input type="datetime-local" required step="900" min={datos.inicio} value={datos.fin} onChange={(evento) => setDatos({ ...datos, fin: evento.target.value })} />
               </label>
-              {item.tipo === 'LIBRO' ? (
+              {item.tipo === 'LIBRO' || (item.tipo === 'EQUIPO' && perfil !== 'ALUMNO') ? (
                 <label>Lugar de uso
                   <select value={datos.lugar} onChange={(evento) => setDatos({ ...datos, lugar: evento.target.value as LugarUso })}>
                     <option value="EN_CAMPUS">En campus</option><option value="DOMICILIO">A domicilio</option>
                   </select>
                 </label>
-              ) : <div className="campo-informativo"><span>Lugar de uso</span><strong>En campus</strong><small>Este tipo de bien no sale del campus.</small></div>}
+              ) : <div className="campo-informativo"><span>Lugar de uso</span><strong>En campus</strong><small>Este bien solo puede usarse dentro del campus para tu perfil.</small></div>}
             </div>
             <div className="acciones-finales"><button className="boton primario" type="submit">Continuar</button></div>
           </>

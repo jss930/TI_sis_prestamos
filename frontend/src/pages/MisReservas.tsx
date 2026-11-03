@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import Tabla, { type Columna } from '../components/Tabla'
 import EtiquetaEstado from '../components/EtiquetaEstado'
@@ -41,6 +41,48 @@ export default function MisReservas({ reservas, catalogo, usuarioId, cancelarRes
       setExito('Reserva cancelada correctamente.')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo cancelar la reserva.')
+    } finally {
+      setProcesando(null)
+    }
+  }
+
+  async function guardarHorario(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (!editando) return
+    const inicio = new Date(horario.inicio)
+    const fin = new Date(horario.fin)
+    const reserva = reservas.find((r) => r.id === editando)
+    if (inicio.getTime() < Date.now() + 30 * 60 * 1000) {
+      setError('El nuevo inicio debe tener al menos 30 minutos de anticipación.')
+      return
+    }
+    if (fin.getTime() - inicio.getTime() < 60 * 60 * 1000) {
+      setError('La reserva debe durar al menos una hora.')
+      return
+    }
+    if (fin.getTime() - inicio.getTime() > 24 * 60 * 60 * 1000) {
+      setError('La reserva no puede durar más de 24 horas.')
+      return
+    }
+    if (reserva?.lugarUso === 'EN_CAMPUS' && inicio.toDateString() !== fin.toDateString()) {
+      setError('Las reservas en campus deben iniciar y terminar el mismo día.')
+      return
+    }
+    for (const fecha of [inicio, fin]) {
+      const minutos = fecha.getHours() * 60 + fecha.getMinutes()
+      if (minutos < 7 * 60 || minutos > 20 * 60) {
+        setError('El horario permitido es de 07:00 a 20:00.')
+        return
+      }
+    }
+    setProcesando(editando)
+    setError(null)
+    try {
+      await reprogramarReserva(editando, inicio.toISOString(), fin.toISOString())
+      setExito('Reserva reprogramada.')
+      setEditando(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo reprogramar.')
     } finally {
       setProcesando(null)
     }
@@ -102,11 +144,8 @@ export default function MisReservas({ reservas, catalogo, usuarioId, cancelarRes
       </div>
       {error && <div className="aviso error-aviso">{error}</div>}
       {exito && <div className="aviso correcto-aviso" role="status">✓ {exito}</div>}
-      {editando && <form className="formulario" onSubmit={(e) => { e.preventDefault(); setProcesando(editando); setError(null); void reprogramarReserva(editando, new Date(horario.inicio).toISOString(), new Date(horario.fin).toISOString())
-        .then(() => { setExito('Reserva reprogramada.'); setEditando(null) })
-        .catch((e: unknown) => setError(e instanceof Error ? e.message : 'No se pudo reprogramar.'))
-        .finally(() => setProcesando(null)) }}>
-        <h3>Reprogramar reserva</h3><p>Disponible hasta una hora antes del inicio. El nuevo horario debe tener al menos 2 horas de anticipación.</p>
+      {editando && <form className="formulario" onSubmit={guardarHorario}>
+        <h3>Reprogramar reserva</h3><p>Disponible hasta una hora antes del inicio. El nuevo horario debe tener al menos 30 minutos de anticipación y durar entre una y 24 horas.</p>
         <div className="reserva-horario-grid"><label>Nuevo inicio<input type="datetime-local" required value={horario.inicio} onChange={(e) => setHorario({ ...horario, inicio: e.target.value })} /></label>
         <label>Nuevo fin<input type="datetime-local" required value={horario.fin} onChange={(e) => setHorario({ ...horario, fin: e.target.value })} /></label></div>
         <div className="acciones-fila"><button className="boton primario" type="submit">Guardar horario</button><button className="boton secundario" type="button" onClick={() => setEditando(null)}>Cancelar</button></div>

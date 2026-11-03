@@ -2,16 +2,13 @@ package com.biblioteca.penalties.domain.policy;
 
 import com.biblioteca.penalties.domain.vo.MontoMulta;
 
-import java.math.BigDecimal;
-
 /**
- * Politica base: un dia de suspension y S/ 1.00 de multa por dia de retraso,
- * con tope de 30 dias. Es deliberadamente simple y configurable despues.
+ * Politica base: un dia de suspension por dia de retraso, con tope de siete dias.
+ * Las multas por retraso superior al tope se registran manualmente.
  */
 public final class PoliticaSancionEstandar implements PoliticaSancion {
 
-    private static final int TOPE_DIAS = 30;
-    private static final BigDecimal MULTA_POR_DIA = BigDecimal.ONE;
+    private static final int TOPE_DIAS = 7;
 
     @Override
     public int diasSuspension(int diasRetraso) {
@@ -26,7 +23,6 @@ public final class PoliticaSancionEstandar implements PoliticaSancion {
         if (diasRetraso <= 0) {
             return MontoMulta.cero();
         }
-        int diasCobrados = Math.min(TOPE_DIAS, diasRetraso);
-        return MontoMulta.deSoles(MULTA_POR_DIA.multiply(BigDecimal.valueOf(diasCobrados)));
+        return MontoMulta.cero();
     }
 }

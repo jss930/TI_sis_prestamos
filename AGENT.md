@@ -83,9 +83,12 @@ docker compose up -d
 
 ## 6. Horario de reservas
 
-- anticipación mínima: 2 horas;
-- duración máxima: 24 horas;
+- anticipación mínima: 30 minutos;
+- duración de reserva: mínimo 1 hora y máximo 24 horas;
 - jornada: 07:00–20:00 en `America/Lima`;
+- campus: inicio y fin el mismo día; domicilio puede abarcar hasta 24 horas;
+- domicilio: libros para todos; equipos para docentes/administrativos; otros bienes solo campus;
+- límite combinado: hasta 3 préstamos y reservas activas por prestatario;
 - reprogramación: pendiente y hasta 1 hora antes;
 - libros: campus o domicilio;
 - equipos y otros: campus.
