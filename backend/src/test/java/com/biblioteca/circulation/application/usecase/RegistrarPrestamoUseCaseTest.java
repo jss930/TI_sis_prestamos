@@ -84,7 +84,7 @@ class RegistrarPrestamoUseCaseTest {
 
         assertThat(prestamo.estado()).isEqualTo(EstadoPrestamo.ACTIVO);
         assertThat(prestamo.periodo().inicio()).isEqualTo(Fixtures.HOY);
-        assertThat(prestamo.periodo().vencimiento()).isEqualTo(Fixtures.HOY.plusDays(7));
+        assertThat(prestamo.periodo().vencimiento()).isEqualTo(Fixtures.HOY.plusDays(3));
         assertThat(ejemplares.buscarPorId(ejemplar.id()).orElseThrow().estadoFisico())
                 .isEqualTo(EstadoFisico.PRESTADO);
         assertThat(eventos.contiene(PrestamoRegistradoEvent.class)).isTrue();

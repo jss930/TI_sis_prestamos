@@ -86,7 +86,7 @@ class FlujoPrestamoTest {
         Prestamo prestamo = registrarInicio.ejecutar(new RegistrarPrestamoCommand(
                 bibliotecario.id(), alumno.id(), copia1.id(), LugarUso.EN_CAMPUS));
 
-        assertThat(prestamo.periodo().vencimiento()).isEqualTo(inicio.plusDays(7));
+        assertThat(prestamo.periodo().vencimiento()).isEqualTo(inicio.plusDays(3));
         assertThat(ejemplares.buscarPorId(copia1.id()).orElseThrow().estadoFisico())
                 .isEqualTo(EstadoFisico.PRESTADO);
 
