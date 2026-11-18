@@ -1,4 +1,5 @@
 export type Pagina =
+  | 'actividad'
   | 'resumen'
   | 'mi-cuenta'
   | 'personas'
@@ -122,6 +123,13 @@ export interface Prestamo {
 }
 
 export interface Historial {
+  pagina: number
+  tamano: number
+  totalPrestamos: number
+  totalReservas: number
+  totalSanciones: number
+  hayMas: boolean
+  busqueda: string
   usuario: { id: string; nombre: string; codigo: string | null; perfil: string; estado: string } | null
   ejemplar: { id: string; titulo: string; barcode: string; estado: string } | null
   generadoEn: string
@@ -136,8 +144,8 @@ export interface Historial {
     vencido: boolean; devolucionTardia: boolean
     inspeccion: { recibidoPor: string; estadoFisico: string; accesoriosFaltantes: boolean; observaciones: string; fecha: string } | null
   }>
-  reservas: Array<{ id: string; titulo: string; estado: string; inicio: string | null; fin: string | null; motivo: string | null }>
-  sanciones: Array<{ id: string; motivo: string; estado: string; inicio: string; fin: string; multa: number; observaciones: string | null; activa: boolean }>
+  reservas: Array<{ id: string; prestatario: string; titulo: string; estado: string; inicio: string | null; fin: string | null; motivo: string | null }>
+  sanciones: Array<{ id: string; persona: string; motivo: string; estado: string; inicio: string; fin: string; multa: number; observaciones: string | null; activa: boolean }>
 }
 
 export interface Sancion {

@@ -132,10 +132,13 @@ async function solicitar<T>(ruta: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  getHistorial: (tipo: 'usuario' | 'ejemplar', id: string, filtros: { desde: string; hasta: string; estado: string }) => {
+  getHistorial: (tipo: 'general' | 'usuario' | 'ejemplar', id: string,
+    filtros: { desde: string; hasta: string; estado: string; busqueda?: string }, pagina = 0, completo = false) => {
     const parametros = new URLSearchParams()
     for (const [clave, valor] of Object.entries(filtros)) if (valor) parametros.set(clave, valor)
-    return solicitar<Historial>(`/reportes/${tipo === 'usuario' ? 'usuarios' : 'ejemplares'}/${encodeURIComponent(id)}?${parametros}`)
+    parametros.set('pagina', String(pagina)); parametros.set('tamano', '10'); parametros.set('completo', String(completo))
+    const ruta = tipo === 'general' ? 'general' : `${tipo === 'usuario' ? 'usuarios' : 'ejemplares'}/${encodeURIComponent(id)}`
+    return solicitar<Historial>(`/reportes/${ruta}?${parametros}`)
   },
   getInspeccionesDevolucion: () => solicitar<InspeccionDevolucion[]>('/inspecciones-devolucion'),
   inspeccionarDevolucion: (id: string, inspeccion: NuevaInspeccionDevolucion) =>
@@ -145,7 +148,7 @@ export const api = {
   getCatalogo: () => solicitar<CatalogoItem[]>('/catalogo'),
   getUsuarios: () => solicitar<Usuario[]>('/usuarios'),
   getEjemplares: () => solicitar<Ejemplar[]>('/inventario/ejemplares'),
-  getPrestamos: () => solicitar<Prestamo[]>('/prestamos'),
+  getPrestamos: () => solicitar<Prestamo[]>('/prestamos?estado=ACTIVO'),
   renovarPrestamo: (id: string, nuevoVencimiento: string) =>
     solicitar<Prestamo>(`/prestamos/${id}/renovacion`, {
       method: 'POST', body: JSON.stringify({ nuevoVencimiento }),

@@ -102,6 +102,8 @@ export default function Personas({ usuarios, permisos, operadorId, crearUsuario,
       {funciones(usuario).map((funcion) => <span key={funcion}>{funcion}</span>)}
     </div> },
     { clave: 'acciones', titulo: 'ACCIÓN', render: (usuario) => <div className="acciones-fila">
+      {(permisos.includes('GESTIONAR_SANCIONES') || puedeAdministrar) && <button className="boton secundario" type="button" disabled={procesando}
+        onClick={() => navegar(`/personas?vista=sanciones&usuario=${usuario.id}`)}>Ver sanciones</button>}
       {puedeAdministrar && <button className="boton secundario" type="button" disabled={procesando}
         onClick={() => navegar(`/historial?tipo=usuario&id=${usuario.id}`)}>Ver historial</button>}
       {usuario.estado === 'PROVISIONAL' && puedeValidar && <button className="boton primario" type="button"

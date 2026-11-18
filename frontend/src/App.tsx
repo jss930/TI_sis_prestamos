@@ -19,7 +19,9 @@ import EjemplarAlta from './pages/EjemplarAlta'
 import PrestamoNuevo from './pages/PrestamoNuevo'
 import CatalogoEditar from './pages/CatalogoEditar'
 import Historial from './pages/Historial'
-import { useLocation, useNavigate } from 'react-router-dom'
+import MiActividad from './components/MiActividad'
+import { puedeVerPersonas } from './utils/navegacion'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { api, ApiError, mensajeDeError } from './services/api'
 import type {
   DatosBiblioteca,
@@ -62,6 +64,7 @@ export default function App() {
     }
   })
   const rutas: Record<Pagina, string> = {
+    actividad: '/mi-actividad',
     resumen: '/', 'mi-cuenta': '/mi-cuenta', personas: '/personas', catalogo: '/catalogo',
     'mis-prestamos': '/mis-prestamos', 'mis-reservas': '/mis-reservas', prestamos: '/prestamos',
     sanciones: '/sanciones', administracion: '/administracion', reservas: '/reservas',
@@ -73,7 +76,7 @@ export default function App() {
   const rutasEstaticas = [
     '/', '/mi-cuenta', '/personas', '/catalogo', '/mis-prestamos', '/mis-reservas',
     '/prestamos', '/prestamos/nuevo', '/sanciones', '/administracion', '/reservas',
-    '/admin/catalogo', '/admin/catalogo/nuevo', '/historial',
+    '/admin/catalogo', '/admin/catalogo/nuevo', '/historial', '/mi-actividad',
   ]
   const rutaConocida = rutasEstaticas.includes(location.pathname)
     || /^\/admin\/catalogo\/[^/]+\/(editar|ejemplares\/nuevo)$/.test(location.pathname)
@@ -86,6 +89,7 @@ export default function App() {
     : /^\/catalogo\/[^/]+\/reservar$/.test(location.pathname) ? 'reserva-nueva'
     : location.pathname === '/prestamos/nuevo' ? 'prestamo-nuevo'
     : location.pathname === '/historial' ? 'historial'
+    : location.pathname === '/mi-actividad' ? 'actividad'
     : (Object.entries(rutas).find(([, ruta]) => ruta === location.pathname)?.[0] as Pagina | undefined) ?? 'catalogo'
   const irA = (destino: Pagina) => navegar(rutas[destino] ?? '/catalogo')
   const [datos, setDatos] = useState<DatosBiblioteca>(DATOS_VACIOS)
@@ -339,16 +343,18 @@ export default function App() {
   const paginaActual = soloCatalogo ? 'catalogo' : pagina
 
   function renderPagina() {
+    const sancionesAbiertas = paginaActual === 'sanciones' || new URLSearchParams(location.search).get('vista') === 'sanciones'
+      || !permisosActuales.some((p) => ['GESTIONAR_USUARIOS', 'VALIDAR_USUARIO_PROVISIONAL', 'ADMINISTRAR_SISTEMA'].includes(p))
     const permitido = paginaActual === 'catalogo'
       || (paginaActual === 'mi-cuenta' && !!usuarioActual)
       || (usuarioActual?.estado === 'VALIDADO' && (
-        ['mis-prestamos', 'mis-reservas', 'historial'].includes(paginaActual)
+        ['mis-prestamos', 'mis-reservas', 'historial', 'actividad'].includes(paginaActual)
         || (paginaActual === 'resumen' && esPersonal)
-        || (paginaActual === 'personas' && (permisosActuales.includes('GESTIONAR_USUARIOS') || permisosActuales.includes('VALIDAR_USUARIO_PROVISIONAL')))
+        || (paginaActual === 'personas' && puedeVerPersonas(permisosActuales))
         || (paginaActual === 'prestamos' && (permisosActuales.includes('REGISTRAR_PRESTAMO') || permisosActuales.includes('REGISTRAR_DEVOLUCION')))
         || (paginaActual === 'prestamo-nuevo' && permisosActuales.includes('REGISTRAR_PRESTAMO'))
         || (['reservas', 'administracion'].includes(paginaActual) && permisosActuales.includes('ADMINISTRAR_SISTEMA'))
-        || (paginaActual === 'sanciones' && permisosActuales.includes('GESTIONAR_SANCIONES'))
+        || (paginaActual === 'sanciones' && (permisosActuales.includes('GESTIONAR_SANCIONES') || permisosActuales.includes('ADMINISTRAR_SISTEMA')))
         || (['catalogo-gestion', 'catalogo-nuevo', 'catalogo-editar', 'ejemplar-nuevo'].includes(paginaActual) && permisosActuales.includes('GESTIONAR_CATALOGO'))
         || paginaActual === 'reserva-nueva'
       ))
@@ -362,7 +368,20 @@ export default function App() {
       case 'mi-cuenta':
         return <MiCuenta usuario={usuarioActual} actualizar={actualizarDatosCuenta} />
       case 'personas':
+      case 'sanciones':
         return (
+          <>
+          <nav className="pestanas no-imprimir" aria-label="Personas y sanciones">
+            {permisosActuales.some((p) => ['GESTIONAR_USUARIOS', 'VALIDAR_USUARIO_PROVISIONAL', 'ADMINISTRAR_SISTEMA'].includes(p))
+              && <Link to="/personas" aria-current={!sancionesAbiertas ? 'page' : undefined} className={!sancionesAbiertas ? 'activa' : ''}>Personas</Link>}
+            {permisosActuales.some((p) => ['GESTIONAR_SANCIONES', 'ADMINISTRAR_SISTEMA'].includes(p))
+              && <Link to="/personas?vista=sanciones" aria-current={sancionesAbiertas ? 'page' : undefined} className={sancionesAbiertas ? 'activa' : ''}>Sanciones</Link>}
+          </nav>
+          {sancionesAbiertas
+            ? permisosActuales.some((p) => ['GESTIONAR_SANCIONES', 'ADMINISTRAR_SISTEMA'].includes(p))
+              ? <Sanciones sanciones={datos.sanciones} usuarios={datos.usuarios} usuarioId={new URLSearchParams(location.search).get('usuario') ?? undefined} />
+              : <div className="aviso">No tienes permiso para consultar sanciones.</div>
+            :
           <Personas
             usuarios={datos.usuarios}
             permisos={permisosActuales}
@@ -375,17 +394,26 @@ export default function App() {
             reactivarUsuario={reactivarUsuarioCuenta}
             otorgarPermiso={async (id, permiso) => { await api.otorgarPermisoUsuario(id, usuarioActual?.id ?? '', permiso); await cargarDatos(true) }}
             revocarPermiso={async (id, permiso) => { await api.revocarPermisoUsuario(id, permiso, usuarioActual?.id ?? ''); await cargarDatos(true) }}
-          />
+          />}
+          </>
         )
+      case 'actividad':
       case 'mis-prestamos':
+      case 'mis-reservas':
         return (
+          <MiActividad prestamos={
           <MisPrestamos
             prestamos={misPrestamos}
             catalogo={datos.catalogo}
             ejemplares={datos.ejemplares}
             perfil={usuarioActual?.perfil ?? 'ALUMNO'}
             renovar={async (id, fin) => { await api.renovarPrestamo(id, fin); await cargarDatos(true) }}
-          />
+          />} reservas={<MisReservas reservas={datos.reservas} catalogo={datos.catalogo}
+            usuarioId={usuarioActual?.id ?? null} perfil={usuarioActual?.perfil ?? 'ALUMNO'}
+            cancelarReserva={cancelarReserva}
+            reprogramarReserva={async (id, inicio, fin) => { await api.reprogramarReserva(id, inicio, fin); await cargarDatos(true) }} />}
+          historial={<Historial usuarioId={usuarioActual?.id ?? ''} administrador={false}
+            usuarios={datos.usuarios} ejemplares={datos.ejemplares} catalogo={datos.catalogo} />} />
         )
       case 'catalogo':
         return (
@@ -424,19 +452,6 @@ export default function App() {
             devolverPrestamo={devolverPrestamo}
           />
         )
-      case 'sanciones':
-        return <Sanciones sanciones={datos.sanciones} usuarios={datos.usuarios} />
-      case 'mis-reservas':
-        return (
-          <MisReservas
-            reservas={datos.reservas}
-            catalogo={datos.catalogo}
-            usuarioId={usuarioActual?.id ?? null}
-            perfil={usuarioActual?.perfil ?? 'ALUMNO'}
-            cancelarReserva={cancelarReserva}
-            reprogramarReserva={async (id, inicio, fin) => { await api.reprogramarReserva(id, inicio, fin); await cargarDatos(true) }}
-          />
-        )
       case 'reservas':
         return (
           <Reservas
@@ -446,6 +461,7 @@ export default function App() {
             usuarios={datos.usuarios}
             catalogo={datos.catalogo}
             operadorId={permisosActuales.includes('ADMINISTRAR_SISTEMA') ? usuarioActual?.id ?? null : null}
+            puedeEntregar={permisosActuales.includes('REGISTRAR_PRESTAMO')}
             entregarSolicitud={async (id) => { await api.entregarSolicitud(id); await cargarDatos(true) }}
             aceptarReserva={aceptarReserva}
             denegarReserva={denegarReserva}
@@ -461,7 +477,9 @@ export default function App() {
   return (
     <div className="aplicacion">
       <BarraLateral
-        pagina={['catalogo-gestion','catalogo-nuevo','catalogo-editar','ejemplar-nuevo','reserva-nueva'].includes(paginaActual) ? 'catalogo' : paginaActual === 'prestamo-nuevo' ? 'prestamos' : paginaActual}
+        pagina={['catalogo-gestion','catalogo-nuevo','catalogo-editar','ejemplar-nuevo','reserva-nueva'].includes(paginaActual) ? 'catalogo'
+          : paginaActual === 'prestamo-nuevo' ? 'prestamos' : ['mis-prestamos', 'mis-reservas'].includes(paginaActual) ? 'actividad'
+          : paginaActual === 'sanciones' ? 'personas' : paginaActual}
         cambiarPagina={irA}
         cerrarSesion={cerrarSesion}
         sesion={sesion}
@@ -472,7 +490,7 @@ export default function App() {
         cuentaValidada={usuarioActual?.estado === 'VALIDADO'}
       />
       <main className="contenido">
-        {!['reserva-nueva','catalogo-gestion','catalogo-nuevo','catalogo-editar','ejemplar-nuevo','prestamo-nuevo'].includes(paginaActual) && <Encabezado pagina={paginaActual} publica={soloCatalogo} />}
+        {!['reserva-nueva','catalogo-gestion','catalogo-nuevo','catalogo-editar','ejemplar-nuevo','prestamo-nuevo'].includes(paginaActual) && <Encabezado pagina={['mis-prestamos', 'mis-reservas'].includes(paginaActual) ? 'actividad' : paginaActual === 'sanciones' ? 'personas' : paginaActual} publica={soloCatalogo} />}
         {usuarioActual?.estado === 'PROVISIONAL' && <div className="aviso" role="status">
           {usuarioActual.correccionPendiente ? 'Tu cuenta necesita correcciones antes de validarse.' : 'Tu cuenta está pendiente de validación. Puedes consultar el catálogo.'}
            <button className="enlace" type="button" onClick={() => navegar('/mi-cuenta')}>Revisar mi cuenta</button>

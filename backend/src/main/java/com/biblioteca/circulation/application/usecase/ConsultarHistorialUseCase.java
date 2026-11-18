@@ -2,6 +2,7 @@ package com.biblioteca.circulation.application.usecase;
 
 import com.biblioteca.catalog.domain.repository.CatalogoItemRepository;
 import com.biblioteca.circulation.domain.model.*;
+import com.biblioteca.circulation.application.port.HistorialPrestamosPort;
 import com.biblioteca.circulation.domain.policy.PoliticaPlazoPrestamo;
 import com.biblioteca.circulation.domain.repository.*;
 import com.biblioteca.identity.domain.model.Usuario;
@@ -34,28 +35,52 @@ public class ConsultarHistorialUseCase {
     private final SancionRepository sanciones;
     private final InspeccionDevolucionRepository inspecciones;
     private final Clock clock;
+    private final HistorialPrestamosPort lectura;
 
     public ConsultarHistorialUseCase(UsuarioRepository usuarios, EjemplarRepository ejemplares,
             CatalogoItemRepository catalogo, PrestamoRepository prestamos, ReservaRepository reservas,
-            SancionRepository sanciones, InspeccionDevolucionRepository inspecciones, Clock clock) {
+            SancionRepository sanciones, InspeccionDevolucionRepository inspecciones, Clock clock,
+            HistorialPrestamosPort lectura) {
         this.usuarios = usuarios; this.ejemplares = ejemplares; this.catalogo = catalogo;
         this.prestamos = prestamos; this.reservas = reservas; this.sanciones = sanciones;
         this.inspecciones = inspecciones; this.clock = clock;
+        this.lectura = lectura;
     }
 
     public Historial porUsuario(UsuarioId id, LocalDate desde, LocalDate hasta, EstadoPrestamo estado) {
         var usuario = usuario(id);
-        return consultar(usuario, null, desde, hasta, estado);
+        return consultar(usuario, null, desde, hasta, estado, 0, 10, false, "");
     }
 
     public Historial porEjemplar(EjemplarId id, LocalDate desde, LocalDate hasta, EstadoPrestamo estado) {
         var ejemplar = ejemplares.buscarPorId(id)
                 .orElseThrow(() -> new NotFoundException("Ejemplar", id.value()));
-        return consultar(null, ejemplar, desde, hasta, estado);
+        return consultar(null, ejemplar, desde, hasta, estado, 0, 10, false, "");
+    }
+
+    public Historial porUsuario(UsuarioId id, LocalDate desde, LocalDate hasta, EstadoPrestamo estado,
+                                int pagina, int tamano, boolean completo, String busqueda) {
+        return consultar(usuario(id), null, desde, hasta, estado, pagina, tamano, completo, busqueda);
+    }
+
+    public Historial porEjemplar(EjemplarId id, LocalDate desde, LocalDate hasta, EstadoPrestamo estado,
+                                 int pagina, int tamano, boolean completo, String busqueda) {
+        return consultar(null, ejemplares.buscarPorId(id).orElseThrow(() -> new NotFoundException("Ejemplar", id.value())),
+                desde, hasta, estado, pagina, tamano, completo, busqueda);
+    }
+
+    public Historial general(LocalDate desde, LocalDate hasta, EstadoPrestamo estado,
+                              int pagina, int tamano, boolean completo, String busqueda) {
+        return consultar(null, null, desde, hasta, estado, pagina, tamano, completo, busqueda);
     }
 
     private Historial consultar(Usuario usuario, Ejemplar ejemplar,
-                                LocalDate desde, LocalDate hasta, EstadoPrestamo estado) {
+                                LocalDate desde, LocalDate hasta, EstadoPrestamo estado,
+                                int pagina, int tamano, boolean completo, String busqueda) {
+        if (pagina < 0 || tamano < 1 || tamano > 50 || pagina > 1000000)
+            throw new DomainException("PAGINACION_INVALIDA", "La pagina debe ser positiva y el tamano entre 1 y 50");
+        if (busqueda != null && busqueda.length() > 120)
+            throw new DomainException("BUSQUEDA_INVALIDA", "La busqueda admite hasta 120 caracteres");
         if (desde != null && hasta != null && desde.isAfter(hasta))
             throw new DomainException("RANGO_FECHAS_INVALIDO", "La fecha inicial no puede superar la final");
         var zona = PoliticaPlazoPrestamo.ZONA;
@@ -64,12 +89,12 @@ public class ConsultarHistorialUseCase {
             var fecha = instante.atZone(zona).toLocalDate();
             return (desde == null || !fecha.isBefore(desde)) && (hasta == null || !fecha.isAfter(hasta));
         };
-        var base = usuario == null ? prestamos.listarTodos() : prestamos.listarPorPrestatario(usuario.id());
-        var seleccionados = base.stream()
-                .filter(p -> ejemplar == null || p.ejemplarId().equals(ejemplar.id()))
-                .filter(p -> enRango.test(p.fechaHoraEntrega()))
-                .filter(p -> estado == null || p.estado() == estado)
-                .sorted(Comparator.comparing(Prestamo::fechaHoraEntrega).reversed()).toList();
+        var resultado = lectura.consultar(new HistorialPrestamosPort.Filtro(
+                usuario == null ? null : usuario.id(), ejemplar == null ? null : ejemplar.id(),
+                desde == null ? null : desde.atStartOfDay(zona).toInstant(),
+                hasta == null ? null : hasta.plusDays(1).atStartOfDay(zona).toInstant(),
+                estado, busqueda, pagina, tamano, completo, ahora));
+        var seleccionados = resultado.registros();
         var ids = seleccionados.stream().map(p -> p.id().value()).collect(Collectors.toSet());
         var inspeccionesPorPrestamo = inspecciones.listar().stream()
                 .filter(i -> ids.contains(i.prestamoId()))
@@ -95,26 +120,24 @@ public class ConsultarHistorialUseCase {
                 // Una solicitud sin copia asignada no pertenece a un ejemplar concreto.
                 .filter(r -> ejemplar == null || ejemplar.id().equals(r.ejemplarId()))
                 .filter(r -> enRango.test(r.inicioReserva() == null ? r.fechaAlta() : r.inicioReserva()))
-                .sorted(Comparator.comparing(com.biblioteca.reservations.domain.model.Reserva::fechaAlta).reversed())
+                .sorted(Comparator.comparing(com.biblioteca.reservations.domain.model.Reserva::fechaAlta).reversed()
+                        .thenComparing(r -> r.id().value()))
                 .map(r -> new Solicitud(r.id().value(),
+                        nombre(r.prestatarioId().value(), personas),
                         catalogo.buscarPorId(r.catalogoItemId()).orElseThrow().titulo().value(),
                         r.estado().name(), r.inicioReserva(), r.finReserva(), r.motivo())).toList();
         var sancionesBase = usuario == null ? sanciones.listarTodas() : sanciones.listarPorUsuario(usuario.id());
         // En el historial de ejemplar solo se incluyen sanciones ligadas a sus préstamos.
-        var idsEjemplar = base.stream().filter(p -> ejemplar == null || ejemplar.id().equals(p.ejemplarId()))
-                .map(p -> p.id()).collect(Collectors.toSet());
         var restricciones = sancionesBase.stream()
-                .filter(s -> ejemplar == null || (s.prestamoId() != null && idsEjemplar.contains(s.prestamoId())))
+                .filter(s -> ejemplar == null || (s.prestamoId() != null && prestamos.buscarPorId(s.prestamoId())
+                        .map(p -> ejemplar.id().equals(p.ejemplarId())).orElse(false)))
                 .filter(s -> (desde == null || !s.fechaInicio().isBefore(desde))
                         && (hasta == null || !s.fechaInicio().isAfter(hasta)))
                 .sorted(Comparator.comparing(com.biblioteca.penalties.domain.model.Sancion::fechaInicio).reversed())
-                .map(s -> new Restriccion(s.id().value(), s.motivo().name(), s.estado().name(),
+                .map(s -> new Restriccion(s.id().value(), nombre(s.usuarioId().value(), personas), s.motivo().name(), s.estado().name(),
                         s.fechaInicio(), s.fechaFin(), s.multa().monto(), s.observaciones(),
                         s.estaVigente(LocalDate.ofInstant(ahora, zona)))).toList();
-        var resumen = new Resumen(movimientos.size(),
-                movimientos.stream().filter(m -> m.estado() == EstadoPrestamo.ACTIVO).count(),
-                movimientos.stream().filter(Movimiento::vencido).count(),
-                movimientos.stream().filter(Movimiento::devolucionTardia).count(),
+        var resumen = new Resumen(resultado.total(), resultado.activos(), resultado.vencidos(), resultado.devolucionesTardias(),
                 restricciones.stream().filter(Restriccion::activa).count());
         var identidad = usuario == null ? null : new Persona(usuario.id().value(),
                 usuario.nombreCompleto().value(), usuario.codigoInstitucional() == null ? null
@@ -122,7 +145,14 @@ public class ConsultarHistorialUseCase {
         var bien = ejemplar == null ? null : new Bien(ejemplar.id().value(), titulo(ejemplar),
                 ejemplar.barcode().value(), ejemplar.estadoFisico().name());
         return new Historial(identidad, bien, ahora, desde, hasta, estado,
-                resumen, movimientos, solicitudes, restricciones);
+                resumen, movimientos, paginar(solicitudes, pagina, tamano, completo), paginar(restricciones, pagina, tamano, completo),
+                pagina, tamano, resultado.total(), solicitudes.size(), restricciones.size(),
+                !completo && (resultado.total() > (long) (pagina + 1) * tamano || solicitudes.size() > (long) (pagina + 1) * tamano
+                        || restricciones.size() > (long) (pagina + 1) * tamano), busqueda);
+    }
+
+    private static <T> List<T> paginar(List<T> lista, int pagina, int tamano, boolean completo) {
+        return completo ? lista : lista.stream().skip((long) pagina * tamano).limit(tamano).toList();
     }
 
     private Usuario usuario(UsuarioId id) {
@@ -146,10 +176,12 @@ public class ConsultarHistorialUseCase {
                              String titulo, String barcode, LugarUso lugarUso, EstadoPrestamo estado,
                              Instant entrega, Instant vencimiento, Instant devolucion, int renovaciones,
                              boolean vencido, boolean devolucionTardia, Inspeccion inspeccion) { }
-    public record Solicitud(UUID id, String titulo, String estado, Instant inicio, Instant fin, String motivo) { }
-    public record Restriccion(UUID id, String motivo, String estado, LocalDate inicio, LocalDate fin,
+    public record Solicitud(UUID id, String prestatario, String titulo, String estado, Instant inicio, Instant fin, String motivo) { }
+    public record Restriccion(UUID id, String persona, String motivo, String estado, LocalDate inicio, LocalDate fin,
                               BigDecimal multa, String observaciones, boolean activa) { }
     public record Historial(Persona usuario, Bien ejemplar, Instant generadoEn, LocalDate desde, LocalDate hasta,
                              EstadoPrestamo estado, Resumen resumen, List<Movimiento> prestamos,
-                             List<Solicitud> reservas, List<Restriccion> sanciones) { }
+                             List<Solicitud> reservas, List<Restriccion> sanciones,
+                             int pagina, int tamano, long totalPrestamos, long totalReservas, long totalSanciones,
+                             boolean hayMas, String busqueda) { }
 }

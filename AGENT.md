@@ -96,6 +96,9 @@ docker compose up -d
 - equipos: alumno solo campus; otros bienes: siempre solo campus;
 - renovación: no exceder el máximo total desde la entrega;
 - historiales: titular ve el suyo; administrador consulta usuarios y ejemplares.
+- reportes: general solo administrador; préstamos paginados en SQL con indicadores del filtro completo;
+- impresión: solicitar todos los resultados filtrados, no imprimir únicamente la página visible;
+- demo ampliada: carga aditiva una sola vez en perfil demo, con control transaccional en `cargas_demo`.
 
 ## 7. Capas
 

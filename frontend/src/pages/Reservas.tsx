@@ -14,6 +14,7 @@ interface Props {
   ejemplares: Ejemplar[]
   prestamos: Prestamo[]
   operadorId: string | null
+  puedeEntregar: boolean
   entregarSolicitud: (id: string) => Promise<void>
   aceptarReserva: (id: string) => Promise<void>
   denegarReserva: (id: string, motivo: string) => Promise<void>
@@ -31,7 +32,7 @@ const FILTROS: Array<{ id: EstadoReserva | 'TODAS'; titulo: string }> = [
 ]
 
 export default function Reservas({ reservas, usuarios, catalogo, ejemplares, prestamos,
-  operadorId, aceptarReserva, denegarReserva, entregarSolicitud }: Props) {
+  operadorId, puedeEntregar, aceptarReserva, denegarReserva, entregarSolicitud }: Props) {
   const ahora = useAhora()
   const [filtro, setFiltro] = useState<EstadoReserva | 'TODAS'>('SOLICITADA')
   const [busqueda, setBusqueda] = useState('')
@@ -144,12 +145,13 @@ export default function Reservas({ reservas, usuarios, catalogo, ejemplares, pre
       {seleccionada.estado === 'APROBADA' && <>
         <p>Confirma cuando el alumno reciba físicamente el artículo. Se volverán a verificar sus condiciones de préstamo.</p>
         <button className="boton primario" type="button"
-          disabled={procesando || !operadorId || seleccionada.prestatarioId === operadorId
+          disabled={procesando || !operadorId || !puedeEntregar || seleccionada.prestatarioId === operadorId
             || !seleccionada.inicioReserva || ahora < Date.parse(seleccionada.inicioReserva)
             || !seleccionada.fechaLimiteRetiro || ahora >= Date.parse(seleccionada.fechaLimiteRetiro)
             || !seleccionada.finReserva || Date.parse(seleccionada.finReserva) - ahora < HORA}
           onClick={() => void decidir('entregar')}>{procesando ? 'Procesando…' : 'Confirmar entrega e iniciar préstamo'}</button>
         <small>Disponible desde el inicio, dentro del plazo de recogida y con al menos una hora restante. No se permite la autoentrega.</small>
+        {!puedeEntregar && <p>Tu cuenta puede revisar reservas, pero necesita el permiso Registrar préstamo para confirmar la entrega.</p>}
       </>}
       {seleccionada.estado === 'SOLICITADA' && <>
         <p>El sistema comprobará la disponibilidad para el horario solicitado, no solo el estado actual de las copias.</p>

@@ -365,6 +365,12 @@ Todas usan la contraseña `password`.
 | `luis@universidad.edu.pe` | Alumno validado |
 | `docente@universidad.edu.pe` | Docente validada |
 
+La carga ampliada agrega ocho cuentas ficticias, hasta nueve títulos,
+dieciocho ejemplares y cuarenta préstamos de ejemplo sin borrar lo existente.
+Reinicia el backend con el perfil `demo` para cargarla una sola vez.
+Incluye `operador.demo@universidad.edu.pe`, que puede atender a Elena;
+también usa `password`. Detalle: [`docs/datos-demo-ampliados.md`](docs/datos-demo-ampliados.md).
+
 ---
 
 ## 10. Base de datos
@@ -385,7 +391,7 @@ usuarios ── credenciales
 
 - Las claves principales son UUID.
 - Las claves foráneas conservan la integridad entre tablas.
-- Flyway aplica 15 migraciones.
+- Flyway aplica 16 migraciones.
 - JPA usa `ddl-auto=validate`: valida el esquema, no lo inventa.
 - Las fechas horarias usan `TIMESTAMP WITH TIME ZONE`.
 - El servidor trabaja con la zona `America/Lima` y persiste instantes en UTC.
@@ -408,6 +414,12 @@ Todas las rutas comienzan con `/api/v1`.
 | Préstamos | `GET/POST /prestamos`, devolución y renovación |
 | Sanciones | `GET/POST /sanciones` |
 | Historiales | `GET /reportes/usuarios/{id}`, `GET /reportes/ejemplares/{id}` |
+| Reporte general | `GET /reportes/general` (administrador) |
+
+Los reportes muestran diez registros por página y permiten Ver 10 más.
+La impresión/PDF incluye todo el filtro, no solo la página visible.
+El menú separa Atención de Mi actividad; Mi cuenta se abre desde el avatar.
+Ver [`docs/navegacion-y-reportes.md`](docs/navegacion-y-reportes.md).
 
 Los errores siguen `ProblemDetail`:
 
