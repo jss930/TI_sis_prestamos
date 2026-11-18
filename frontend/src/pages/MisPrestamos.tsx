@@ -51,7 +51,7 @@ export default function MisPrestamos({ prestamos, catalogo, ejemplares, perfil, 
     } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo renovar.') }
     finally { setEnviando(false) }
   }
-  const ordenados = [...prestamos].sort((a, b) => b.fechaInicio.localeCompare(a.fechaInicio))
+  const ordenados = prestamos.filter((p) => p.estado === 'ACTIVO').sort((a, b) => b.fechaHoraEntrega.localeCompare(a.fechaHoraEntrega))
 
   const columnas: Columna<Prestamo>[] = [
     {
@@ -99,10 +99,10 @@ export default function MisPrestamos({ prestamos, catalogo, ejemplares, perfil, 
     <section className="panel">
       <div className="panel-titulo">
         <div>
-          <h2>Mis préstamos</h2>
-          <p>{ordenados.length} registros de tu cuenta</p>
-          <Link className="boton secundario" to="/historial">Ver historial y reporte</Link>
+          <h2>Mis préstamos activos</h2>
+          <p>{ordenados.length} pendientes de devolución, incluidos los vencidos</p>
         </div>
+        <Link className="boton secundario" to="/mi-actividad?tab=historial">Ver historial y reporte</Link>
       </div>
       {error && <div className="aviso error-aviso" role="alert">{error}</div>}
       {mensaje && <div className="aviso correcto-aviso" role="status">{mensaje}</div>}

@@ -1,4 +1,5 @@
 export type Pagina =
+  | 'actividad'
   | 'resumen'
   | 'mi-cuenta'
   | 'personas'

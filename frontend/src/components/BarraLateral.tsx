@@ -1,20 +1,8 @@
+import { useEffect, useState } from 'react'
 import type { Pagina, PermisoOperativo, RolAcceso, Sesion } from '../types'
 import Icono from './Icono'
 import { iniciales } from '../utils/format'
-
-const OPCIONES: Array<{ id: Pagina; icono: string; texto: string }> = [
-  { id: 'resumen', icono: '⌂', texto: 'Resumen' },
-  { id: 'personas', icono: '♙', texto: 'Personas' },
-  { id: 'mi-cuenta', icono: '♙', texto: 'Mi cuenta' },
-  { id: 'catalogo', icono: '▦', texto: 'Catálogo' },
-  { id: 'mis-prestamos', icono: '↗', texto: 'Mis préstamos' },
-  { id: 'mis-reservas', icono: '☰', texto: 'Mis reservas' },
-  { id: 'historial', icono: '☰', texto: 'Historial y reportes' },
-  { id: 'reservas', icono: '☰', texto: 'Aprobar reservas' },
-  { id: 'prestamos', icono: '↗', texto: 'Préstamos' },
-  { id: 'sanciones', icono: '!', texto: 'Sanciones' },
-  { id: 'administracion', icono: '⚙', texto: 'Administración' },
-]
+import { opcionesNavegacion } from '../utils/navegacion'
 
 interface Props {
   pagina: Pagina
@@ -28,82 +16,43 @@ interface Props {
   cuentaValidada?: boolean
 }
 
-export default function BarraLateral({
-  pagina,
-  cambiarPagina,
-  cerrarSesion,
-  sesion,
-  soloCatalogo = false,
-  permisos = [],
-  rolAcceso,
-  esPersonal = false,
-  cuentaValidada = true,
-}: Props) {
-  const opciones = soloCatalogo
-    ? OPCIONES.filter((opcion) => opcion.id === 'catalogo')
-    : OPCIONES.filter((opcion) => {
-        if (!cuentaValidada) return opcion.id === 'catalogo' || opcion.id === 'mi-cuenta'
-        if (opcion.id === 'mi-cuenta') return !sesion.publica
-        if (opcion.id === 'catalogo') return true
-        if (opcion.id === 'historial') return !sesion.publica
-        if (opcion.id === 'mis-prestamos')
-          return !sesion.publica
-        if (opcion.id === 'mis-reservas')
-          return !sesion.publica
-        if (opcion.id === 'reservas')
-          return permisos.includes('ADMINISTRAR_SISTEMA')
-        if (opcion.id === 'resumen') return esPersonal
-        if (opcion.id === 'prestamos') return permisos.includes('REGISTRAR_PRESTAMO') || permisos.includes('REGISTRAR_DEVOLUCION')
-        if (opcion.id === 'personas')
-          return (
-            permisos.includes('GESTIONAR_USUARIOS') ||
-            permisos.includes('VALIDAR_USUARIO_PROVISIONAL')
-          )
-        if (opcion.id === 'sanciones') return permisos.includes('GESTIONAR_SANCIONES')
-        if (opcion.id === 'administracion') return permisos.includes('ADMINISTRAR_SISTEMA')
-        return false
-      })
-
-  const etiquetaRol = sesion.publica
-    ? 'Catálogo público'
-    : rolAcceso ?? 'Sin permisos operativos'
-
-  return (
-    <aside className="barra-lateral">
-      <div className="marca">
-        <span className="marca-icono">B</span>
-        <div>
-          <strong>Biblioteca</strong>
-          <small>UNSA</small>
+export default function BarraLateral({ pagina, cambiarPagina, cerrarSesion, sesion,
+  soloCatalogo = false, permisos = [], rolAcceso, cuentaValidada = true }: Props) {
+  const enAtencion = pagina === 'reservas' || pagina === 'prestamos'
+  const [atencionAbierta, setAtencionAbierta] = useState(enAtencion)
+  useEffect(() => { if (enAtencion) setAtencionAbierta(true) }, [enAtencion])
+  const opciones = opcionesNavegacion(permisos, cuentaValidada, soloCatalogo)
+  const textos: Partial<Record<Pagina, string>> = {
+    resumen: 'Resumen', catalogo: 'Catálogo', reservas: 'Reservas', prestamos: 'Préstamos y devoluciones',
+    personas: 'Personas', historial: 'Reportes', actividad: 'Mi actividad',
+  }
+  function opcion(id: Pagina) {
+    return <button key={id} aria-label={textos[id]} title={textos[id]} type="button"
+      aria-current={pagina === id ? 'page' : undefined} className={pagina === id ? 'activo' : ''}
+      onClick={() => cambiarPagina(id)}>
+      <span><Icono nombre={id === 'actividad' ? 'mis-prestamos' : id} /></span>{textos[id]}
+    </button>
+  }
+  return <aside className="barra-lateral">
+    <div className="marca"><span className="marca-icono">B</span><div><strong>Biblioteca</strong><small>UNSA</small></div></div>
+    <p className="nav-etiqueta">EXPLORAR</p>
+    <nav aria-label="Navegación principal">
+      {opciones.filter((id) => ['resumen', 'catalogo'].includes(id)).map(opcion)}
+      {opciones.some((id) => ['reservas', 'prestamos'].includes(id)) && <div className="nav-grupo">
+        <button type="button" className="nav-grupo-titulo" aria-expanded={atencionAbierta} aria-controls="nav-atencion"
+          onClick={() => setAtencionAbierta((v) => !v)}><span><Icono nombre="prestamos" /></span>Atención <b aria-hidden="true">{atencionAbierta ? '−' : '+'}</b></button>
+        <div id="nav-atencion" className="nav-submenu" hidden={!atencionAbierta}>
+          {opciones.filter((id) => ['reservas', 'prestamos'].includes(id)).map(opcion)}
         </div>
-      </div>
-      <p className="nav-etiqueta">EXPLORAR</p>
-      <nav aria-label="Navegación principal">
-        {opciones.map((opcion) => (
-          <button
-            key={opcion.id}
-            aria-label={opcion.texto}
-            title={opcion.texto}
-            aria-current={pagina === opcion.id ? 'page' : undefined}
-            className={pagina === opcion.id ? 'activo' : ''}
-            onClick={() => cambiarPagina(opcion.id)}
-            type="button"
-          >
-            <span><Icono nombre={opcion.id} /></span>
-            {opcion.texto}
-          </button>
-        ))}
-      </nav>
-      <div className="usuario-mini">
-        <div className="avatar">{iniciales(sesion.nombre)}</div>
-        <div>
-          <strong>{sesion.nombre}</strong>
-          <small>{etiquetaRol}</small>
-        </div>
-      </div>
-      <button aria-label="Cerrar sesión" title="Cerrar sesión" className="cerrar" onClick={cerrarSesion} type="button">
-        <Icono nombre="salir" /> Cerrar sesión
-      </button>
-    </aside>
-  )
+      </div>}
+      {opciones.filter((id) => ['personas', 'historial', 'actividad'].includes(id)).map(opcion)}
+    </nav>
+    {!soloCatalogo && <button className={`usuario-mini acceso-cuenta${pagina === 'mi-cuenta' ? ' cuenta-activa' : ''}`}
+      type="button" aria-label="Mi cuenta" title="Ver mi cuenta" aria-current={pagina === 'mi-cuenta' ? 'page' : undefined}
+      onClick={() => cambiarPagina('mi-cuenta')}>
+      <span className="avatar">{iniciales(sesion.nombre)}</span>
+      <span className="usuario-datos"><strong>{sesion.nombre}</strong><small>{rolAcceso ?? 'Cuenta institucional'}</small></span>
+    </button>}
+    <button aria-label="Cerrar sesión" title="Cerrar sesión" className="cerrar" onClick={cerrarSesion} type="button"><Icono nombre="salir" /> Cerrar sesión</button>
+  </aside>
 }

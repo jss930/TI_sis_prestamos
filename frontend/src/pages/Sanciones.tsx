@@ -6,9 +6,11 @@ import { dinero, etiquetaMotivo, fechaCorta } from '../utils/format'
 interface Props {
   sanciones: Sancion[]
   usuarios: Usuario[]
+  usuarioId?: string
 }
 
-export default function Sanciones({ sanciones, usuarios }: Props) {
+export default function Sanciones({ sanciones: todas, usuarios, usuarioId }: Props) {
+  const sanciones = usuarioId ? todas.filter((s) => s.usuarioId === usuarioId) : todas
   const activas = sanciones.filter((sancion) => sancion.estado === 'ACTIVA')
 
   const columnas: Columna<Sancion>[] = [
