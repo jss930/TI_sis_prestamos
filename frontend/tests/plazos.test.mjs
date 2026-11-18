@@ -43,3 +43,19 @@ test('conversión explícita de Lima e inicio sugerido fuera de jornada', () => 
   assert.equal(instanteLima('2026-11-17T20:00').toISOString(), '2026-11-18T01:00:00.000Z')
   assert.equal(siguienteInicioReserva(new Date('2026-11-18T00:00:00Z')), '2026-11-18T07:00')
 })
+
+test('presentación de fechas también es independiente de la zona del navegador', async () => {
+  const source = await readFile(new URL('../src/utils/format.ts', import.meta.url), 'utf8')
+  const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext } })
+  const { fechaCorta, fechaHoraLima } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`)
+  const anterior = process.env.TZ
+  process.env.TZ = 'Asia/Tokyo'
+  try {
+    assert.match(fechaHoraLima('2026-11-17T15:00:00Z'), /17\/11\/2026.*10:00/)
+    assert.match(fechaCorta('2026-11-17'), /17.*2026/)
+    assert.equal(fechaHoraLima(null), '—')
+  } finally {
+    if (anterior) process.env.TZ = anterior
+    else delete process.env.TZ
+  }
+})

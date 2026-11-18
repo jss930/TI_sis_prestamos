@@ -46,6 +46,7 @@ public class PrestamoController {
     private final UsuarioAutenticado autenticado;
     private final com.biblioteca.identity.domain.repository.UsuarioRepository usuarios;
     private final com.biblioteca.infrastructure.security.AccesoHistorial acceso;
+    private final java.time.Clock clock;
 
     public PrestamoController(RegistrarPrestamoUseCase registrar,
                               RegistrarDevolucionUseCase devolver,
@@ -53,7 +54,8 @@ public class PrestamoController {
                               ListarPrestamosUseCase listar,
                               ObtenerPrestamoUseCase obtener, UsuarioAutenticado autenticado,
                               com.biblioteca.identity.domain.repository.UsuarioRepository usuarios,
-                              com.biblioteca.infrastructure.security.AccesoHistorial acceso) {
+                              com.biblioteca.infrastructure.security.AccesoHistorial acceso,
+                              java.time.Clock clock) {
         this.registrar = registrar;
         this.devolver = devolver;
         this.renovar = renovar;
@@ -62,6 +64,7 @@ public class PrestamoController {
         this.autenticado = autenticado;
         this.usuarios = usuarios;
         this.acceso = acceso;
+        this.clock = clock;
     }
 
     @GetMapping
@@ -75,7 +78,7 @@ public class PrestamoController {
             usuarioId = actor.id();
         }
         return listar.ejecutar(usuarioId, estado).stream()
-                .map(PrestamoController::aResponse).toList();
+                .map(this::aResponse).toList();
     }
 
     @GetMapping("/{id}")
@@ -119,13 +122,13 @@ public class PrestamoController {
                 request == null ? null : request.nuevoVencimiento())));
     }
 
-    private static PrestamoResponse aResponse(Prestamo prestamo) {
-        LocalDate hoy = LocalDate.now();
+    private PrestamoResponse aResponse(Prestamo prestamo) {
+        Instant ahora = clock.instant();
         return new PrestamoResponse(prestamo.id().value(), prestamo.operadorId().value(),
                 prestamo.prestatarioId().value(), prestamo.ejemplarId().value(),
                 prestamo.periodo().inicio(), prestamo.periodo().vencimiento(),
                 prestamo.fechaDevolucion(), prestamo.lugarUso(), prestamo.estado(),
-                prestamo.renovaciones(), prestamo.estaVencido(hoy), prestamo.diasRetraso(hoy),
+                prestamo.renovaciones(), prestamo.estaVencido(ahora), prestamo.diasRetraso(ahora),
                 prestamo.fechaHoraEntrega(), prestamo.fechaHoraVencimiento(), prestamo.fechaHoraDevolucion());
     }
 

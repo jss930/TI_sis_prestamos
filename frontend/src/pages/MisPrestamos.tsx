@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import Tabla, { type Columna } from '../components/Tabla'
 import EtiquetaEstado from '../components/EtiquetaEstado'
 import type { CatalogoItem, Ejemplar, PerfilPrestatario, Prestamo } from '../types'
@@ -75,7 +76,7 @@ export default function MisPrestamos({ prestamos, catalogo, ejemplares, perfil, 
         <div className="celda-principal">
           <span>{new Date(prestamo.fechaHoraVencimiento).toLocaleString('es-PE', { timeZone: 'America/Lima' })}</span>
           {prestamo.vencido && (
-            <small className="texto-peligro">{prestamo.diasRetraso} días de retraso</small>
+            <small className="texto-peligro">{prestamo.diasRetraso ? `${prestamo.diasRetraso} días de retraso` : 'Horario de devolución vencido'}</small>
           )}
         </div>
       ),
@@ -100,6 +101,7 @@ export default function MisPrestamos({ prestamos, catalogo, ejemplares, perfil, 
         <div>
           <h2>Mis préstamos</h2>
           <p>{ordenados.length} registros de tu cuenta</p>
+          <Link className="boton secundario" to="/historial">Ver historial y reporte</Link>
         </div>
       </div>
       {error && <div className="aviso error-aviso" role="alert">{error}</div>}

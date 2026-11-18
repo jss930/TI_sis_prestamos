@@ -7,6 +7,10 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class ContarPrestamosActivosAdapter implements ContarPrestamosActivosPort {
+    @Override
+    public boolean tieneVencido(UsuarioId prestatarioId, java.time.Instant ahora) {
+        return prestamos.tieneVencido(prestatarioId, ahora);
+    }
     private final PrestamoRepository prestamos;
 
     public ContarPrestamosActivosAdapter(PrestamoRepository prestamos) {

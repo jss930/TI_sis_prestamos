@@ -17,6 +17,7 @@ const TITULOS: Record<Pagina, [string, string]> = {
   'ejemplar-nuevo': ['Nuevo ejemplar', 'Registra una copia física.'],
   'reserva-nueva': ['Nueva reserva', 'Selecciona un horario.'],
   'prestamo-nuevo': ['Nuevo préstamo', 'Registra una entrega presencial.'],
+  historial: ['Historial y reportes', 'Consulta operaciones por usuario o ejemplar e imprime el resultado.'],
 }
 
 interface Props {

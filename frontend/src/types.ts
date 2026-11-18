@@ -15,6 +15,7 @@ export type Pagina =
   | 'ejemplar-nuevo'
   | 'reserva-nueva'
   | 'prestamo-nuevo'
+  | 'historial'
 
 export interface Sesion {
   nombre: string
@@ -118,6 +119,25 @@ export interface Prestamo {
   fechaHoraEntrega: string
   fechaHoraVencimiento: string
   fechaHoraDevolucion: string | null
+}
+
+export interface Historial {
+  usuario: { id: string; nombre: string; codigo: string | null; perfil: string; estado: string } | null
+  ejemplar: { id: string; titulo: string; barcode: string; estado: string } | null
+  generadoEn: string
+  desde: string | null
+  hasta: string | null
+  estado: EstadoPrestamo | null
+  resumen: { totalPrestamos: number; activos: number; vencidos: number; devolucionesTardias: number; sancionesActivas: number }
+  prestamos: Array<{
+    id: string; prestatarioId: string; ejemplarId: string; prestatario: string; operador: string
+    titulo: string; barcode: string; lugarUso: LugarUso; estado: EstadoPrestamo
+    entrega: string; vencimiento: string; devolucion: string | null; renovaciones: number
+    vencido: boolean; devolucionTardia: boolean
+    inspeccion: { recibidoPor: string; estadoFisico: string; accesoriosFaltantes: boolean; observaciones: string; fecha: string } | null
+  }>
+  reservas: Array<{ id: string; titulo: string; estado: string; inicio: string | null; fin: string | null; motivo: string | null }>
+  sanciones: Array<{ id: string; motivo: string; estado: string; inicio: string; fin: string; multa: number; observaciones: string | null; activa: boolean }>
 }
 
 export interface Sancion {

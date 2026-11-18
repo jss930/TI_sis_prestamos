@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Tabla, { type Columna } from '../components/Tabla'
 import EtiquetaEstado from '../components/EtiquetaEstado'
 import DatosCuentaForm from '../components/DatosCuentaForm'
@@ -31,6 +32,7 @@ const PERMISOS: Array<{ id: PermisoOperativo; texto: string }> = [
 ]
 export default function Personas({ usuarios, permisos, operadorId, crearUsuario, validarUsuario,
   suspenderUsuario, reactivarUsuario, otorgarPermiso, revocarPermiso, solicitarCorreccion, actualizarDatos }: Props) {
+  const navegar = useNavigate()
   const [mostrarRegistro, setMostrarRegistro] = useState(false)
   const [mostrarSuspension, setMostrarSuspension] = useState(false)
   const [filtro, setFiltro] = useState('TODAS')
@@ -100,6 +102,8 @@ export default function Personas({ usuarios, permisos, operadorId, crearUsuario,
       {funciones(usuario).map((funcion) => <span key={funcion}>{funcion}</span>)}
     </div> },
     { clave: 'acciones', titulo: 'ACCIÓN', render: (usuario) => <div className="acciones-fila">
+      {puedeAdministrar && <button className="boton secundario" type="button" disabled={procesando}
+        onClick={() => navegar(`/historial?tipo=usuario&id=${usuario.id}`)}>Ver historial</button>}
       {usuario.estado === 'PROVISIONAL' && puedeValidar && <button className="boton primario" type="button"
         aria-label={`Validar cuenta de ${usuario.nombreCompleto}`}
         title={!usuario.codigoInstitucional ? 'Completa el código institucional en Ver ficha' : usuario.correccionPendiente ? 'Espera los datos corregidos' : undefined}

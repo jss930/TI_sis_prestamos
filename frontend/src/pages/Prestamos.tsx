@@ -5,7 +5,7 @@ import EtiquetaEstado from '../components/EtiquetaEstado'
 import FormularioInspeccion from '../components/FormularioInspeccion'
 import { api, mensajeDeError } from '../services/api'
 import type { CatalogoItem, Ejemplar, NuevaInspeccionDevolucion, InspeccionDevolucion, Prestamo, Usuario } from '../types'
-import { nombreUsuario, etiquetaLugar, tituloDeEjemplar } from '../utils/format'
+import { nombreUsuario, etiquetaLugar, tituloDeEjemplar, fechaHoraLima } from '../utils/format'
 
 export default function Prestamos({ prestamos, usuarios, catalogo, ejemplares, puedeOperar, puedeDevolver, devolverPrestamo }: {
   prestamos: Prestamo[]; usuarios: Usuario[]; catalogo: CatalogoItem[]; ejemplares: Ejemplar[]; puedeOperar: boolean; puedeDevolver: boolean;
@@ -18,8 +18,8 @@ export default function Prestamos({ prestamos, usuarios, catalogo, ejemplares, p
   const columnas: Columna<Prestamo>[] = [
     { clave: 'persona', titulo: 'PERSONA', render: (p) => <div className="celda-principal"><strong>{nombreUsuario(usuarios, p.prestatarioId)}</strong><small>{usuarios.find((u) => u.id === p.prestatarioId)?.email}</small></div> },
     { clave: 'bien', titulo: 'BIEN', render: (p) => <div className="celda-principal"><strong>{tituloDeEjemplar(ejemplares, catalogo, p.ejemplarId)}</strong><small>{etiquetaLugar(p.lugarUso)}</small></div> },
-    { clave: 'entrega', titulo: 'ENTREGA', render: (p) => new Date(p.fechaHoraEntrega).toLocaleString('es-PE') },
-    { clave: 'vence', titulo: 'DEVOLUCIÓN PREVISTA', render: (p) => <div className="celda-principal"><span>{new Date(p.fechaHoraVencimiento).toLocaleString('es-PE')}</span>{p.vencido && <small className="texto-peligro">{p.diasRetraso} días de retraso</small>}{p.diasRetraso > 7 && <small>Al superar 7 días corresponde registrar una multa manual.</small>}</div> },
+    { clave: 'entrega', titulo: 'ENTREGA (LIMA)', render: (p) => fechaHoraLima(p.fechaHoraEntrega) },
+    { clave: 'vence', titulo: 'DEVOLUCIÓN PREVISTA (LIMA)', render: (p) => <div className="celda-principal"><span>{fechaHoraLima(p.fechaHoraVencimiento)}</span>{p.vencido && <small className="texto-peligro">{p.diasRetraso ? `${p.diasRetraso} días de retraso` : 'Horario de devolución vencido'}</small>}{p.diasRetraso > 7 && <small>Al superar 7 días corresponde registrar una multa manual.</small>}</div> },
     { clave: 'estado', titulo: 'ESTADO', render: (p) => <EtiquetaEstado estado={p.vencido ? 'VENCIDO' : p.estado} /> },
     { clave: 'accion', titulo: '', render: (p) => p.estado === 'ACTIVO' && puedeDevolver ? <button className="boton terciario" disabled={enviando} onClick={() => setSeleccionado(p)}>Recibir devolución</button> : null },
   ]
@@ -28,6 +28,6 @@ export default function Prestamos({ prestamos, usuarios, catalogo, ejemplares, p
     {mensaje && <div className="aviso correcto-aviso" role="status">✓ {mensaje}</div>}{error && <div className="aviso error-aviso">{error}</div>}
     {seleccionado && <FormularioInspeccion bien={tituloDeEjemplar(ejemplares, catalogo, seleccionado.ejemplarId)} persona={nombreUsuario(usuarios, seleccionado.prestatarioId)} enviando={enviando} confirmar={(i) => devolver(seleccionado, i)} cancelar={() => setSeleccionado(null)} />}
     <section className="panel"><div className="panel-titulo"><div><h2>Préstamos</h2><p>{filas.length} registros visibles</p></div></div><Tabla filas={filas} columnas={columnas} vacio="No hay préstamos que coincidan" /></section>
-    <details className="panel historial-secundario"><summary>Historial de inspecciones ({inspecciones.length})</summary><div className="tabla-contenedor"><table><thead><tr><th>FECHA</th><th>BIEN</th><th>ESTADO</th><th>OBSERVACIONES</th></tr></thead><tbody>{inspecciones.map((i) => { const p = prestamos.find((x) => x.id === i.prestamoId); return <tr key={i.prestamoId}><td>{new Date(i.fecha).toLocaleString('es-PE')}</td><td>{p ? tituloDeEjemplar(ejemplares, catalogo, p.ejemplarId) : i.prestamoId}</td><td><EtiquetaEstado estado={i.estadoResultante} /></td><td>{i.observaciones || '—'}</td></tr> })}</tbody></table></div></details>
+    <details className="panel historial-secundario"><summary>Historial de inspecciones ({inspecciones.length})</summary><div className="tabla-contenedor"><table><thead><tr><th>FECHA (LIMA)</th><th>BIEN</th><th>ESTADO</th><th>OBSERVACIONES</th></tr></thead><tbody>{inspecciones.map((i) => { const p = prestamos.find((x) => x.id === i.prestamoId); return <tr key={i.prestamoId}><td>{fechaHoraLima(i.fecha)}</td><td>{p ? tituloDeEjemplar(ejemplares, catalogo, p.ejemplarId) : i.prestamoId}</td><td><EtiquetaEstado estado={i.estadoResultante} /></td><td>{i.observaciones || '—'}</td></tr> })}</tbody></table></div></details>
   </>
 }

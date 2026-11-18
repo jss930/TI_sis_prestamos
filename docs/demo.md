@@ -67,11 +67,12 @@ Mostrar:
 
 - detalles del título;
 - mínimo de 30 minutos de anticipación;
-- duración entre 1 y 24 horas;
+- duración mínima de una hora;
 - jornada 07:00–20:00;
-- máximo 24 horas;
+- campus: máximo 13 horas y devolución el mismo día;
+- domicilio: libros 3 días para alumnos/administrativos y 5 para docentes; equipos 3 días para docentes/administrativos;
 - campus/domicilio para libro;
-- campus fijo para equipo.
+- equipos de alumnos y otros bienes siempre en campus.
 
 Confirmar y abrir Mis reservas.
 

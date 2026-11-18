@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import Tabla, { type Columna } from '../components/Tabla'
 import EtiquetaEstado from '../components/EtiquetaEstado'
 import type { CatalogoItem, PerfilPrestatario, Reserva } from '../types'
-import { fechaCorta, tituloDeCatalogo } from '../utils/format'
+import { fechaCorta, fechaHoraLima, tituloDeCatalogo } from '../utils/format'
 import { descripcionPlazo, HORA, instanteLima, validarPlazo, valorLima } from '../utils/plazos'
 import { useAhora } from '../hooks/useAhora'
 
@@ -94,14 +94,14 @@ export default function MisReservas({ reservas, catalogo, usuarioId, perfil, can
       clave: 'fecha',
       titulo: 'HORARIO RESERVADO',
       render: (r) => r.inicioReserva && r.finReserva
-        ? <><strong>{new Date(r.inicioReserva).toLocaleString('es-PE')}</strong><br /><small>hasta {new Date(r.finReserva).toLocaleString('es-PE')}</small></>
+        ? <><strong>{fechaHoraLima(r.inicioReserva)}</strong><br /><small>hasta {fechaHoraLima(r.finReserva)} (Lima)</small></>
         : fechaCorta(r.fechaAlta.slice(0, 10)),
     },
     {
       clave: 'motivo',
       titulo: 'RECOGIDA / MOTIVO',
       render: (r) => r.estado === 'APROBADA' && r.fechaLimiteRetiro
-        ? `Recoge antes del ${new Date(r.fechaLimiteRetiro).toLocaleString('es-PE')}`
+        ? `Recoge antes del ${fechaHoraLima(r.fechaLimiteRetiro)} (Lima)`
         : r.motivo ?? (r.estado === 'ATENDIDA' ? 'Entrega registrada; consulta Mis préstamos' : '—'),
     },
     {

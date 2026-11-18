@@ -102,7 +102,7 @@ public class SolicitarReservaUseCase {
             throw new BusinessRuleException("SANCION_ACTIVA",
                     "El prestatario tiene una sancion activa");
         }
-        if (contarPrestamos.tieneVencido(prestatario.id(), hoy)) {
+        if (contarPrestamos.tieneVencido(prestatario.id(), clock.instant())) {
             throw new BusinessRuleException("PRESTAMO_VENCIDO_PENDIENTE",
                     "El prestatario tiene un prestamo vencido sin devolver");
         }

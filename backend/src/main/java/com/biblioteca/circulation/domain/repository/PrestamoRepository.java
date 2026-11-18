@@ -31,6 +31,10 @@ public interface PrestamoRepository {
 
     boolean tieneVencido(UsuarioId prestatarioId, LocalDate hoy);
 
+    default boolean tieneVencido(UsuarioId prestatarioId, Instant ahora) {
+        return listarPorPrestatario(prestatarioId).stream().anyMatch(p -> p.estaVencido(ahora));
+    }
+
     default boolean existeSolapamiento(EjemplarId ejemplarId, Instant inicio, Instant fin) {
         return listarTodos().stream().anyMatch(prestamo ->
                 prestamo.estado() == com.biblioteca.circulation.domain.model.EstadoPrestamo.ACTIVO

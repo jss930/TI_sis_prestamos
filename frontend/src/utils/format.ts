@@ -2,13 +2,18 @@ import type { CatalogoItem, Ejemplar, LugarUso, MotivoSancion, PerfilPrestatario
 
 export function fechaCorta(valor: string | null | undefined): string {
   if (!valor) return '—'
-  const fecha = valor.length === 10 ? new Date(`${valor}T12:00:00`) : new Date(valor)
+  const fecha = valor.length === 10 ? new Date(`${valor}T12:00:00-05:00`) : new Date(valor)
   if (Number.isNaN(fecha.getTime())) return valor
   return new Intl.DateTimeFormat('es-PE', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
+    timeZone: 'America/Lima',
   }).format(fecha)
+}
+
+export function fechaHoraLima(valor: string | null | undefined): string {
+  return valor ? new Date(valor).toLocaleString('es-PE', { timeZone: 'America/Lima' }) : '—'
 }
 
 export function dinero(monto: number, moneda: string): string {

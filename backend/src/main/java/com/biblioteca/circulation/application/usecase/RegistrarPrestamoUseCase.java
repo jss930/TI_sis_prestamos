@@ -25,7 +25,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
@@ -82,7 +81,7 @@ public class RegistrarPrestamoUseCase {
     }
 
     public Prestamo ejecutar(RegistrarPrestamoCommand command) {
-        return ejecutar(command, null, null, 0);
+        return ejecutar(command, 0);
     }
 
     /** Registra la entrega asociada a una reserva respetando su fecha final. */
@@ -90,13 +89,13 @@ public class RegistrarPrestamoUseCase {
                                        java.time.Instant inicio, java.time.Instant fin) {
         var programado = new RegistrarPrestamoCommand(command.operadorId(), command.prestatarioId(),
                 command.ejemplarId(), command.lugarUso(), clock.instant(), fin);
-        return ejecutar(programado, new PeriodoPrestamo(
-                java.time.LocalDate.ofInstant(inicio, clock.getZone()),
-                java.time.LocalDate.ofInstant(fin, clock.getZone())), fin, 1);
+        if (clock.instant().isBefore(inicio)) {
+            throw new BusinessRuleException("RECOJO_ANTICIPADO", "La reserva todavia no inicia");
+        }
+        return ejecutar(programado, 1);
     }
 
-    private Prestamo ejecutar(RegistrarPrestamoCommand command, PeriodoPrestamo periodoProgramado,
-                              java.time.Instant finProgramado, long reservasExcluidas) {
+    private Prestamo ejecutar(RegistrarPrestamoCommand command, long reservasExcluidas) {
         Objects.requireNonNull(command.lugarUso(), "El lugar de uso es obligatorio");
         LocalDate hoy = LocalDate.now(clock);
 
@@ -141,7 +140,7 @@ public class RegistrarPrestamoUseCase {
             throw new BusinessRuleException("SANCION_ACTIVA",
                     "El prestatario tiene una sancion activa");
         }
-        if (prestamos.tieneVencido(prestatario.id(), hoy)) {
+        if (prestamos.tieneVencido(prestatario.id(), clock.instant())) {
             throw new BusinessRuleException("PRESTAMO_VENCIDO_PENDIENTE",
                     "El prestatario tiene un prestamo vencido sin devolver");
         }
@@ -166,7 +165,7 @@ public class RegistrarPrestamoUseCase {
         Instant limitePolitica = PoliticaPlazoPrestamo.vencimientoPredeterminado(
                 entrega, command.lugarUso(), prestatario.perfil(), item.tipo(), politica);
         Instant finPrevisto = command.fechaHoraVencimiento() == null
-                ? (finProgramado == null ? limitePolitica : finProgramado)
+                ? limitePolitica
                 : command.fechaHoraVencimiento();
         if (!finPrevisto.isAfter(entrega)) {
             throw new BusinessRuleException("VENCIMIENTO_INVALIDO",

@@ -247,6 +247,19 @@ class RegistrarPrestamoUseCaseTest {
                         ex -> assertThat(ex.codigo()).isEqualTo("DURACION_PRESTAMO_INSUFICIENTE"));
     }
 
+    @Test
+    void unPrestamoVencidoHaceUnaHoraBloqueaOtroAunqueSeaElMismoDia() {
+        var vencido = Prestamo.registrar(bibliotecario.id(), alumno.id(), EjemplarId.nuevo(),
+                new PeriodoPrestamo(Fixtures.HOY, Fixtures.HOY), LugarUso.EN_CAMPUS,
+                Fixtures.AHORA.minusSeconds(7200), Fixtures.AHORA.minusSeconds(3600));
+        prestamos.guardar(vencido);
+        assertThat(vencido.estaVencido(Fixtures.AHORA)).isTrue();
+        assertThat(vencido.diasRetraso(Fixtures.AHORA)).isZero();
+        assertThatThrownBy(() -> useCase.ejecutar(command(bibliotecario.id(), alumno.id(), ejemplar.id())))
+                .isInstanceOfSatisfying(BusinessRuleException.class,
+                        ex -> assertThat(ex.codigo()).isEqualTo("PRESTAMO_VENCIDO_PENDIENTE"));
+    }
+
     private RegistrarPrestamoCommand command(UsuarioId operador, UsuarioId prestatario, EjemplarId id) {
         return new RegistrarPrestamoCommand(operador, prestatario, id, LugarUso.EN_CAMPUS);
     }
