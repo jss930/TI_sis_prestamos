@@ -3,7 +3,7 @@ import Tabla, { type Columna } from '../components/Tabla'
 import EtiquetaEstado from '../components/EtiquetaEstado'
 import { mensajeDeError } from '../services/api'
 import type { CatalogoItem, Ejemplar, EstadoReserva, Prestamo, Reserva, Usuario } from '../types'
-import { fechaCorta, nombreUsuario, tituloDeCatalogo } from '../utils/format'
+import { fechaCorta, fechaHoraLima, nombreUsuario, tituloDeCatalogo } from '../utils/format'
 import { useAhora } from '../hooks/useAhora'
 import { HORA } from '../utils/plazos'
 
@@ -93,7 +93,7 @@ export default function Reservas({ reservas, usuarios, catalogo, ejemplares, pre
     { clave: 'persona', titulo: 'PERSONA', render: (r) => nombreUsuario(usuarios, r.prestatarioId) },
     { clave: 'bien', titulo: 'BIEN', render: (r) => tituloDeCatalogo(catalogo, r.catalogoItemId) },
     { clave: 'horario', titulo: 'HORARIO', render: (r) => r.inicioReserva && r.finReserva
-      ? `${new Date(r.inicioReserva).toLocaleString('es-PE')} – ${new Date(r.finReserva).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}` : 'Histórico' },
+      ? `${fechaHoraLima(r.inicioReserva)} – ${fechaHoraLima(r.finReserva)}` : 'Histórico' },
     { clave: 'fecha', titulo: 'SOLICITADO', render: (r) => fechaCorta(r.fechaAlta) },
     { clave: 'estado', titulo: 'ESTADO', render: (r) => <EtiquetaEstado estado={r.estado} /> },
     { clave: 'accion', titulo: 'ACCIÓN', render: (r) => (
@@ -135,11 +135,11 @@ export default function Reservas({ reservas, usuarios, catalogo, ejemplares, pre
         {seleccionada.motivo && <div><dt>Motivo</dt><dd>{seleccionada.motivo}</dd></div>}
         {(seleccionada.ejemplarId || seleccionada.prestamoId) && <div><dt>Ejemplar asignado</dt><dd>{ejemplarEntregado?.barcode ?? 'Consulta el préstamo asociado'}</dd></div>}
         <div><dt>Lugar de uso</dt><dd>{seleccionada.lugarUso === 'DOMICILIO' ? 'A domicilio' : 'Dentro del campus'}</dd></div>
-        {seleccionada.inicioReserva && <div><dt>Inicio reservado</dt><dd>{new Date(seleccionada.inicioReserva).toLocaleString('es-PE')}</dd></div>}
-        {seleccionada.finReserva && <div><dt>Fin reservado</dt><dd>{new Date(seleccionada.finReserva).toLocaleString('es-PE')}</dd></div>}
-        {seleccionada.fechaLimiteRetiro && <div><dt>Plazo de recogida</dt><dd>{new Date(seleccionada.fechaLimiteRetiro).toLocaleString('es-PE')}</dd></div>}
+        {seleccionada.inicioReserva && <div><dt>Inicio reservado (Lima)</dt><dd>{fechaHoraLima(seleccionada.inicioReserva)}</dd></div>}
+        {seleccionada.finReserva && <div><dt>Fin reservado (Lima)</dt><dd>{fechaHoraLima(seleccionada.finReserva)}</dd></div>}
+        {seleccionada.fechaLimiteRetiro && <div><dt>Plazo de recogida (Lima)</dt><dd>{fechaHoraLima(seleccionada.fechaLimiteRetiro)}</dd></div>}
         {seleccionada.entregadoPorId && <div><dt>Entregado por</dt><dd>{nombreUsuario(usuarios, seleccionada.entregadoPorId)}</dd></div>}
-        {seleccionada.fechaEntrega && <div><dt>Fecha de entrega</dt><dd>{new Date(seleccionada.fechaEntrega).toLocaleString('es-PE')}</dd></div>}
+        {seleccionada.fechaEntrega && <div><dt>Fecha de entrega (Lima)</dt><dd>{fechaHoraLima(seleccionada.fechaEntrega)}</dd></div>}
       </dl>
       {seleccionada.estado === 'APROBADA' && <>
         <p>Confirma cuando el alumno reciba físicamente el artículo. Se volverán a verificar sus condiciones de préstamo.</p>

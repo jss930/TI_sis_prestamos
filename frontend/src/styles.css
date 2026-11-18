@@ -156,3 +156,22 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 /* Los fieldsets deshabilitan todos los controles durante una operación. */
 .formulario-sin-borde { border: 0; padding: 0; margin: 0; min-width: 0; }
 .formulario-sin-borde > legend { font-size: .85rem; margin-bottom: 1rem; }
+.historial-resumen { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin: 1rem 0; }
+.historial-resumen .panel { display: flex; flex-direction: column; gap: .5rem; }
+.historial-resumen strong { font-size: 1.8rem; }
+.reporte-imprimible > .panel { margin-bottom: 1rem; }
+.reporte-imprimible table { width: 100%; }
+.reporte-imprimible caption { text-align: left; padding: .5rem 0; }
+@media print {
+  @page { size: landscape; margin: 12mm; }
+  .barra-lateral, .contenido > .encabezado, .contenido > .aviso, .no-imprimir { display: none !important; }
+  .aplicacion { display: block !important; }
+  .contenido { margin: 0 !important; padding: 0 !important; width: 100% !important; }
+  .reporte-imprimible { color: #000; font-size: 9pt; }
+  .reporte-imprimible .panel { border: 1px solid #ccc; box-shadow: none; padding: 8px; }
+  .reporte-imprimible .tabla-contenedor { overflow: visible; }
+  .reporte-imprimible table { min-width: 0; font-size: 8pt; }
+  .reporte-imprimible th, .reporte-imprimible td { padding: 5px; white-space: normal; overflow-wrap: anywhere; }
+  .reporte-imprimible tr, .historial-resumen { break-inside: avoid; }
+  .reporte-imprimible thead { display: table-header-group; }
+}

@@ -34,6 +34,7 @@ El sistema permite:
 - registrar préstamos directos en ventanilla;
 - recibir devoluciones e inspeccionar el bien;
 - administrar sanciones, catálogo, ejemplares y permisos.
+- consultar historiales por usuario y ejemplar, filtrar e imprimir reportes.
 
 El proyecto es un **monolito modular**: se ejecuta como una sola aplicación, pero el código está dividido por responsabilidades de negocio. Esto facilita entenderlo, probarlo y mantenerlo.
 
@@ -119,7 +120,7 @@ La administración concede o revoca permisos directamente a cada usuario.
 | Regla | Valor |
 |---|---|
 | Anticipación mínima | 30 minutos |
-| Duración de reserva | Mínimo 1 hora, máximo 24 horas |
+| Duración de reserva y préstamo | Campus: 1–13 horas; domicilio: 1 hora hasta el máximo por perfil |
 | Horario permitido | 07:00 a 20:00, hora de Arequipa/Lima; campus en el mismo día |
 | Domicilio | Libros para todos; equipos para docentes y administrativos; otros bienes solo campus |
 | Recurso seleccionado | Título, nunca una copia concreta |
@@ -128,8 +129,16 @@ La administración concede o revoca permisos directamente a cada usuario.
 | Recogida | Desde la hora inicial hasta 1 hora después |
 | Si no recoge | La reserva expira sin sanción |
 | Reprogramación | Solo pendiente y hasta 1 hora antes del inicio |
-| Equipos y otros bienes | Solo dentro del campus |
+| Equipos | Alumno: solo campus; docente/administrativo: campus o domicilio (3 días) |
+| Otros bienes | Solo campus, para todos los perfiles |
 | Libros | Campus o domicilio |
+
+A domicilio, los libros tienen un máximo de **3 días para alumnos y
+administrativos**, y **5 días para docentes**. Cada día equivale a 24 horas
+exactas desde la entrega. En campus siempre se devuelve el mismo día, dentro
+de 07:00–20:00, y una renovación nunca supera el máximo total original.
+
+Reglas e historiales: [`docs/plazos-e-historiales.md`](docs/plazos-e-historiales.md).
 
 ### Flujo
 
@@ -398,6 +407,7 @@ Todas las rutas comienzan con `/api/v1`.
 | Reservas | `GET/POST /reservas`, aprobar, denegar, cancelar, reprogramar, entregar |
 | Préstamos | `GET/POST /prestamos`, devolución y renovación |
 | Sanciones | `GET/POST /sanciones` |
+| Historiales | `GET /reportes/usuarios/{id}`, `GET /reportes/ejemplares/{id}` |
 
 Los errores siguen `ProblemDetail`:
 
@@ -447,7 +457,9 @@ Las pruebas cubren:
 - disponibilidad futura por intervalo;
 - reglas de dependencia con ArchUnit.
 
-La suite actual ejecuta **109 pruebas backend: 0 fallos, 0 errores y 0 omitidas**.
+La suite incluye pruebas backend de reglas, persistencia y seguridad HTTP, y
+pruebas frontend de plazos y zona horaria. `pnpm build` ejecuta estas últimas
+antes de verificar tipos y construir la interfaz.
 
 GitHub Actions ejecuta automáticamente el backend con Java 21 y el frontend con Node 20 en cada `push` y `pull request`.
 

@@ -18,6 +18,7 @@ import CatalogoAlta from './pages/CatalogoAlta'
 import EjemplarAlta from './pages/EjemplarAlta'
 import PrestamoNuevo from './pages/PrestamoNuevo'
 import CatalogoEditar from './pages/CatalogoEditar'
+import Historial from './pages/Historial'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { api, ApiError, mensajeDeError } from './services/api'
 import type {
@@ -67,11 +68,12 @@ export default function App() {
     'catalogo-gestion': '/admin/catalogo', 'catalogo-nuevo': '/admin/catalogo/nuevo',
     'catalogo-editar': location.pathname,
     'ejemplar-nuevo': location.pathname, 'reserva-nueva': location.pathname, 'prestamo-nuevo': '/prestamos/nuevo',
+    historial: '/historial',
   }
   const rutasEstaticas = [
     '/', '/mi-cuenta', '/personas', '/catalogo', '/mis-prestamos', '/mis-reservas',
     '/prestamos', '/prestamos/nuevo', '/sanciones', '/administracion', '/reservas',
-    '/admin/catalogo', '/admin/catalogo/nuevo',
+    '/admin/catalogo', '/admin/catalogo/nuevo', '/historial',
   ]
   const rutaConocida = rutasEstaticas.includes(location.pathname)
     || /^\/admin\/catalogo\/[^/]+\/(editar|ejemplares\/nuevo)$/.test(location.pathname)
@@ -83,6 +85,7 @@ export default function App() {
     : /^\/admin\/catalogo\/[^/]+\/ejemplares\/nuevo$/.test(location.pathname) ? 'ejemplar-nuevo'
     : /^\/catalogo\/[^/]+\/reservar$/.test(location.pathname) ? 'reserva-nueva'
     : location.pathname === '/prestamos/nuevo' ? 'prestamo-nuevo'
+    : location.pathname === '/historial' ? 'historial'
     : (Object.entries(rutas).find(([, ruta]) => ruta === location.pathname)?.[0] as Pagina | undefined) ?? 'catalogo'
   const irA = (destino: Pagina) => navegar(rutas[destino] ?? '/catalogo')
   const [datos, setDatos] = useState<DatosBiblioteca>(DATOS_VACIOS)
@@ -339,7 +342,7 @@ export default function App() {
     const permitido = paginaActual === 'catalogo'
       || (paginaActual === 'mi-cuenta' && !!usuarioActual)
       || (usuarioActual?.estado === 'VALIDADO' && (
-        ['mis-prestamos', 'mis-reservas'].includes(paginaActual)
+        ['mis-prestamos', 'mis-reservas', 'historial'].includes(paginaActual)
         || (paginaActual === 'resumen' && esPersonal)
         || (paginaActual === 'personas' && (permisosActuales.includes('GESTIONAR_USUARIOS') || permisosActuales.includes('VALIDAR_USUARIO_PROVISIONAL')))
         || (paginaActual === 'prestamos' && (permisosActuales.includes('REGISTRAR_PRESTAMO') || permisosActuales.includes('REGISTRAR_DEVOLUCION')))
@@ -351,6 +354,9 @@ export default function App() {
       ))
     if (!permitido) return <div className="aviso" role="alert">No tienes permiso para esta pantalla. Usa el menú para continuar.</div>
     switch (paginaActual) {
+      case 'historial':
+        return <Historial usuarioId={usuarioActual?.id ?? ''} administrador={permisosActuales.includes('ADMINISTRAR_SISTEMA')}
+          usuarios={datos.usuarios} ejemplares={datos.ejemplares} catalogo={datos.catalogo} />
       case 'resumen':
         return <Resumen datos={datos} irA={irA} permisos={permisosActuales} />
       case 'mi-cuenta':
@@ -396,7 +402,8 @@ export default function App() {
       case 'reserva-nueva':
         return <ReservaNueva itemId={catalogoItemIdRuta} catalogo={datos.catalogo} perfil={usuarioActual?.perfil ?? 'ALUMNO'} reservar={(id, lugar, inicio, fin) => usuarioActual?.id ? solicitarReserva(id, lugar, inicio, fin) : Promise.reject(new Error('Inicia sesión para reservar.'))} />
       case 'catalogo-gestion':
-        return <CatalogoGestion catalogo={datos.catalogo} ejemplares={datos.ejemplares} activar={activarCatalogo} desactivar={desactivarCatalogo} />
+        return <CatalogoGestion catalogo={datos.catalogo} ejemplares={datos.ejemplares} activar={activarCatalogo} desactivar={desactivarCatalogo}
+          puedeVerHistorial={permisosActuales.includes('ADMINISTRAR_SISTEMA')} />
       case 'catalogo-nuevo':
         return <CatalogoAlta crearLibro={crearLibroCatalogo} crearEquipo={crearEquipoCatalogo} crearOtro={crearOtroCatalogo} />
       case 'catalogo-editar':

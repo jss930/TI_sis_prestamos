@@ -90,7 +90,8 @@ Representa una restricción activa por retraso, daño, pérdida o decisión admi
 ```text
 30 min    anticipación mínima
 1 hora    duración mínima de reserva o préstamo
-24 horas duración máxima de reserva
+13 horas  máximo en campus, siempre el mismo día
+3/5 días  máximo a domicilio según perfil y bien
 07–20     horario permitido
 1 hora    tolerancia para recoger
 0 colas   no existe lista de espera

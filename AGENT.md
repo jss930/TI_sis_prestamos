@@ -84,14 +84,18 @@ docker compose up -d
 ## 6. Horario de reservas
 
 - anticipación mínima: 30 minutos;
-- duración de reserva: mínimo 1 hora y máximo 24 horas;
+- duración de reserva y préstamo: mínimo 1 hora; campus máximo 13 horas;
 - jornada: 07:00–20:00 en `America/Lima`;
-- campus: inicio y fin el mismo día; domicilio puede abarcar hasta 24 horas;
+- campus: inicio y fin el mismo día entre 07:00 y 20:00;
+- domicilio: alumno libro 3 días; docente libro 5 y equipo 3; administrativo libro/equipo 3;
+- días exactos de 24 horas desde la entrega; entrega y devolución dentro de la jornada;
 - domicilio: libros para todos; equipos para docentes/administrativos; otros bienes solo campus;
 - límite combinado: hasta 3 préstamos y reservas activas por prestatario;
 - reprogramación: pendiente y hasta 1 hora antes;
 - libros: campus o domicilio;
-- equipos y otros: campus.
+- equipos: alumno solo campus; otros bienes: siempre solo campus;
+- renovación: no exceder el máximo total desde la entrega;
+- historiales: titular ve el suyo; administrador consulta usuarios y ejemplares.
 
 ## 7. Capas
 

@@ -3,6 +3,7 @@ import type {
   NuevaInspeccionDevolucion,
   InspeccionDevolucion,
   CatalogoItem,
+  Historial,
   Ejemplar,
   EstadoFisico,
   NuevoEquipoCatalogo,
@@ -131,6 +132,11 @@ async function solicitar<T>(ruta: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
+  getHistorial: (tipo: 'usuario' | 'ejemplar', id: string, filtros: { desde: string; hasta: string; estado: string }) => {
+    const parametros = new URLSearchParams()
+    for (const [clave, valor] of Object.entries(filtros)) if (valor) parametros.set(clave, valor)
+    return solicitar<Historial>(`/reportes/${tipo === 'usuario' ? 'usuarios' : 'ejemplares'}/${encodeURIComponent(id)}?${parametros}`)
+  },
   getInspeccionesDevolucion: () => solicitar<InspeccionDevolucion[]>('/inspecciones-devolucion'),
   inspeccionarDevolucion: (id: string, inspeccion: NuevaInspeccionDevolucion) =>
     solicitar<InspeccionDevolucion>(`/prestamos/${id}/inspeccion-devolucion`, {

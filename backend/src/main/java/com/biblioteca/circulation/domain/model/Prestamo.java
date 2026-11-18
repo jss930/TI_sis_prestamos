@@ -174,6 +174,17 @@ public final class Prestamo extends AggregateRoot<PrestamoId> {
         return estado == EstadoPrestamo.ACTIVO && periodo.estaVencido(hoy);
     }
 
+    public boolean estaVencido(Instant ahora) {
+        return estado == EstadoPrestamo.ACTIVO && ahora.isAfter(fechaHoraVencimiento);
+    }
+
+    public int diasRetraso(Instant ahora) {
+        Instant referencia = fechaHoraDevolucion != null ? fechaHoraDevolucion
+                : estado == EstadoPrestamo.ACTIVO ? ahora : fechaHoraVencimiento;
+        return referencia.isAfter(fechaHoraVencimiento)
+                ? (int) java.time.Duration.between(fechaHoraVencimiento, referencia).toDays() : 0;
+    }
+
     public int diasRetraso(LocalDate hoy) {
         if (fechaDevolucion != null) {
             return periodo.diasRetraso(fechaDevolucion);

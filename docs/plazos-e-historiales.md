@@ -51,3 +51,35 @@ total; no convierte un préstamo de campus en uno de varios días.
 `cd frontend && pnpm test` ejecuta las pruebas de matriz, límites y conversión
 horaria. `pnpm build` también las ejecuta antes de TypeScript/Vite, por lo que
 forman parte del CI existente sin modificar su workflow.
+
+## Historial y reporte
+
+- Menú **Historial y reportes**: cada usuario validado consulta su propia cuenta.
+- Administrador: elige usuario o ejemplar en esa pantalla. También puede entrar
+  desde **Personas → Ver historial**, o desde **Gestión del catálogo →
+  Historial de ejemplares físicos**.
+- **Aplicar filtros**: rango de fechas inclusivo en Lima y estado del préstamo.
+  Las fechas corresponden a entrega, inicio reservado y alta de sanción,
+  respectivamente. El estado solo filtra préstamos.
+- **Imprimir / guardar PDF** abre el diálogo del navegador y conserva cabecera,
+  período, indicadores y tablas, ocultando navegación y controles.
+
+API: `GET /api/v1/reportes/usuarios/{id}` (titular o administrador) y
+`GET /api/v1/reportes/ejemplares/{id}` (solo administrador). Parámetros opcionales:
+`desde=YYYY-MM-DD`, `hasta=YYYY-MM-DD`, `estado=ACTIVO|DEVUELTO|PERDIDO`.
+
+Se muestran préstamos, renovaciones acumuladas, entrega/vencimiento/devolución
+real, inspecciones, reservas y sanciones. El retraso del reporte usa instantes
+exactos, no solo fechas. Una inspección ausente se informa como no registrada.
+No se intenta reconstruir la fecha de cada renovación ni cambios de inventario
+que el sistema no guardó. Son reportes operativos, no una auditoría completa.
+
+La detección de préstamos vencidos también usa la hora exacta en consultas y
+elegibilidad: un préstamo de campus vencido hace una hora bloquea una nueva
+operación, aunque todavía sea el mismo día. El contador de días muestra días
+completos; antes de un día se informa que el horario de devolución venció.
+
+Validación de interfaz: comprobar las nueve combinaciones de perfil/bien,
+cambiar la zona del navegador, registrar un préstamo, revisar acciones de
+reservas y abrir/imprimir un historial. Los formularios y el reporte deben
+conservar la hora de Lima y ocultar los controles de impresión.

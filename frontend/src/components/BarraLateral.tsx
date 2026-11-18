@@ -9,6 +9,7 @@ const OPCIONES: Array<{ id: Pagina; icono: string; texto: string }> = [
   { id: 'catalogo', icono: '▦', texto: 'Catálogo' },
   { id: 'mis-prestamos', icono: '↗', texto: 'Mis préstamos' },
   { id: 'mis-reservas', icono: '☰', texto: 'Mis reservas' },
+  { id: 'historial', icono: '☰', texto: 'Historial y reportes' },
   { id: 'reservas', icono: '☰', texto: 'Aprobar reservas' },
   { id: 'prestamos', icono: '↗', texto: 'Préstamos' },
   { id: 'sanciones', icono: '!', texto: 'Sanciones' },
@@ -44,6 +45,7 @@ export default function BarraLateral({
         if (!cuentaValidada) return opcion.id === 'catalogo' || opcion.id === 'mi-cuenta'
         if (opcion.id === 'mi-cuenta') return !sesion.publica
         if (opcion.id === 'catalogo') return true
+        if (opcion.id === 'historial') return !sesion.publica
         if (opcion.id === 'mis-prestamos')
           return !sesion.publica
         if (opcion.id === 'mis-reservas')
