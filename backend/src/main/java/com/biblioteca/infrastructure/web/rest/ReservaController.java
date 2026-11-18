@@ -79,7 +79,6 @@ public class ReservaController {
     @GetMapping
     public List<ReservaResponse> listar(@RequestHeader(value = "Authorization", required = false) String token, @RequestParam(required = false) UUID prestatarioId,
                                        @RequestParam(required = false) EstadoReserva estado) {
-        if (token == null) return List.of();
         UsuarioId actual = autenticado.exigir(token);
         UsuarioId usuarioId = prestatarioId == null ? null : new UsuarioId(prestatarioId);
         return listar.ejecutar(usuarioId, estado).stream()

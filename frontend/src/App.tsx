@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import BarraLateral from './components/BarraLateral'
 import Encabezado from './components/Encabezado'
 import Login from './pages/Login'
@@ -19,7 +19,7 @@ import EjemplarAlta from './pages/EjemplarAlta'
 import PrestamoNuevo from './pages/PrestamoNuevo'
 import CatalogoEditar from './pages/CatalogoEditar'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { api, mensajeDeError } from './services/api'
+import { api, ApiError, mensajeDeError } from './services/api'
 import type {
   DatosBiblioteca,
   DatosCuentaPendiente,
@@ -88,8 +88,10 @@ export default function App() {
   const [datos, setDatos] = useState<DatosBiblioteca>(DATOS_VACIOS)
   const [cargando, setCargando] = useState(true)
   const [errorCarga, setErrorCarga] = useState<string | null>(null)
+  const cargaActual = useRef(0)
 
   const cargarDatos = useCallback(async (silencioso = false) => {
+    const carga = ++cargaActual.current
     if (!silencioso) setCargando(true)
     setErrorCarga(null)
     try {
@@ -97,15 +99,22 @@ export default function App() {
         api.getCatalogo(),
         api.getUsuarios(),
         api.getEjemplares(),
-        api.getPrestamos(),
-        api.getSanciones(),
-        api.getReservas(),
+        localStorage.getItem('biblioteca_token') ? api.getPrestamos() : Promise.resolve([]),
+        localStorage.getItem('biblioteca_token') ? api.getSanciones() : Promise.resolve([]),
+        localStorage.getItem('biblioteca_token') ? api.getReservas() : Promise.resolve([]),
       ])
-      setDatos({ catalogo, usuarios, ejemplares, prestamos, sanciones, reservas })
+      if (carga === cargaActual.current) setDatos({ catalogo, usuarios, ejemplares, prestamos, sanciones, reservas })
     } catch (error) {
+      if (carga !== cargaActual.current) return
+      setDatos((actual) => ({ ...actual, prestamos: [], sanciones: [], reservas: [] }))
+      if (error instanceof ApiError && error.status === 401) {
+        setSesion(null)
+        localStorage.removeItem('biblioteca_sesion')
+        localStorage.removeItem('biblioteca_token')
+      }
       setErrorCarga(mensajeDeError(error))
     } finally {
-      if (!silencioso) setCargando(false)
+      if (carga === cargaActual.current) setCargando(false)
     }
   }, [])
 
@@ -291,10 +300,12 @@ export default function App() {
     [cargarDatos],
   )
   function cerrarSesion() {
+    ++cargaActual.current
+    setCargando(false)
     setSesion(null)
     localStorage.removeItem('biblioteca_sesion')
     localStorage.removeItem('biblioteca_token')
-    setDatos((actual) => ({ ...actual, reservas: [] }))
+    setDatos((actual) => ({ ...actual, prestamos: [], sanciones: [], reservas: [] }))
     navegar('/')
   }
 

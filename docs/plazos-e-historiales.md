@@ -19,3 +19,18 @@ también deben ocurrir dentro del horario de atención.
 La reserva conserva su anticipación mínima de 30 minutos. Una recogida tardía
 no extiende su vencimiento ni permite entregar con menos de una hora restante.
 Una renovación no puede superar el límite total desde la entrega original.
+
+## Consultas protegidas
+
+- `GET /api/v1/prestamos`, detalle y renovación exigen un token válido.
+- Sin permisos operativos, el listado devuelve únicamente préstamos propios.
+  Consultar o renovar un préstamo ajeno se rechaza con HTTP 403.
+- Personal validado con permiso de registro o devolución y administradores
+  pueden consultar préstamos para atender ventanilla.
+- Las sanciones solo las consulta su titular, un gestor de sanciones o el
+  administrador. Su escritura obtiene al operador del token, no del cuerpo.
+- Reservas exige autenticación también para listar.
+- Cerrar sesión elimina los datos privados de la interfaz e invalida cargas
+  anteriores; el catálogo público no solicita estas rutas protegidas.
+- La API de renovación admite `{"nuevoVencimiento":"...ISO-8601..."}`.
+  Si no se especifica, intenta ampliar una hora, siempre sujeta al máximo total.
