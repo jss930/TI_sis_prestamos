@@ -14,7 +14,7 @@ import java.util.Objects;
 public final class PoliticaHorarioReserva {
     public static final Duration ANTICIPACION_MINIMA = Duration.ofMinutes(30);
     public static final Duration DURACION_MINIMA = Duration.ofHours(1);
-    public static final Duration DURACION_MAXIMA = Duration.ofHours(24);
+    public static final Duration DURACION_MAXIMA = Duration.ofDays(5);
     public static final Duration TOLERANCIA_RECOJO = Duration.ofHours(1);
     public static final Duration LIMITE_REPROGRAMACION = Duration.ofHours(1);
     public static final LocalTime APERTURA = LocalTime.of(7, 0);
@@ -38,8 +38,9 @@ public final class PoliticaHorarioReserva {
         if (duracion.compareTo(DURACION_MINIMA) < 0) {
             rechazar("DURACION_RESERVA_INSUFICIENTE", "La reserva debe durar al menos una hora");
         }
-        if (duracion.compareTo(DURACION_MAXIMA) > 0) {
-            rechazar("DURACION_RESERVA_EXCEDIDA", "La reserva no puede durar mas de 24 horas");
+        Duration maximo = lugarUso == LugarUso.EN_CAMPUS ? Duration.ofHours(13) : DURACION_MAXIMA;
+        if (duracion.compareTo(maximo) > 0) {
+            rechazar("DURACION_RESERVA_EXCEDIDA", "La reserva supera el maximo de " + maximo.toHours() + " horas");
         }
         var inicioLocal = inicio.atZone(zona);
         var finLocal = fin.atZone(zona);

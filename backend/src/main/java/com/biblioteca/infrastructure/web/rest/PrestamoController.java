@@ -45,13 +45,17 @@ public class PrestamoController {
     private final ObtenerPrestamoUseCase obtener;
     private final UsuarioAutenticado autenticado;
     private final com.biblioteca.identity.domain.repository.UsuarioRepository usuarios;
+    private final com.biblioteca.infrastructure.security.AccesoHistorial acceso;
+    private final java.time.Clock clock;
 
     public PrestamoController(RegistrarPrestamoUseCase registrar,
                               RegistrarDevolucionUseCase devolver,
                               RenovarPrestamoUseCase renovar,
                               ListarPrestamosUseCase listar,
                               ObtenerPrestamoUseCase obtener, UsuarioAutenticado autenticado,
-                              com.biblioteca.identity.domain.repository.UsuarioRepository usuarios) {
+                              com.biblioteca.identity.domain.repository.UsuarioRepository usuarios,
+                              com.biblioteca.infrastructure.security.AccesoHistorial acceso,
+                              java.time.Clock clock) {
         this.registrar = registrar;
         this.devolver = devolver;
         this.renovar = renovar;
@@ -59,19 +63,31 @@ public class PrestamoController {
         this.obtener = obtener;
         this.autenticado = autenticado;
         this.usuarios = usuarios;
+        this.acceso = acceso;
+        this.clock = clock;
     }
 
     @GetMapping
-    public List<PrestamoResponse> listar(@RequestParam(required = false) UUID prestatarioId,
-                                         @RequestParam(required = false) EstadoPrestamo estado) {
+    public List<PrestamoResponse> listar(@RequestHeader(value = "Authorization", required = false) String token,
+                                          @RequestParam(required = false) UUID prestatarioId,
+                                          @RequestParam(required = false) EstadoPrestamo estado) {
+        var actor = acceso.actor(token);
         UsuarioId usuarioId = prestatarioId == null ? null : new UsuarioId(prestatarioId);
+        if (!acceso.puedeVerPrestamos(actor)) {
+            if (usuarioId != null) acceso.exigirPropietarioOPersonal(actor, usuarioId);
+            usuarioId = actor.id();
+        }
         return listar.ejecutar(usuarioId, estado).stream()
-                .map(PrestamoController::aResponse).toList();
+                .map(this::aResponse).toList();
     }
 
     @GetMapping("/{id}")
-    public PrestamoResponse obtener(@PathVariable UUID id) {
-        return aResponse(obtener.ejecutar(new PrestamoId(id)));
+    public PrestamoResponse obtener(@PathVariable UUID id,
+            @RequestHeader(value = "Authorization", required = false) String token) {
+        var actor = acceso.actor(token);
+        var prestamo = obtener.ejecutar(new PrestamoId(id));
+        acceso.exigirPropietarioOPersonal(actor, prestamo.prestatarioId());
+        return aResponse(prestamo);
     }
 
     @PostMapping
@@ -95,17 +111,24 @@ public class PrestamoController {
     }
 
     @PostMapping("/{id}/renovacion")
-    public PrestamoResponse renovar(@PathVariable UUID id) {
-        return aResponse(renovar.ejecutar(new RenovarPrestamoCommand(new PrestamoId(id))));
+    public PrestamoResponse renovar(@PathVariable UUID id,
+            @RequestHeader(value = "Authorization", required = false) String token,
+            @RequestBody(required = false) RenovacionRequest request) {
+        var actor = acceso.actor(token);
+        var prestamo = obtener.ejecutar(new PrestamoId(id));
+        if (!actor.puedeSolicitarPrestamo()
+                || (!actor.id().equals(prestamo.prestatarioId()) && !actor.puedeOperarVentanilla())) acceso.prohibido();
+        return aResponse(renovar.ejecutar(new RenovarPrestamoCommand(new PrestamoId(id),
+                request == null ? null : request.nuevoVencimiento())));
     }
 
-    private static PrestamoResponse aResponse(Prestamo prestamo) {
-        LocalDate hoy = LocalDate.now();
+    private PrestamoResponse aResponse(Prestamo prestamo) {
+        Instant ahora = clock.instant();
         return new PrestamoResponse(prestamo.id().value(), prestamo.operadorId().value(),
                 prestamo.prestatarioId().value(), prestamo.ejemplarId().value(),
                 prestamo.periodo().inicio(), prestamo.periodo().vencimiento(),
                 prestamo.fechaDevolucion(), prestamo.lugarUso(), prestamo.estado(),
-                prestamo.renovaciones(), prestamo.estaVencido(hoy), prestamo.diasRetraso(hoy),
+                prestamo.renovaciones(), prestamo.estaVencido(ahora), prestamo.diasRetraso(ahora),
                 prestamo.fechaHoraEntrega(), prestamo.fechaHoraVencimiento(), prestamo.fechaHoraDevolucion());
     }
 
@@ -120,6 +143,8 @@ public class PrestamoController {
 
     public record DevolucionRequest(@NotNull EstadoFisico estadoFisico) {
     }
+
+    public record RenovacionRequest(@NotNull Instant nuevoVencimiento) { }
 
     public record PrestamoResponse(
             UUID id,

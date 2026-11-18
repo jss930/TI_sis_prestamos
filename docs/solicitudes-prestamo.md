@@ -26,7 +26,7 @@ La pantalla pide:
 - título;
 - fecha y hora inicial;
 - fecha y hora final;
-- lugar de uso cuando es un libro.
+- lugar de uso cuando el perfil y tipo de bien permiten domicilio.
 
 El usuario sale del token de sesión. No se permite escoger otra cuenta ni una copia.
 
@@ -35,9 +35,10 @@ El usuario sale del token de sesión. No se permite escoger otra cuenta ni una c
 - Anticipación mínima: 30 minutos.
 - Horario: 07:00–20:00 en `America/Lima`.
 - Fin posterior al inicio.
-- Duración mínima: 1 hora; máxima: 24 horas.
-- Campus: inicio y fin el mismo día, dentro del horario.
-- Domicilio: puede atravesar la noche, hasta 24 horas; entrega y devolución dentro del horario.
+- Duración mínima: 1 hora para reserva y préstamo.
+- Campus: inicio y fin el mismo día, dentro del horario; máximo 13 horas.
+- Domicilio: libros de alumnos/administrativos hasta 3 días; libros de docentes hasta 5 días; equipos de docentes/administrativos hasta 3 días.
+- Los días son períodos exactos de 24 horas; entrega y devolución dentro del horario.
 - Libros: campus o domicilio para todos los perfiles.
 - Equipos: domicilio solo para docentes y administrativos.
 - Otros bienes: solo campus.

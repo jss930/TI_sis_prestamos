@@ -115,7 +115,7 @@ export default function Resumen({ datos, irA, permisos }: Props) {
       <section className="panel">
         <div className="panel-titulo">
           <div>
-            <h2>Préstamos recientes</h2>
+            <h2>Préstamos activos recientes</h2>
             <p>Consulta las últimas entregas y sus fechas de devolución</p>
           </div>
           <div className="resumen-controles">

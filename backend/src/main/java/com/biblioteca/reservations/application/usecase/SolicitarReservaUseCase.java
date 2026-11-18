@@ -89,6 +89,9 @@ public class SolicitarReservaUseCase {
             throw new BusinessRuleException("HORARIO_REQUERIDO",
                     "Selecciona la fecha y hora inicial y final de la reserva");
         }
+        com.biblioteca.circulation.domain.policy.PoliticaPlazoPrestamo.validar(
+                command.inicioReserva(), command.finReserva(), command.lugarUso(),
+                prestatario.perfil(), item.tipo(), politicaPrestamo);
         if (command.lugarUso() == com.biblioteca.circulation.domain.model.LugarUso.DOMICILIO
                 && !politicaPrestamo.permiteDomicilio(prestatario.perfil(), item.tipo())) {
             throw new BusinessRuleException("DOMICILIO_NO_PERMITIDO",
@@ -99,7 +102,7 @@ public class SolicitarReservaUseCase {
             throw new BusinessRuleException("SANCION_ACTIVA",
                     "El prestatario tiene una sancion activa");
         }
-        if (contarPrestamos.tieneVencido(prestatario.id(), hoy)) {
+        if (contarPrestamos.tieneVencido(prestatario.id(), clock.instant())) {
             throw new BusinessRuleException("PRESTAMO_VENCIDO_PENDIENTE",
                     "El prestatario tiene un prestamo vencido sin devolver");
         }

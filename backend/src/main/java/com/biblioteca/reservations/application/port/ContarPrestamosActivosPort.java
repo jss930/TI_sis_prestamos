@@ -10,4 +10,8 @@ public interface ContarPrestamosActivosPort {
     default boolean tieneVencido(UsuarioId prestatarioId, LocalDate fecha) {
         return false;
     }
+
+    default boolean tieneVencido(UsuarioId prestatarioId, java.time.Instant ahora) {
+        return tieneVencido(prestatarioId, LocalDate.ofInstant(ahora, java.time.ZoneId.of("America/Lima")));
+    }
 }

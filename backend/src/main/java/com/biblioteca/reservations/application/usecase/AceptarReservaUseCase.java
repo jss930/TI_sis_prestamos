@@ -48,9 +48,13 @@ public class AceptarReservaUseCase {
         var hoy = LocalDate.now(clock);
         long apartados = reservas.contarActivasPor(alumno.id()) - 1;
         PoliticaElegibilidadSolicitud.validar(acceso.usuario(command.operadorId()), alumno, item, reserva.lugarUso(),
-                sanciones.existeActivaPara(alumno.id(), hoy), prestamos.tieneVencido(alumno.id(), hoy), prestamos.contarActivosPor(alumno.id())+apartados, politica);
+                sanciones.existeActivaPara(alumno.id(), hoy), prestamos.tieneVencido(alumno.id(), clock.instant()), prestamos.contarActivosPor(alumno.id())+apartados, politica);
         if (reserva.inicioReserva() == null || reserva.finReserva() == null)
             throw new BusinessRuleException("HORARIO_REQUERIDO", "La solicitud no tiene un horario valido");
+        com.biblioteca.circulation.domain.policy.PoliticaPlazoPrestamo.validar(
+                reserva.inicioReserva(), reserva.finReserva(), reserva.lugarUso(), alumno.perfil(), item.tipo(), politica);
+        if (clock.instant().isAfter(reserva.inicioReserva()))
+            throw new BusinessRuleException("HORARIO_INVALIDO", "No se puede aprobar una reserva cuyo inicio ya paso");
         var candidato = ejemplares.listarPorItem(item.id()).stream()
                 .filter(e -> e.puedeProgramarse())
                 .filter(e -> disponibilidad.estaLibre(e.id(), reserva.inicioReserva(), reserva.finReserva(), reserva.id()))

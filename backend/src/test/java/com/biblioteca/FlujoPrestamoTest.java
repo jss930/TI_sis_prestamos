@@ -65,7 +65,8 @@ class FlujoPrestamoTest {
         LocalDate devolucion = LocalDate.of(2026, 10, 20);
 
         var registrarInicio = new RegistrarPrestamoUseCase(usuarios, catalogo, ejemplares,
-                prestamos, sanciones, politica, publisher, Fixtures.clockEn(inicio));
+                prestamos, sanciones, politica, publisher, java.time.Clock.fixed(
+                        inicio.atTime(12, 0).toInstant(java.time.ZoneOffset.UTC), java.time.ZoneOffset.UTC));
         var registrarDevolucion = new RegistrarDevolucionUseCase(
                 prestamos, ejemplares, publisher, Fixtures.clockEn(devolucion));
         var registrarDespues = new RegistrarPrestamoUseCase(usuarios, catalogo, ejemplares,
@@ -84,9 +85,11 @@ class FlujoPrestamoTest {
         ejemplares.guardar(copia2);
 
         Prestamo prestamo = registrarInicio.ejecutar(new RegistrarPrestamoCommand(
-                bibliotecario.id(), alumno.id(), copia1.id(), LugarUso.EN_CAMPUS));
+                bibliotecario.id(), alumno.id(), copia1.id(), LugarUso.DOMICILIO,
+                inicio.atTime(12, 0).toInstant(java.time.ZoneOffset.UTC),
+                inicio.plusDays(3).atTime(12, 0).toInstant(java.time.ZoneOffset.UTC)));
 
-        assertThat(prestamo.periodo().vencimiento()).isEqualTo(inicio.plusDays(7));
+        assertThat(prestamo.periodo().vencimiento()).isEqualTo(inicio.plusDays(3));
         assertThat(ejemplares.buscarPorId(copia1.id()).orElseThrow().estadoFisico())
                 .isEqualTo(EstadoFisico.PRESTADO);
 

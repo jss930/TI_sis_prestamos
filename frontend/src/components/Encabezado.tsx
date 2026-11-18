@@ -1,6 +1,7 @@
 import type { Pagina } from '../types'
 
 const TITULOS: Record<Pagina, [string, string]> = {
+  actividad: ['Mi actividad', 'Tus préstamos activos, reservas e historial personal.'],
   resumen: ['Resumen general', 'Consulta la actividad de préstamos de hoy.'],
   'mi-cuenta': ['Mi cuenta', 'Consulta el estado y los datos de tu cuenta institucional.'],
   personas: ['Personas', 'Gestiona las cuentas de nuestra comunidad universitaria.'],
@@ -8,7 +9,7 @@ const TITULOS: Record<Pagina, [string, string]> = {
   'mis-prestamos': ['Mis préstamos', 'Historial de préstamos de tu cuenta.'],
   'mis-reservas': ['Mis solicitudes', 'Aprobación, recogida y estado de tus solicitudes.'],
   'reservas': ['Solicitudes pendientes', 'Aprueba reservas y confirma la entrega física.'],
-  prestamos: ['Préstamos', 'Registra entregas y devoluciones.'],
+  prestamos: ['Préstamos y devoluciones', 'Atiende los préstamos activos y recibe devoluciones.'],
   sanciones: ['Sanciones', 'Restricciones informadas por el sistema.'],
   administracion: ['Panel administrador', 'Administra los recursos y la configuración de la biblioteca.'],
   'catalogo-gestion': ['Gestión del catálogo', 'Administra títulos y ejemplares.'],
@@ -17,6 +18,7 @@ const TITULOS: Record<Pagina, [string, string]> = {
   'ejemplar-nuevo': ['Nuevo ejemplar', 'Registra una copia física.'],
   'reserva-nueva': ['Nueva reserva', 'Selecciona un horario.'],
   'prestamo-nuevo': ['Nuevo préstamo', 'Registra una entrega presencial.'],
+  historial: ['Reportes', 'Consulta el historial general, de una persona o de un ejemplar.'],
 }
 
 interface Props {

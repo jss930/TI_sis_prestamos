@@ -85,7 +85,11 @@ La base comprueba que el fin de una reserva sea posterior al inicio. El dominio 
 
 ## 5. Migraciones Flyway
 
-Flyway aplica los archivos `V1` a `V15` en orden y registra cada versión en `flyway_schema_history`.
+Flyway aplica los archivos `V1` a `V16` en orden y registra cada versión en `flyway_schema_history`.
+
+`V16` agrega el control transaccional `cargas_demo` para la colección ampliada
+opcional y un índice por fecha de entrega/id para los reportes paginados.
+La carga solo se invoca en el perfil `demo`; no reemplaza registros existentes.
 
 Regla práctica:
 
@@ -115,5 +119,4 @@ Propiedades ACID:
 - **Consistencia:** las reglas y restricciones se mantienen.
 - **Aislamiento:** operaciones simultáneas no se mezclan incorrectamente.
 - **Durabilidad:** después del commit, PostgreSQL conserva los datos.
-
 

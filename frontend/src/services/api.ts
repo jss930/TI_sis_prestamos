@@ -3,6 +3,7 @@ import type {
   NuevaInspeccionDevolucion,
   InspeccionDevolucion,
   CatalogoItem,
+  Historial,
   Ejemplar,
   EstadoFisico,
   NuevoEquipoCatalogo,
@@ -30,7 +31,7 @@ const MENSAJES_POR_CODIGO: Record<string, string> = {
   DURACION_RESERVA_INSUFICIENTE: 'La reserva debe durar al menos una hora.',
   DURACION_PRESTAMO_INSUFICIENTE: 'El préstamo debe durar al menos una hora.',
   HORARIO_INVALIDO: 'La hora final debe ser posterior a la inicial.',
-  DURACION_RESERVA_EXCEDIDA: 'La reserva no puede durar más de 24 horas.',
+  DURACION_RESERVA_EXCEDIDA: 'La reserva supera el plazo permitido para su lugar de uso.',
   FUERA_DE_HORARIO: 'El horario de atención es de 07:00 a 20:00.',
   REPROGRAMACION_FUERA_DE_PLAZO: 'Solo puedes reprogramar hasta una hora antes del inicio.',
   RECOJO_ANTICIPADO: 'El bien se entrega desde la hora inicial reservada.',
@@ -131,6 +132,14 @@ async function solicitar<T>(ruta: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
+  getHistorial: (tipo: 'general' | 'usuario' | 'ejemplar', id: string,
+    filtros: { desde: string; hasta: string; estado: string; busqueda?: string }, pagina = 0, completo = false) => {
+    const parametros = new URLSearchParams()
+    for (const [clave, valor] of Object.entries(filtros)) if (valor) parametros.set(clave, valor)
+    parametros.set('pagina', String(pagina)); parametros.set('tamano', '10'); parametros.set('completo', String(completo))
+    const ruta = tipo === 'general' ? 'general' : `${tipo === 'usuario' ? 'usuarios' : 'ejemplares'}/${encodeURIComponent(id)}`
+    return solicitar<Historial>(`/reportes/${ruta}?${parametros}`)
+  },
   getInspeccionesDevolucion: () => solicitar<InspeccionDevolucion[]>('/inspecciones-devolucion'),
   inspeccionarDevolucion: (id: string, inspeccion: NuevaInspeccionDevolucion) =>
     solicitar<InspeccionDevolucion>(`/prestamos/${id}/inspeccion-devolucion`, {
@@ -139,7 +148,11 @@ export const api = {
   getCatalogo: () => solicitar<CatalogoItem[]>('/catalogo'),
   getUsuarios: () => solicitar<Usuario[]>('/usuarios'),
   getEjemplares: () => solicitar<Ejemplar[]>('/inventario/ejemplares'),
-  getPrestamos: () => solicitar<Prestamo[]>('/prestamos'),
+  getPrestamos: () => solicitar<Prestamo[]>('/prestamos?estado=ACTIVO'),
+  renovarPrestamo: (id: string, nuevoVencimiento: string) =>
+    solicitar<Prestamo>(`/prestamos/${id}/renovacion`, {
+      method: 'POST', body: JSON.stringify({ nuevoVencimiento }),
+    }),
   getSanciones: () => solicitar<Sancion[]>('/sanciones'),
   crearPrestamo: (prestamo: NuevoPrestamo) =>
     solicitar<Prestamo>('/prestamos', {

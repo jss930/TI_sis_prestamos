@@ -84,7 +84,8 @@ class RegistrarPrestamoUseCaseTest {
 
         assertThat(prestamo.estado()).isEqualTo(EstadoPrestamo.ACTIVO);
         assertThat(prestamo.periodo().inicio()).isEqualTo(Fixtures.HOY);
-        assertThat(prestamo.periodo().vencimiento()).isEqualTo(Fixtures.HOY.plusDays(7));
+        assertThat(prestamo.periodo().vencimiento()).isEqualTo(Fixtures.HOY);
+        assertThat(prestamo.fechaHoraVencimiento()).isEqualTo(Instant.parse("2026-10-21T01:00:00Z"));
         assertThat(ejemplares.buscarPorId(ejemplar.id()).orElseThrow().estadoFisico())
                 .isEqualTo(EstadoFisico.PRESTADO);
         assertThat(eventos.contiene(PrestamoRegistradoEvent.class)).isTrue();
@@ -210,6 +211,53 @@ class RegistrarPrestamoUseCaseTest {
         Prestamo prestamo = useCase.ejecutar(new RegistrarPrestamoCommand(
                 bibliotecario.id(), docente.id(), ejemplarLaptop.id(), LugarUso.DOMICILIO));
         assertThat(prestamo.lugarUso()).isEqualTo(LugarUso.DOMICILIO);
+    }
+
+    @Test
+    void campusNoPuedePasarDelCierreNiCruzarDias() {
+        for (Instant fin : new Instant[] { Fixtures.AHORA.plusSeconds(13 * 3600 + 1),
+                Fixtures.AHORA.plusSeconds(24 * 3600) }) {
+            assertThatThrownBy(() -> useCase.ejecutar(new RegistrarPrestamoCommand(
+                    bibliotecario.id(), alumno.id(), ejemplar.id(), LugarUso.EN_CAMPUS, Fixtures.AHORA, fin)))
+                    .isInstanceOf(BusinessRuleException.class);
+        }
+        assertThat(prestamos.listarTodos()).isEmpty();
+        assertThat(ejemplares.buscarPorId(ejemplar.id()).orElseThrow().estaDisponible()).isTrue();
+    }
+
+    @Test
+    void domicilioNoRedondeaTresDiasHastaElCierre() {
+        assertThatThrownBy(() -> useCase.ejecutar(new RegistrarPrestamoCommand(
+                bibliotecario.id(), alumno.id(), ejemplar.id(), LugarUso.DOMICILIO,
+                Fixtures.AHORA, Fixtures.AHORA.plusSeconds(3 * 86400 + 1))))
+                .isInstanceOfSatisfying(BusinessRuleException.class,
+                        ex -> assertThat(ex.codigo()).isEqualTo("PLAZO_PRESTAMO_EXCEDIDO"));
+        Prestamo prestamo = useCase.ejecutar(new RegistrarPrestamoCommand(
+                bibliotecario.id(), alumno.id(), ejemplar.id(), LugarUso.DOMICILIO,
+                Fixtures.AHORA, Fixtures.AHORA.plusSeconds(3 * 86400)));
+        assertThat(prestamo.fechaHoraVencimiento()).isEqualTo(Fixtures.AHORA.plusSeconds(3 * 86400));
+    }
+
+    @Test
+    void recogerTardeNoPermiteUnPrestamoMenorAUnaHora() {
+        assertThatThrownBy(() -> useCase.ejecutarProgramado(new RegistrarPrestamoCommand(
+                bibliotecario.id(), alumno.id(), ejemplar.id(), LugarUso.EN_CAMPUS),
+                Fixtures.AHORA.minusSeconds(1800), Fixtures.AHORA.plusSeconds(1800)))
+                .isInstanceOfSatisfying(BusinessRuleException.class,
+                        ex -> assertThat(ex.codigo()).isEqualTo("DURACION_PRESTAMO_INSUFICIENTE"));
+    }
+
+    @Test
+    void unPrestamoVencidoHaceUnaHoraBloqueaOtroAunqueSeaElMismoDia() {
+        var vencido = Prestamo.registrar(bibliotecario.id(), alumno.id(), EjemplarId.nuevo(),
+                new PeriodoPrestamo(Fixtures.HOY, Fixtures.HOY), LugarUso.EN_CAMPUS,
+                Fixtures.AHORA.minusSeconds(7200), Fixtures.AHORA.minusSeconds(3600));
+        prestamos.guardar(vencido);
+        assertThat(vencido.estaVencido(Fixtures.AHORA)).isTrue();
+        assertThat(vencido.diasRetraso(Fixtures.AHORA)).isZero();
+        assertThatThrownBy(() -> useCase.ejecutar(command(bibliotecario.id(), alumno.id(), ejemplar.id())))
+                .isInstanceOfSatisfying(BusinessRuleException.class,
+                        ex -> assertThat(ex.codigo()).isEqualTo("PRESTAMO_VENCIDO_PENDIENTE"));
     }
 
     private RegistrarPrestamoCommand command(UsuarioId operador, UsuarioId prestatario, EjemplarId id) {
