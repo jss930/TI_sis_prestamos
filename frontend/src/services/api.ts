@@ -30,7 +30,7 @@ const MENSAJES_POR_CODIGO: Record<string, string> = {
   DURACION_RESERVA_INSUFICIENTE: 'La reserva debe durar al menos una hora.',
   DURACION_PRESTAMO_INSUFICIENTE: 'El préstamo debe durar al menos una hora.',
   HORARIO_INVALIDO: 'La hora final debe ser posterior a la inicial.',
-  DURACION_RESERVA_EXCEDIDA: 'La reserva no puede durar más de 24 horas.',
+  DURACION_RESERVA_EXCEDIDA: 'La reserva supera el plazo permitido para su lugar de uso.',
   FUERA_DE_HORARIO: 'El horario de atención es de 07:00 a 20:00.',
   REPROGRAMACION_FUERA_DE_PLAZO: 'Solo puedes reprogramar hasta una hora antes del inicio.',
   RECOJO_ANTICIPADO: 'El bien se entrega desde la hora inicial reservada.',
@@ -140,6 +140,10 @@ export const api = {
   getUsuarios: () => solicitar<Usuario[]>('/usuarios'),
   getEjemplares: () => solicitar<Ejemplar[]>('/inventario/ejemplares'),
   getPrestamos: () => solicitar<Prestamo[]>('/prestamos'),
+  renovarPrestamo: (id: string, nuevoVencimiento: string) =>
+    solicitar<Prestamo>(`/prestamos/${id}/renovacion`, {
+      method: 'POST', body: JSON.stringify({ nuevoVencimiento }),
+    }),
   getSanciones: () => solicitar<Sancion[]>('/sanciones'),
   crearPrestamo: (prestamo: NuevoPrestamo) =>
     solicitar<Prestamo>('/prestamos', {

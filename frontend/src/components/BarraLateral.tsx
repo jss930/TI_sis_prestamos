@@ -45,7 +45,7 @@ export default function BarraLateral({
         if (opcion.id === 'mi-cuenta') return !sesion.publica
         if (opcion.id === 'catalogo') return true
         if (opcion.id === 'mis-prestamos')
-          return !sesion.publica && !permisos.includes('REGISTRAR_PRESTAMO')
+          return !sesion.publica
         if (opcion.id === 'mis-reservas')
           return !sesion.publica
         if (opcion.id === 'reservas')
