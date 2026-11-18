@@ -38,34 +38,52 @@ public class SancionController {
     private final ListarSancionesUseCase listar;
     private final CumplirSancionUseCase cumplir;
     private final RegistrarSancionManualUseCase registrarManual;
+    private final com.biblioteca.infrastructure.security.AccesoHistorial acceso;
 
     public SancionController(ListarSancionesUseCase listar,
                              CumplirSancionUseCase cumplir,
-                             RegistrarSancionManualUseCase registrarManual) {
+                              RegistrarSancionManualUseCase registrarManual,
+                              com.biblioteca.infrastructure.security.AccesoHistorial acceso) {
         this.listar = listar;
         this.cumplir = cumplir;
         this.registrarManual = registrarManual;
+        this.acceso = acceso;
     }
 
     @GetMapping
-    public List<SancionResponse> listar(@RequestParam(required = false) UUID usuarioId,
+    public List<SancionResponse> listar(@org.springframework.web.bind.annotation.RequestHeader(
+                                        value = "Authorization", required = false) String token,
+                                        @RequestParam(required = false) UUID usuarioId,
                                         @RequestParam(required = false) EstadoSancion estado) {
+        var actor = acceso.actor(token);
         UsuarioId id = usuarioId == null ? null : new UsuarioId(usuarioId);
+        if (!actor.puedeAdministrarSistema() && !actor.puedeGestionarSanciones()) {
+            if (id != null && !id.equals(actor.id())) acceso.prohibido();
+            id = actor.id();
+        }
         return listar.ejecutar(id, estado).stream()
                 .map(SancionController::aResponse).toList();
     }
 
     @PostMapping("/{id}/cumplir")
-    public SancionResponse cumplir(@PathVariable UUID id, @Valid @RequestBody OperadorRequest request) {
+    public SancionResponse cumplir(@PathVariable UUID id,
+            @org.springframework.web.bind.annotation.RequestHeader(value = "Authorization", required = false) String token,
+            @RequestBody(required = false) OperadorRequest request) {
+        var actor = acceso.actor(token);
+        if (!actor.puedeGestionarSanciones()) acceso.prohibido();
         return aResponse(cumplir.ejecutar(new CumplirSancionCommand(
-                new UsuarioId(request.operadorId()), new SancionId(id))));
+                actor.id(), new SancionId(id))));
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public SancionResponse registrarManual(@Valid @RequestBody SancionManualRequest request) {
+    public SancionResponse registrarManual(
+            @org.springframework.web.bind.annotation.RequestHeader(value = "Authorization", required = false) String token,
+            @Valid @RequestBody SancionManualRequest request) {
+        var actor = acceso.actor(token);
+        if (!actor.puedeGestionarSanciones()) acceso.prohibido();
         Sancion sancion = registrarManual.ejecutar(new RegistrarSancionManualCommand(
-                new UsuarioId(request.operadorId()),
+                actor.id(),
                 new UsuarioId(request.usuarioId()),
                 request.prestamoId() == null ? null : new PrestamoId(request.prestamoId()),
                 request.motivo(),
@@ -87,7 +105,7 @@ public class SancionController {
     }
 
     public record SancionManualRequest(
-            @NotNull UUID operadorId,
+            UUID operadorId,
             @NotNull UUID usuarioId,
             UUID prestamoId,
             @NotNull MotivoSancion motivo,
