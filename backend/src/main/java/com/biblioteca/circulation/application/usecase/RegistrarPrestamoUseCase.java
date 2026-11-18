@@ -6,6 +6,7 @@ import com.biblioteca.circulation.application.command.RegistrarPrestamoCommand;
 import com.biblioteca.circulation.domain.model.LugarUso;
 import com.biblioteca.circulation.domain.model.Prestamo;
 import com.biblioteca.circulation.domain.policy.PoliticaPrestamo;
+import com.biblioteca.circulation.domain.policy.PoliticaPlazoPrestamo;
 import com.biblioteca.circulation.domain.repository.PrestamoRepository;
 import com.biblioteca.circulation.domain.vo.PeriodoPrestamo;
 import com.biblioteca.identity.domain.model.Usuario;
@@ -156,19 +157,14 @@ public class RegistrarPrestamoUseCase {
                     "El perfil " + prestatario.perfil() + " no puede llevar " + item.tipo() + " a domicilio");
         }
 
-        int dias = politica.diasPrestamo(prestatario.perfil(), item.tipo());
         Instant ahora = clock.instant();
         Instant entrega = command.fechaHoraEntrega() == null ? ahora : command.fechaHoraEntrega();
         if (entrega.isAfter(ahora.plus(Duration.ofMinutes(5)))) {
             throw new BusinessRuleException("ENTREGA_FUTURA_NO_PERMITIDA",
                     "La entrega presencial no puede registrarse en el futuro");
         }
-        LocalDate fechaEntrega = LocalDate.ofInstant(entrega, clock.getZone());
-        PeriodoPrestamo periodo = periodoProgramado == null
-                ? PeriodoPrestamo.desde(fechaEntrega, dias)
-                : periodoProgramado;
-        Instant limitePolitica = periodo.vencimiento().atTime(LocalTime.of(20, 0))
-                .atZone(clock.getZone()).toInstant();
+        Instant limitePolitica = PoliticaPlazoPrestamo.vencimientoPredeterminado(
+                entrega, command.lugarUso(), prestatario.perfil(), item.tipo(), politica);
         Instant finPrevisto = command.fechaHoraVencimiento() == null
                 ? (finProgramado == null ? limitePolitica : finProgramado)
                 : command.fechaHoraVencimiento();
@@ -180,10 +176,11 @@ public class RegistrarPrestamoUseCase {
             throw new BusinessRuleException("DURACION_PRESTAMO_INSUFICIENTE",
                     "El prestamo debe durar al menos una hora");
         }
-        if (periodoProgramado == null && finPrevisto.isAfter(limitePolitica)) {
-            throw new BusinessRuleException("PLAZO_PRESTAMO_EXCEDIDO",
-                    "La devolución prevista supera el plazo permitido para este bien");
-        }
+        PoliticaPlazoPrestamo.validar(entrega, finPrevisto, command.lugarUso(),
+                prestatario.perfil(), item.tipo(), politica);
+        PeriodoPrestamo periodo = new PeriodoPrestamo(
+                LocalDate.ofInstant(entrega, PoliticaPlazoPrestamo.ZONA),
+                LocalDate.ofInstant(finPrevisto, PoliticaPlazoPrestamo.ZONA));
         if (disponibilidadReservas.existeConflicto(ejemplar.id(), prestatario.id(), entrega, finPrevisto)) {
             throw new BusinessRuleException("EJEMPLAR_RESERVADO_EN_HORARIO",
                     "El ejemplar tiene una reserva aprobada dentro del periodo del prestamo");

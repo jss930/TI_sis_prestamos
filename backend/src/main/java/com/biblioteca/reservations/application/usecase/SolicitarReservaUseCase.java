@@ -89,6 +89,9 @@ public class SolicitarReservaUseCase {
             throw new BusinessRuleException("HORARIO_REQUERIDO",
                     "Selecciona la fecha y hora inicial y final de la reserva");
         }
+        com.biblioteca.circulation.domain.policy.PoliticaPlazoPrestamo.validar(
+                command.inicioReserva(), command.finReserva(), command.lugarUso(),
+                prestatario.perfil(), item.tipo(), politicaPrestamo);
         if (command.lugarUso() == com.biblioteca.circulation.domain.model.LugarUso.DOMICILIO
                 && !politicaPrestamo.permiteDomicilio(prestatario.perfil(), item.tipo())) {
             throw new BusinessRuleException("DOMICILIO_NO_PERMITIDO",

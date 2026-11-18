@@ -39,12 +39,12 @@ class PoliticaHorarioReservaTest {
     }
 
     @Test
-    void permiteDomicilioPorUnDiaPeroNoMasDe24Horas() {
+    void admiteHastaCincoDiasComoLimiteGeneralDeDomicilio() {
         PoliticaHorarioReserva.validar(Instant.parse("2026-10-27T15:00:00Z"),
-                Instant.parse("2026-10-28T15:00:00Z"), ahora, lima, LugarUso.DOMICILIO);
+                Instant.parse("2026-11-01T15:00:00Z"), ahora, lima, LugarUso.DOMICILIO);
         assertThatThrownBy(() -> PoliticaHorarioReserva.validar(Instant.parse("2026-10-27T15:00:00Z"),
-                Instant.parse("2026-10-28T16:00:00Z"), ahora, lima, LugarUso.DOMICILIO))
-                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("24 horas");
+                Instant.parse("2026-11-01T16:00:00Z"), ahora, lima, LugarUso.DOMICILIO))
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("120 horas");
     }
 
     @Test

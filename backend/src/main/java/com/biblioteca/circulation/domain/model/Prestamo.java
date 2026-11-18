@@ -157,6 +157,19 @@ public final class Prestamo extends AggregateRoot<PrestamoId> {
         registrarEvento(new PrestamoRenovadoEvent(id, periodo.vencimiento(), renovaciones, Instant.now()));
     }
 
+    public void renovarHasta(Instant ahora, Instant nuevoVencimiento, java.time.ZoneId zona) {
+        if (estado != EstadoPrestamo.ACTIVO || !ahora.isBefore(fechaHoraVencimiento)) {
+            throw new BusinessRuleException("PRESTAMO_NO_ACTIVO", "Solo se renuevan prestamos activos no vencidos");
+        }
+        if (!nuevoVencimiento.isAfter(fechaHoraVencimiento)) {
+            throw new BusinessRuleException("VENCIMIENTO_INVALIDO", "La renovacion debe ampliar el vencimiento");
+        }
+        periodo = new PeriodoPrestamo(periodo.inicio(), LocalDate.ofInstant(nuevoVencimiento, zona));
+        fechaHoraVencimiento = nuevoVencimiento;
+        renovaciones++;
+        registrarEvento(new PrestamoRenovadoEvent(id, periodo.vencimiento(), renovaciones, ahora));
+    }
+
     public boolean estaVencido(LocalDate hoy) {
         return estado == EstadoPrestamo.ACTIVO && periodo.estaVencido(hoy);
     }
