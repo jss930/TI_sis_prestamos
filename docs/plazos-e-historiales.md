@@ -34,3 +34,20 @@ Una renovación no puede superar el límite total desde la entrega original.
   anteriores; el catálogo público no solicita estas rutas protegidas.
 - La API de renovación admite `{"nuevoVencimiento":"...ISO-8601..."}`.
   Si no se especifica, intenta ampliar una hora, siempre sujeta al máximo total.
+
+## Formularios y acciones
+
+Los formularios expresan todas las fechas en hora de Lima, incluso si el
+navegador está configurado en otra zona. Ocultan domicilio cuando no corresponde,
+recalculan el vencimiento al cambiar de persona/bien/lugar y validan los mismos
+límites antes de enviar. El backend vuelve a validar: la interfaz no concede permisos.
+
+La aprobación comprueba la disponibilidad futura en el servidor. No se desactiva
+solo porque una copia esté prestada actualmente. La entrega exige que haya
+comenzado la reserva, que no haya expirado la recogida y que quede al menos una
+hora de uso. La renovación solo aparece cuando queda margen dentro del máximo
+total; no convierte un préstamo de campus en uno de varios días.
+
+`cd frontend && pnpm test` ejecuta las pruebas de matriz, límites y conversión
+horaria. `pnpm build` también las ejecuta antes de TypeScript/Vite, por lo que
+forman parte del CI existente sin modificar su workflow.

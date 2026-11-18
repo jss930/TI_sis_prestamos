@@ -21,10 +21,10 @@ export default function Prestamos({ prestamos, usuarios, catalogo, ejemplares, p
     { clave: 'entrega', titulo: 'ENTREGA', render: (p) => new Date(p.fechaHoraEntrega).toLocaleString('es-PE') },
     { clave: 'vence', titulo: 'DEVOLUCIÓN PREVISTA', render: (p) => <div className="celda-principal"><span>{new Date(p.fechaHoraVencimiento).toLocaleString('es-PE')}</span>{p.vencido && <small className="texto-peligro">{p.diasRetraso} días de retraso</small>}{p.diasRetraso > 7 && <small>Al superar 7 días corresponde registrar una multa manual.</small>}</div> },
     { clave: 'estado', titulo: 'ESTADO', render: (p) => <EtiquetaEstado estado={p.vencido ? 'VENCIDO' : p.estado} /> },
-    { clave: 'accion', titulo: '', render: (p) => p.estado === 'ACTIVO' && puedeDevolver ? <button className="boton terciario" onClick={() => setSeleccionado(p)}>Recibir devolución</button> : null },
+    { clave: 'accion', titulo: '', render: (p) => p.estado === 'ACTIVO' && puedeDevolver ? <button className="boton terciario" disabled={enviando} onClick={() => setSeleccionado(p)}>Recibir devolución</button> : null },
   ]
   return <>
-    <section className="catalogo-toolbar"><label className="busqueda-catalogo">Buscar préstamo<input className="buscador" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Persona, correo o bien" /></label>{puedeOperar && <button className="boton primario" onClick={() => navegar('/prestamos/nuevo')}>+ Registrar préstamo</button>}</section>
+    <section className="catalogo-toolbar"><label className="busqueda-catalogo">Buscar préstamo<input className="buscador" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Persona, correo o bien" /></label>{puedeOperar && <button className="boton primario" disabled={enviando} onClick={() => navegar('/prestamos/nuevo')}>+ Registrar préstamo</button>}</section>
     {mensaje && <div className="aviso correcto-aviso" role="status">✓ {mensaje}</div>}{error && <div className="aviso error-aviso">{error}</div>}
     {seleccionado && <FormularioInspeccion bien={tituloDeEjemplar(ejemplares, catalogo, seleccionado.ejemplarId)} persona={nombreUsuario(usuarios, seleccionado.prestatarioId)} enviando={enviando} confirmar={(i) => devolver(seleccionado, i)} cancelar={() => setSeleccionado(null)} />}
     <section className="panel"><div className="panel-titulo"><div><h2>Préstamos</h2><p>{filas.length} registros visibles</p></div></div><Tabla filas={filas} columnas={columnas} vacio="No hay préstamos que coincidan" /></section>

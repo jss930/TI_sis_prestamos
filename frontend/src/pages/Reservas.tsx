@@ -4,6 +4,8 @@ import EtiquetaEstado from '../components/EtiquetaEstado'
 import { mensajeDeError } from '../services/api'
 import type { CatalogoItem, Ejemplar, EstadoReserva, Prestamo, Reserva, Usuario } from '../types'
 import { fechaCorta, nombreUsuario, tituloDeCatalogo } from '../utils/format'
+import { useAhora } from '../hooks/useAhora'
+import { HORA } from '../utils/plazos'
 
 interface Props {
   reservas: Reserva[]
@@ -30,6 +32,7 @@ const FILTROS: Array<{ id: EstadoReserva | 'TODAS'; titulo: string }> = [
 
 export default function Reservas({ reservas, usuarios, catalogo, ejemplares, prestamos,
   operadorId, aceptarReserva, denegarReserva, entregarSolicitud }: Props) {
+  const ahora = useAhora()
   const [filtro, setFiltro] = useState<EstadoReserva | 'TODAS'>('SOLICITADA')
   const [busqueda, setBusqueda] = useState('')
   const detalleRef = useRef<HTMLHeadingElement>(null)
@@ -55,9 +58,6 @@ export default function Reservas({ reservas, usuarios, catalogo, ejemplares, pre
     `${nombreUsuario(usuarios, reserva.prestatarioId)} ${tituloDeCatalogo(catalogo, reserva.catalogoItemId)}`
       .toLocaleLowerCase('es').includes(consulta),
   ).sort((a, b) => b.fechaAlta.localeCompare(a.fechaAlta))
-  const disponibles = seleccionada ? ejemplares.filter((ejemplar) =>
-    ejemplar.catalogoItemId === seleccionada.catalogoItemId && ejemplar.estadoFisico === 'DISPONIBLE',
-  ) : []
   const prestamo = prestamos.find((item) => item.id === seleccionada?.prestamoId)
   const ejemplarEntregado = ejemplares.find((item) => item.id === (seleccionada?.ejemplarId ?? prestamo?.ejemplarId))
 
@@ -144,19 +144,25 @@ export default function Reservas({ reservas, usuarios, catalogo, ejemplares, pre
       {seleccionada.estado === 'APROBADA' && <>
         <p>Confirma cuando el alumno reciba físicamente el artículo. Se volverán a verificar sus condiciones de préstamo.</p>
         <button className="boton primario" type="button"
-          disabled={procesando || !operadorId || !seleccionada.fechaLimiteRetiro || Date.now() >= Date.parse(seleccionada.fechaLimiteRetiro)}
+          disabled={procesando || !operadorId || seleccionada.prestatarioId === operadorId
+            || !seleccionada.inicioReserva || ahora < Date.parse(seleccionada.inicioReserva)
+            || !seleccionada.fechaLimiteRetiro || ahora >= Date.parse(seleccionada.fechaLimiteRetiro)
+            || !seleccionada.finReserva || Date.parse(seleccionada.finReserva) - ahora < HORA}
           onClick={() => void decidir('entregar')}>{procesando ? 'Procesando…' : 'Confirmar entrega e iniciar préstamo'}</button>
+        <small>Disponible desde el inicio, dentro del plazo de recogida y con al menos una hora restante. No se permite la autoentrega.</small>
       </>}
       {seleccionada.estado === 'SOLICITADA' && <>
-        <p>{disponibles.length} ejemplares disponibles actualmente. El sistema elegirá una copia libre que no tenga otra reserva en ese horario.</p>
+        <p>El sistema comprobará la disponibilidad para el horario solicitado, no solo el estado actual de las copias.</p>
         <div className="aviso">La aprobación es manual. El préstamo comienza cuando la persona recoge el bien dentro de su horario.</div>
         <label>Motivo de denegación
           <textarea value={motivo} onChange={(e) => setMotivo(e.target.value)} disabled={procesando} rows={3} />
         </label>
         <div className="acciones">
-          <button className="boton primario" type="button" disabled={procesando || !operadorId || disponibles.length === 0}
+          <button className="boton primario" type="button" disabled={procesando || !operadorId
+            || seleccionada.prestatarioId === operadorId || !seleccionada.inicioReserva
+            || ahora > Date.parse(seleccionada.inicioReserva)}
             onClick={() => void decidir('aceptar')}>{procesando ? 'Procesando…' : 'Aprobar reserva'}</button>
-          <button className="boton secundario" type="button" disabled={procesando || !operadorId}
+          <button className="boton secundario" type="button" disabled={procesando || !operadorId || !motivo.trim()}
             onClick={() => void decidir('denegar')}>Denegar solicitud</button>
         </div>
       </>}

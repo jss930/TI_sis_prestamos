@@ -336,6 +336,20 @@ export default function App() {
   const paginaActual = soloCatalogo ? 'catalogo' : pagina
 
   function renderPagina() {
+    const permitido = paginaActual === 'catalogo'
+      || (paginaActual === 'mi-cuenta' && !!usuarioActual)
+      || (usuarioActual?.estado === 'VALIDADO' && (
+        ['mis-prestamos', 'mis-reservas'].includes(paginaActual)
+        || (paginaActual === 'resumen' && esPersonal)
+        || (paginaActual === 'personas' && (permisosActuales.includes('GESTIONAR_USUARIOS') || permisosActuales.includes('VALIDAR_USUARIO_PROVISIONAL')))
+        || (paginaActual === 'prestamos' && (permisosActuales.includes('REGISTRAR_PRESTAMO') || permisosActuales.includes('REGISTRAR_DEVOLUCION')))
+        || (paginaActual === 'prestamo-nuevo' && permisosActuales.includes('REGISTRAR_PRESTAMO'))
+        || (['reservas', 'administracion'].includes(paginaActual) && permisosActuales.includes('ADMINISTRAR_SISTEMA'))
+        || (paginaActual === 'sanciones' && permisosActuales.includes('GESTIONAR_SANCIONES'))
+        || (['catalogo-gestion', 'catalogo-nuevo', 'catalogo-editar', 'ejemplar-nuevo'].includes(paginaActual) && permisosActuales.includes('GESTIONAR_CATALOGO'))
+        || paginaActual === 'reserva-nueva'
+      ))
+    if (!permitido) return <div className="aviso" role="alert">No tienes permiso para esta pantalla. Usa el menú para continuar.</div>
     switch (paginaActual) {
       case 'resumen':
         return <Resumen datos={datos} irA={irA} permisos={permisosActuales} />
@@ -363,6 +377,8 @@ export default function App() {
             prestamos={misPrestamos}
             catalogo={datos.catalogo}
             ejemplares={datos.ejemplares}
+            perfil={usuarioActual?.perfil ?? 'ALUMNO'}
+            renovar={async (id, fin) => { await api.renovarPrestamo(id, fin); await cargarDatos(true) }}
           />
         )
       case 'catalogo':
@@ -409,6 +425,7 @@ export default function App() {
             reservas={datos.reservas}
             catalogo={datos.catalogo}
             usuarioId={usuarioActual?.id ?? null}
+            perfil={usuarioActual?.perfil ?? 'ALUMNO'}
             cancelarReserva={cancelarReserva}
             reprogramarReserva={async (id, inicio, fin) => { await api.reprogramarReserva(id, inicio, fin); await cargarDatos(true) }}
           />

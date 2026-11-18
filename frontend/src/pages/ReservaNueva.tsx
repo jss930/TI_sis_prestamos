@@ -4,21 +4,7 @@ import PageHeader from '../components/PageHeader'
 import type { CatalogoItem, LugarUso, PerfilPrestatario } from '../types'
 import { descripcionItem } from '../utils/format'
 import { imagenCatalogo } from '../utils/imagenesCatalogo'
-
-function valorLocal(fecha: Date) {
-  return new Date(fecha.getTime() - fecha.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
-}
-
-function siguienteCuartoDeHora() {
-  const fecha = new Date(Date.now() + 30 * 60 * 1000)
-  fecha.setMinutes(Math.ceil(fecha.getMinutes() / 15) * 15, 0, 0)
-  if (fecha.getHours() < 7) fecha.setHours(7, 0, 0, 0)
-  if (fecha.getHours() > 19 || (fecha.getHours() === 19 && fecha.getMinutes() > 0)) {
-    fecha.setDate(fecha.getDate() + 1)
-    fecha.setHours(7, 0, 0, 0)
-  }
-  return fecha
-}
+import { descripcionPlazo, finMaximo, HORA, instanteLima, siguienteInicioReserva, validarPlazo, valorLima } from '../utils/plazos'
 
 interface Props {
   itemId?: string
@@ -30,11 +16,11 @@ interface Props {
 export default function ReservaNueva({ itemId, catalogo, perfil, reservar }: Props) {
   const navegar = useNavigate()
   const item = catalogo.find((actual) => actual.id === itemId)
-  const inicioInicial = useMemo(siguienteCuartoDeHora, [])
+  const inicioInicial = useMemo(() => siguienteInicioReserva(), [])
   const [paso, setPaso] = useState(1)
   const [datos, setDatos] = useState({
-    inicio: valorLocal(inicioInicial),
-    fin: valorLocal(new Date(inicioInicial.getTime() + 60 * 60 * 1000)),
+    inicio: inicioInicial,
+    fin: valorLima(new Date(instanteLima(inicioInicial).getTime() + HORA)),
     lugar: 'EN_CAMPUS' as LugarUso,
   })
   const [error, setError] = useState<string | null>(null)
@@ -53,34 +39,25 @@ export default function ReservaNueva({ itemId, catalogo, perfil, reservar }: Pro
   }
 
   function cambiarInicio(inicio: string) {
-    const fechaInicio = new Date(inicio)
+    const fechaInicio = instanteLima(inicio)
     setDatos({
       ...datos,
       inicio,
       fin: Number.isNaN(fechaInicio.getTime())
         ? datos.fin
-        : valorLocal(new Date(fechaInicio.getTime() + 60 * 60 * 1000)),
+        : valorLima(new Date(fechaInicio.getTime() + HORA)),
     })
   }
 
   function validar() {
-    const inicio = new Date(datos.inicio)
-    const fin = new Date(datos.fin)
-    if (Number.isNaN(inicio.getTime()) || Number.isNaN(fin.getTime())) throw new Error('Selecciona un horario válido.')
-    if (inicio.getTime() < Date.now() + 30 * 60 * 1000) throw new Error('El inicio debe tener al menos 30 minutos de anticipación.')
-    if (fin <= inicio) throw new Error('La hora final debe ser posterior al inicio.')
-    if (fin.getTime() - inicio.getTime() < 60 * 60 * 1000) throw new Error('La reserva debe durar al menos una hora.')
-    if (fin.getTime() - inicio.getTime() > 24 * 60 * 60 * 1000) throw new Error('La reserva no puede durar más de 24 horas.')
-    if (datos.lugar === 'EN_CAMPUS' && inicio.toDateString() !== fin.toDateString()) throw new Error('Las reservas en campus deben iniciar y terminar el mismo día.')
-    for (const fecha of [inicio, fin]) {
-      const minutos = fecha.getHours() * 60 + fecha.getMinutes()
-      if (minutos < 7 * 60 || minutos > 20 * 60) throw new Error('El horario permitido es de 07:00 a 20:00.')
-    }
+    if (!item) return
+    validarPlazo(datos.inicio, datos.fin, datos.lugar, perfil, item.tipo)
+    if (instanteLima(datos.inicio).getTime() < Date.now() + HORA / 2) throw new Error('El inicio debe tener al menos 30 minutos de anticipación.')
   }
 
   async function enviar(evento: FormEvent) {
     evento.preventDefault()
-    if (!item) return
+    if (!item || enviando) return
     setError(null)
     try {
       validar()
@@ -94,8 +71,8 @@ export default function ReservaNueva({ itemId, catalogo, perfil, reservar }: Pro
         item.tipo === 'LIBRO' || (item.tipo === 'EQUIPO' && perfil !== 'ALUMNO')
           ? datos.lugar
           : 'EN_CAMPUS',
-        new Date(datos.inicio).toISOString(),
-        new Date(datos.fin).toISOString(),
+        instanteLima(datos.inicio).toISOString(),
+        instanteLima(datos.fin).toISOString(),
       )
       navegar('/mis-reservas', { replace: true, state: { mensaje: 'Reserva enviada correctamente.' } })
     } catch (excepcion) {
@@ -135,17 +112,21 @@ export default function ReservaNueva({ itemId, catalogo, perfil, reservar }: Pro
                 {detalles.length > 0 && <dl>{detalles.map(([etiqueta, valor]) => <div key={etiqueta}><dt>{etiqueta}</dt><dd>{valor}</dd></div>)}</dl>}
               </div>
             </article>
-            <div className="reglas-inline"><span>✓ 30 min de anticipación</span><span>✓ Mínimo 1 h</span><span>✓ Máximo 24 h</span></div>
+            <div className="reglas-inline"><span>✓ 30 min de anticipación</span><span>{descripcionPlazo(datos.lugar, perfil, item.tipo)}</span></div>
             <div className="campos dos">
               <label>Fecha y hora de inicio
-                <input type="datetime-local" required step="900" min={valorLocal(siguienteCuartoDeHora())} value={datos.inicio} onChange={(evento) => cambiarInicio(evento.target.value)} />
+                <input type="datetime-local" required step="900" min={siguienteInicioReserva()} value={datos.inicio} onChange={(evento) => cambiarInicio(evento.target.value)} />
               </label>
               <label>Fecha y hora final
-                <input type="datetime-local" required step="900" min={datos.inicio} value={datos.fin} onChange={(evento) => setDatos({ ...datos, fin: evento.target.value })} />
+                <input type="datetime-local" required step="900"
+                  min={datos.inicio ? valorLima(new Date(instanteLima(datos.inicio).getTime() + HORA)) : undefined}
+                  max={finMaximo(datos.inicio, datos.lugar, perfil, item.tipo) || undefined}
+                  value={datos.fin} onChange={(evento) => setDatos({ ...datos, fin: evento.target.value })} />
               </label>
               {item.tipo === 'LIBRO' || (item.tipo === 'EQUIPO' && perfil !== 'ALUMNO') ? (
                 <label>Lugar de uso
-                  <select value={datos.lugar} onChange={(evento) => setDatos({ ...datos, lugar: evento.target.value as LugarUso })}>
+                  <select value={datos.lugar} onChange={(evento) => setDatos({ ...datos, lugar: evento.target.value as LugarUso,
+                    fin: datos.inicio ? valorLima(new Date(instanteLima(datos.inicio).getTime() + HORA)) : '' })}>
                     <option value="EN_CAMPUS">En campus</option><option value="DOMICILIO">A domicilio</option>
                   </select>
                 </label>
@@ -158,13 +139,13 @@ export default function ReservaNueva({ itemId, catalogo, perfil, reservar }: Pro
             <h2>Revisa tu reserva</h2>
             <dl className="resumen-confirmacion">
               <div><dt>Título</dt><dd>{item.titulo}</dd></div>
-              <div><dt>Inicio</dt><dd>{new Date(datos.inicio).toLocaleString('es-PE')}</dd></div>
-              <div><dt>Fin</dt><dd>{new Date(datos.fin).toLocaleString('es-PE')}</dd></div>
+              <div><dt>Inicio (Lima)</dt><dd>{datos.inicio.replace('T', ' ')}</dd></div>
+              <div><dt>Fin (Lima)</dt><dd>{datos.fin.replace('T', ' ')}</dd></div>
               <div><dt>Uso</dt><dd>{datos.lugar === 'DOMICILIO' ? 'A domicilio' : 'En campus'}</dd></div>
             </dl>
             <div className="aviso">La administración revisará la solicitud y asignará una copia disponible.</div>
             <div className="acciones-finales">
-              <button className="boton terciario" type="button" onClick={() => setPaso(1)}>Editar horario</button>
+              <button className="boton terciario" type="button" disabled={enviando} onClick={() => setPaso(1)}>Editar horario</button>
               <button className="boton primario" disabled={enviando} type="submit">{enviando ? 'Enviando…' : 'Confirmar reserva'}</button>
             </div>
           </>
