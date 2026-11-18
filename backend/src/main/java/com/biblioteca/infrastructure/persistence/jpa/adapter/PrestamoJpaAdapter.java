@@ -99,7 +99,7 @@ public class PrestamoJpaAdapter implements PrestamoRepository {
         return entidad;
     }
 
-    private static Prestamo aDominio(PrestamoJpaEntity entidad) {
+    static Prestamo aDominio(PrestamoJpaEntity entidad) {
         return Prestamo.reconstruir(new PrestamoId(entidad.id),
                 new UsuarioId(entidad.operadorId), new UsuarioId(entidad.prestatarioId),
                 new EjemplarId(entidad.ejemplarId),

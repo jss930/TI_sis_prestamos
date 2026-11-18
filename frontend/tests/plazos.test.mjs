@@ -74,3 +74,13 @@ test('menú sintetizado conserva permisos y separa la actividad personal', async
   assert.ok(opcionesNavegacion(['REGISTRAR_DEVOLUCION'], true, false).includes('prestamos'))
   assert.ok(!admin.includes('administracion') && !admin.includes('mis-prestamos'))
 })
+
+test('períodos comprensibles y acumulación de páginas sin duplicados', async () => {
+  const source = await readFile(new URL('../src/utils/reportes.ts', import.meta.url), 'utf8')
+  const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 } })
+  const { descripcionPeriodo, unirRegistros } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`)
+  assert.equal(descripcionPeriodo(null, null), 'Todo el historial disponible')
+  assert.equal(descripcionPeriodo('2026-11-01', '2026-11-17'), 'Del 01/11/2026 al 17/11/2026 (incluidos)')
+  assert.equal(descripcionPeriodo(null, '2026-11-17'), 'Hasta el 17/11/2026 (incluido)')
+  assert.deepEqual(unirRegistros([{ id: 'a' }, { id: 'b' }], [{ id: 'b' }, { id: 'c' }]), [{ id: 'a' }, { id: 'b' }, { id: 'c' }])
+})

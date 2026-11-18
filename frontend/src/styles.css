@@ -202,3 +202,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .barra-lateral .cerrar { position: static; font-size: 12px; justify-content: flex-start; }
   .acceso-cuenta .usuario-datos { display: grid; }
 }
+.solo-imprimir { display: none; }
+@media print {
+  .solo-imprimir { display: block; }
+  .no-imprimir { display: none !important; }
+  body, .aplicacion { background: white !important; }
+  .reporte-imprimible td { vertical-align: top; }
+  .reporte-imprimible h2, .reporte-imprimible h3 { break-after: avoid; }
+}

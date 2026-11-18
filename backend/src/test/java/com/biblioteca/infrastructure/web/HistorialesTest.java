@@ -137,4 +137,66 @@ class HistorialesTest {
         mvc.perform(get(ejemplar(otraCopia)).header("Authorization", token(admin)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.reservas", hasSize(0)));
     }
+
+    @Test void paginacionRealTotalesYExportacionCompletaSinFiltrarOtraCuenta() throws Exception {
+        for (int i = 1; i <= 24; i++) {
+            var inicio = Fixtures.AHORA.minus(Duration.ofDays(i));
+            var fecha = LocalDate.ofInstant(inicio, ZoneId.of("America/Lima"));
+            var p = Prestamo.registrar(admin.id(), alumno.id(), copia.id(), new PeriodoPrestamo(fecha, fecha),
+                    LugarUso.EN_CAMPUS, inicio, inicio.plusSeconds(3600));
+            p.registrarDevolucion(fecha, inicio.plusSeconds(1800), EstadoFisico.DISPONIBLE);
+            prestamos.guardar(p);
+        }
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var ids = new java.util.HashSet<String>();
+        for (int pagina = 0; pagina < 3; pagina++) {
+            var respuesta = mvc.perform(get(usuario(alumno)).header("Authorization", token(alumno))
+                    .param("pagina", String.valueOf(pagina))).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.totalPrestamos").value(25))
+                    .andExpect(jsonPath("$.resumen.totalPrestamos").value(25))
+                    .andExpect(jsonPath("$.resumen.activos").value(1))
+                    .andExpect(jsonPath("$.prestamos", hasSize(pagina < 2 ? 10 : 5)))
+                    .andExpect(jsonPath("$.hayMas").value(pagina < 2)).andReturn();
+            var filas = mapper.readTree(respuesta.getResponse().getContentAsString()).get("prestamos");
+            for (var fila : filas) org.assertj.core.api.Assertions.assertThat(ids.add(fila.get("id").asText())).isTrue();
+        }
+        org.assertj.core.api.Assertions.assertThat(ids).hasSize(25);
+        mvc.perform(get(usuario(alumno)).header("Authorization", token(alumno)).param("completo", "true"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.prestamos", hasSize(25)))
+                .andExpect(jsonPath("$.hayMas").value(false));
+        mvc.perform(get("/api/v1/reportes/general").header("Authorization", token(admin)).param("estado", "DEVUELTO"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalPrestamos").value(24));
+    }
+
+    @Test void generalSoloAdministradorBusquedaYPaginacionValidada() throws Exception {
+        mvc.perform(get("/api/v1/reportes/general")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/v1/reportes/general").header("Authorization", token(alumno)))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/reportes/general").header("Authorization", token(admin)).param("busqueda", otro.email().value()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalPrestamos").value(1))
+                .andExpect(jsonPath("$.prestamos[0].prestatarioId").value(otro.id().value().toString()));
+        mvc.perform(get(usuario(alumno)).header("Authorization", token(alumno)).param("busqueda", otro.email().value()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalPrestamos").value(0));
+        mvc.perform(get("/api/v1/reportes/general").header("Authorization", token(admin)).param("busqueda", copia.barcode().value()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalPrestamos").value(1));
+        mvc.perform(get("/api/v1/reportes/general").header("Authorization", token(admin)).param("busqueda", "%"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalPrestamos").value(0));
+        for (String pagina : new String[] { "-1", "1000001" })
+            mvc.perform(get(usuario(alumno)).header("Authorization", token(alumno)).param("pagina", pagina))
+                    .andExpect(status().isBadRequest());
+        mvc.perform(get(usuario(alumno)).header("Authorization", token(alumno)).param("tamano", "51"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test void filtroDeFechaUsaElDiaDeLimaNoElDiaUtc() throws Exception {
+        prestamos.guardar(Prestamo.registrar(admin.id(), alumno.id(), copia.id(),
+                new PeriodoPrestamo(Fixtures.HOY, Fixtures.HOY), LugarUso.EN_CAMPUS,
+                Instant.parse("2026-10-21T00:00:00Z"), Instant.parse("2026-10-21T01:00:00Z")));
+        mvc.perform(get(usuario(alumno)).header("Authorization", token(alumno))
+                .param("desde", "2026-10-20").param("hasta", "2026-10-20"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalPrestamos").value(2));
+        mvc.perform(get(usuario(alumno)).header("Authorization", token(alumno))
+                .param("desde", "2026-10-21").param("hasta", "2026-10-21"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalPrestamos").value(0));
+    }
 }

@@ -25,19 +25,34 @@ public class ReporteController {
     public ConsultarHistorialUseCase.Historial usuario(@PathVariable UUID id,
             @RequestHeader(value = "Authorization", required = false) String token,
             @RequestParam(required = false) LocalDate desde, @RequestParam(required = false) LocalDate hasta,
-            @RequestParam(required = false) EstadoPrestamo estado) {
+            @RequestParam(required = false) EstadoPrestamo estado,
+            @RequestParam(defaultValue = "0") int pagina, @RequestParam(defaultValue = "10") int tamano,
+            @RequestParam(defaultValue = "false") boolean completo, @RequestParam(defaultValue = "") String busqueda) {
         var actor = acceso.actor(token);
         var usuarioId = new UsuarioId(id);
         acceso.exigirReporteUsuario(actor, usuarioId);
-        return consultar.porUsuario(usuarioId, desde, hasta, estado);
+        return consultar.porUsuario(usuarioId, desde, hasta, estado, pagina, tamano, completo, busqueda);
     }
 
     @GetMapping("/ejemplares/{id}")
     public ConsultarHistorialUseCase.Historial ejemplar(@PathVariable UUID id,
             @RequestHeader(value = "Authorization", required = false) String token,
             @RequestParam(required = false) LocalDate desde, @RequestParam(required = false) LocalDate hasta,
-            @RequestParam(required = false) EstadoPrestamo estado) {
+            @RequestParam(required = false) EstadoPrestamo estado,
+            @RequestParam(defaultValue = "0") int pagina, @RequestParam(defaultValue = "10") int tamano,
+            @RequestParam(defaultValue = "false") boolean completo, @RequestParam(defaultValue = "") String busqueda) {
         acceso.exigirAdministrador(acceso.actor(token));
-        return consultar.porEjemplar(new EjemplarId(id), desde, hasta, estado);
+        return consultar.porEjemplar(new EjemplarId(id), desde, hasta, estado, pagina, tamano, completo, busqueda);
+    }
+
+    @GetMapping("/general")
+    public ConsultarHistorialUseCase.Historial general(
+            @RequestHeader(value = "Authorization", required = false) String token,
+            @RequestParam(required = false) LocalDate desde, @RequestParam(required = false) LocalDate hasta,
+            @RequestParam(required = false) EstadoPrestamo estado,
+            @RequestParam(defaultValue = "0") int pagina, @RequestParam(defaultValue = "10") int tamano,
+            @RequestParam(defaultValue = "false") boolean completo, @RequestParam(defaultValue = "") String busqueda) {
+        acceso.exigirAdministrador(acceso.actor(token));
+        return consultar.general(desde, hasta, estado, pagina, tamano, completo, busqueda);
     }
 }
