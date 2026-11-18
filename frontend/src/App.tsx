@@ -343,6 +343,8 @@ export default function App() {
   const paginaActual = soloCatalogo ? 'catalogo' : pagina
 
   function renderPagina() {
+    const sancionesAbiertas = paginaActual === 'sanciones' || new URLSearchParams(location.search).get('vista') === 'sanciones'
+      || !permisosActuales.some((p) => ['GESTIONAR_USUARIOS', 'VALIDAR_USUARIO_PROVISIONAL', 'ADMINISTRAR_SISTEMA'].includes(p))
     const permitido = paginaActual === 'catalogo'
       || (paginaActual === 'mi-cuenta' && !!usuarioActual)
       || (usuarioActual?.estado === 'VALIDADO' && (
@@ -371,12 +373,11 @@ export default function App() {
           <>
           <nav className="pestanas no-imprimir" aria-label="Personas y sanciones">
             {permisosActuales.some((p) => ['GESTIONAR_USUARIOS', 'VALIDAR_USUARIO_PROVISIONAL', 'ADMINISTRAR_SISTEMA'].includes(p))
-              && <Link to="/personas" className={paginaActual !== 'sanciones' && new URLSearchParams(location.search).get('vista') !== 'sanciones' ? 'activa' : ''}>Personas</Link>}
+              && <Link to="/personas" aria-current={!sancionesAbiertas ? 'page' : undefined} className={!sancionesAbiertas ? 'activa' : ''}>Personas</Link>}
             {permisosActuales.some((p) => ['GESTIONAR_SANCIONES', 'ADMINISTRAR_SISTEMA'].includes(p))
-              && <Link to="/personas?vista=sanciones" className={paginaActual === 'sanciones' || new URLSearchParams(location.search).get('vista') === 'sanciones' ? 'activa' : ''}>Sanciones</Link>}
+              && <Link to="/personas?vista=sanciones" aria-current={sancionesAbiertas ? 'page' : undefined} className={sancionesAbiertas ? 'activa' : ''}>Sanciones</Link>}
           </nav>
-          {(paginaActual === 'sanciones' || new URLSearchParams(location.search).get('vista') === 'sanciones'
-            || !permisosActuales.some((p) => ['GESTIONAR_USUARIOS', 'VALIDAR_USUARIO_PROVISIONAL', 'ADMINISTRAR_SISTEMA'].includes(p)))
+          {sancionesAbiertas
             ? permisosActuales.some((p) => ['GESTIONAR_SANCIONES', 'ADMINISTRAR_SISTEMA'].includes(p))
               ? <Sanciones sanciones={datos.sanciones} usuarios={datos.usuarios} usuarioId={new URLSearchParams(location.search).get('usuario') ?? undefined} />
               : <div className="aviso">No tienes permiso para consultar sanciones.</div>
@@ -460,6 +461,7 @@ export default function App() {
             usuarios={datos.usuarios}
             catalogo={datos.catalogo}
             operadorId={permisosActuales.includes('ADMINISTRAR_SISTEMA') ? usuarioActual?.id ?? null : null}
+            puedeEntregar={permisosActuales.includes('REGISTRAR_PRESTAMO')}
             entregarSolicitud={async (id) => { await api.entregarSolicitud(id); await cargarDatos(true) }}
             aceptarReserva={aceptarReserva}
             denegarReserva={denegarReserva}

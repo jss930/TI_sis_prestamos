@@ -54,7 +54,8 @@ forman parte del CI existente sin modificar su workflow.
 
 ## Historial y reporte
 
-- Menú **Historial y reportes**: cada usuario validado consulta su propia cuenta.
+- **Mi actividad → Mi historial y reporte** para cuentas
+  personales, y **Reportes** para administradores (General, Por usuario, Por ejemplar).
 - Administrador: elige usuario o ejemplar en esa pantalla. También puede entrar
   desde **Personas → Ver historial**, o desde **Gestión del catálogo →
   Historial de ejemplares físicos**.
@@ -67,6 +68,11 @@ forman parte del CI existente sin modificar su workflow.
 API: `GET /api/v1/reportes/usuarios/{id}` (titular o administrador) y
 `GET /api/v1/reportes/ejemplares/{id}` (solo administrador). Parámetros opcionales:
 `desde=YYYY-MM-DD`, `hasta=YYYY-MM-DD`, `estado=ACTIVO|DEVUELTO|PERDIDO`.
+
+La API admite además `pagina`, `tamano`, `busqueda` y `completo`.
+La interfaz muestra diez registros por sección y acumula Ver 10 más.
+Imprimir solicita explícitamente `completo=true`, conservando el mismo filtro.
+Los indicadores no se calculan solo con la página visible.
 
 Se muestran préstamos, renovaciones acumuladas, entrega/vencimiento/devolución
 real, inspecciones, reservas y sanciones. El retraso del reporte usa instantes

@@ -74,15 +74,16 @@ public class DemoDataConfig {
                                              PasswordHasher passwordHasher,
                                              CatalogoItemRepository catalogo,
                                              EjemplarRepository ejemplares,
-                                             PrestamoRepository prestamos) {
+                                             PrestamoRepository prestamos, CargaDemoAmpliada ampliada) {
         return args -> {
             if (!usuarios.listarTodos().isEmpty()) {
                 log.info("Datos demo no cargados: la base ya contiene usuarios.");
+                ampliada.cargar();
                 return;
             }
 
             Instant ahora = Instant.now();
-            LocalDate hoy = LocalDate.now();
+            LocalDate hoy = LocalDate.now(java.time.ZoneId.of("America/Lima"));
 
             Usuario bibliotecario = Usuario.reconstruir(
                     new UsuarioId(BIBLIOTECARIO_ID),
@@ -195,13 +196,16 @@ public class DemoDataConfig {
                     bibliotecario.id(),
                     luis.id(),
                     libro2.id(),
-                    new PeriodoPrestamo(hoy.minusDays(10), hoy.minusDays(3)),
-                    LugarUso.EN_CAMPUS,
+                    new PeriodoPrestamo(hoy.minusDays(4), hoy.minusDays(1)),
+                    LugarUso.DOMICILIO,
                     EstadoPrestamo.ACTIVO,
                     null,
                     0,
                     "Prestamo vencido para demostrar la sancion automatica",
-                    ahora.minus(10, ChronoUnit.DAYS));
+                    ahora.minus(4, ChronoUnit.DAYS),
+                    hoy.minusDays(4).atTime(10, 0).atZone(java.time.ZoneId.of("America/Lima")).toInstant(),
+                    hoy.minusDays(1).atTime(10, 0).atZone(java.time.ZoneId.of("America/Lima")).toInstant(),
+                    null);
 
             prestamos.guardar(vencido);
 
@@ -231,6 +235,7 @@ public class DemoDataConfig {
                     docente.id().value(), libro.id().value(), laptop.id().value(),
                     libro1.id().value(), libro2.id().value(), laptop1.id().value(),
                     vencido.id().value());
+            ampliada.cargar();
         };
     }
 }
